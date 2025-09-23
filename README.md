@@ -74,33 +74,122 @@ This project is built on the shoulders of giants in the Rust ecosystem:
 
 ## 🏁 Getting Started
 
-> This project is a backend system. A client library will be provided for interaction. The conceptual flow is as follows:
+### Prerequisites
+- **Rust 1.70+** - For building from source
+- **Git** - For cloning the repository
 
-```rust
-// Conceptual client usage (library TBD)
-use hyra_scribe_client::Client;
+### Quick Start
 
-#[tokio::main]
-async fn main() {
-    // Connect to the Scribe Ledger network
-    let client = Client::connect("scribe-node-1.hyra.io:8080").await.unwrap();
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/hyra-network/Scribe-Ledger.git
+   cd Scribe-Ledger
+   ```
 
-    let key = "inference-task-0x123abc";
-    let large_ai_output = read_large_file("output.bin").await;
+2. **Build the project:**
+   ```bash
+   cargo build --release
+   ```
 
-    // Put the data into the ledger
-    match client.put(key, large_ai_output).await {
-        Ok(receipt) => {
-            println!("Data stored successfully!");
-            println!("Proof for on-chain commit: {}", receipt.merkle_proof());
-            // This proof can now be submitted to a Hyra AI smart contract
-        }
-        Err(e) => {
-            eprintln!("Failed to store data: {}", e);
-        }
-    }
-}
+3. **Run the server:**
+   ```bash
+   cargo run
+   ```
+
+The HTTP server will start on `http://localhost:8080` by default.
+
+### HTTP API Usage
+
+Scribe Ledger provides a simple HTTP API for storing and retrieving data:
+
+#### Store Data (PUT)
+```bash
+# Store a value
+curl -X PUT http://localhost:8080/my-key \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "my value data"
 ```
+
+#### Retrieve Data (GET)
+```bash
+# Get a value
+curl http://localhost:8080/my-key
+```
+
+### Configuration
+
+Create a `config.toml` file to customize settings:
+
+```toml
+[node]
+id = "node-1"
+data_dir = "./data"
+
+[network]
+listen_addr = "0.0.0.0"
+client_port = 8080
+
+[storage]
+s3_bucket = "scribe-ledger-dev"
+s3_region = "us-east-1"
+```
+
+### Development
+
+For development, use the provided development script:
+
+```bash
+# Development commands
+./dev.sh build    # Build the project
+./dev.sh test     # Run tests
+./dev.sh fmt      # Format code
+./dev.sh clippy   # Run lints
+```
+
+---
+
+## 📋 Current Features
+
+### ✅ Implemented
+- **HTTP API Server** - RESTful API for data storage and retrieval
+- **Local Storage** - Sled embedded database for persistent key-value storage
+- **Async Operations** - High-performance asynchronous I/O with Tokio
+- **Error Handling** - Comprehensive error types and handling
+- **Configuration System** - TOML-based configuration management
+- **Testing Suite** - Comprehensive unit and integration tests
+
+### 🚧 In Development
+- **S3 Integration** - Cold storage tier for durability
+- **Raft Consensus** - Distributed coordination and consistency
+- **Merkle Proofs** - Cryptographic verification of data integrity
+- **Write Node Clustering** - Multi-node distributed architecture
+- **Manifest Management** - Global metadata and segment tracking
+
+---
+
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test modules
+cargo test storage
+cargo test consensus
+cargo test crypto
+```
+
+The test suite includes:
+- Unit tests for core functionality
+- Integration tests for HTTP endpoints
+- Storage persistence tests
+- Configuration validation tests
+- Unicode and large data handling tests
 
 ---
 
