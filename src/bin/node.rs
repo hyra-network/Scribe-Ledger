@@ -29,6 +29,15 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
     
+    // Display ASCII art banner
+    println!(r#"
+╦ ╦╦ ╦╦═╗╔═╗  ╔═╗╔═╗╦═╗╦╔╗ ╔═╗  ╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗
+╠═╣╚╦╝╠╦╝╠═╣  ╚═╗║  ╠╦╝║╠╩╗║╣   ║  ║╣  ║║║ ╦║╣ ╠╦╝
+╩ ╩ ╩ ╩╚═╩ ╩  ╚═╝╚═╝╩╚═╩╚═╝╚═╝  ╩═╝╚═╝═╩╝╚═╝╚═╝╩╚═
+"#);
+    println!("🔗 Verifiable, Durable Off-Chain Storage for AI Ecosystem");
+    println!("📡 Node starting up...\n");
+    
     info!("Starting Scribe Ledger Node");
     info!("Config file: {}", cli.config);
     info!("Listen address: {}", cli.listen);
@@ -40,7 +49,13 @@ async fn main() -> Result<()> {
     });
     
     // Create and start the ledger
-    let ledger = ScribeLedger::new(config);
+    let ledger = match ScribeLedger::new(config) {
+        Ok(ledger) => ledger,
+        Err(e) => {
+            error!("Failed to create ledger: {}", e);
+            std::process::exit(1);
+        }
+    };
     
     if let Err(e) = ledger.start().await {
         error!("Failed to start ledger: {}", e);
