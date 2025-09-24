@@ -158,27 +158,36 @@ curl http://localhost:8003/cluster-test  # Should return same data
 
 ### E2E Testing Framework
 
-Run comprehensive end-to-end tests:
+Run comprehensive end-to-end and performance tests:
 
 ```bash
 # Install Python dependencies
-pip3 install requests asyncio
+pip3 install requests asyncio tabulate
+
+# Navigate to test directory
+cd tests/e2e
 
 # Run full E2E test suite
 python3 e2e_test.py
 
-# The framework will:
-# 1. Start MinIO server for S3 testing
-# 2. Launch 3-node cluster automatically
-# 3. Run comprehensive test scenarios:
-#    - Basic connectivity testing
-#    - Data replication validation  
-#    - Leader election verification
-#    - Node failure and recovery
-#    - Concurrent write testing
-# 4. Generate detailed test report
-# 5. Clean up all processes
+# Run performance benchmarks
+python3 benchmark.py
+
+# Run quick performance tests  
+python3 quick_perf.py
+
+# Run stress tests
+python3 stress_test.py
 ```
+
+**Testing Framework Features:**
+- **Functional Tests (`e2e_test.py`)**: Multi-node cluster functionality validation
+- **Performance Benchmarks (`benchmark.py`)**: Comprehensive read/write speed analysis
+- **Quick Performance (`quick_perf.py`)**: Fast performance check with tabular results
+- **Stress Testing (`stress_test.py`)**: High-load testing with concurrent operations
+- **Automatic Setup**: MinIO server and cluster management
+- **Detailed Reports**: Tabular results with latency percentiles and throughput metrics
+- **JSON Export**: Machine-readable benchmark results for analysis
 
 ### Configuration
 

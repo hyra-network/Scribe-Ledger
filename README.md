@@ -112,7 +112,18 @@ This project is built on the shoulders of giants in the Rust ecosystem:
 
 5. **Run E2E tests:**
    ```bash
+   # Run comprehensive E2E tests
+   cd tests/e2e
    python3 e2e_test.py
+   
+   # Run performance benchmarks
+   python3 benchmark.py
+   
+   # Run quick performance tests
+   python3 quick_perf.py
+   
+   # Run stress tests
+   python3 stress_test.py
    ```
 
 The HTTP server will start on `http://localhost:8080` by default.
@@ -174,7 +185,7 @@ Each node configuration includes cluster membership and consensus settings for a
 
 ### Development
 
-For development, use the provided development script:
+For development, use the provided development and testing scripts:
 
 ```bash
 # Development commands
@@ -182,6 +193,13 @@ For development, use the provided development script:
 ./dev.sh test     # Run tests
 ./dev.sh fmt      # Format code
 ./dev.sh clippy   # Run lints
+
+# Comprehensive testing
+./test_runner.sh unit           # Run unit tests only
+./test_runner.sh performance    # Run performance tests
+./test_runner.sh stress         # Run stress tests
+./test_runner.sh server         # Start server and run all performance tests
+./test_runner.sh all           # Run all tests (requires running server)
 ```
 
 ---
@@ -231,7 +249,8 @@ For development, use the provided development script:
 
 ## 🧪 Testing
 
-Run the comprehensive test suite:
+### Unit & Integration Tests
+Run the comprehensive Rust test suite:
 
 ```bash
 # Run all tests
@@ -246,6 +265,43 @@ cargo test consensus
 cargo test crypto
 ```
 
+### End-to-End & Performance Tests
+Navigate to the E2E testing directory:
+
+```bash
+cd tests/e2e
+```
+
+**Functional E2E Tests:**
+```bash
+# Multi-node cluster functionality
+python3 e2e_test.py
+```
+
+**Performance Benchmarks:**
+```bash
+# Comprehensive performance analysis
+python3 benchmark.py
+
+# Quick performance check
+python3 quick_perf.py
+
+# Stress testing under load
+python3 stress_test.py [server_url] [duration_seconds]
+```
+
+**Performance Test Examples:**
+```bash
+# Quick 30-second performance test
+python3 quick_perf.py
+
+# Full benchmark suite (15s per test)
+python3 benchmark.py
+
+# 60-second stress test with high concurrency
+python3 stress_test.py http://localhost:8080 60
+```
+
 The test suite includes:
 - **Unit tests** for core functionality (34 tests)
 - **Consensus tests** for Raft cluster behavior (3 tests)
@@ -253,8 +309,9 @@ The test suite includes:
 - **Storage tests** including S3 integration (7 S3-specific tests)
 - **Cryptographic tests** for Merkle tree verification (10 tests)
 - **E2E tests** for multi-node cluster scenarios
+- **Performance benchmarks** with detailed metrics and tabular results
+- **Stress tests** for high-load scenarios and system limits
 - **Configuration validation** and environment variable tests
-- **Performance tests** for large data handling and concurrent operations
 
 ---
 
