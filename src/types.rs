@@ -12,7 +12,7 @@ pub type Value = Vec<u8>;
 pub type Hash = [u8; 32];
 
 /// Node identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub Uuid);
 
 impl NodeId {
@@ -28,7 +28,7 @@ impl Default for NodeId {
 }
 
 /// Segment identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SegmentId(pub Uuid);
 
 impl SegmentId {

@@ -193,6 +193,53 @@ The setup automatically creates these buckets:
 - `scribe-ledger-test` - Testing bucket  
 - `scribe-ledger-prod` - Production-like bucket
 
+### Configuration Management
+
+Scribe Ledger supports flexible configuration through files and environment variables. Environment variables have the highest priority and will override file-based configuration.
+
+#### Supported Environment Variables
+
+**S3/MinIO Configuration:**
+```bash
+export SCRIBE_S3_BUCKET="my-custom-bucket"
+export SCRIBE_S3_REGION="us-west-2"
+export SCRIBE_S3_ENDPOINT="http://localhost:9000"  # For MinIO
+export SCRIBE_S3_ACCESS_KEY="your-access-key"
+export SCRIBE_S3_SECRET_KEY="your-secret-key"
+export SCRIBE_S3_PATH_STYLE="true"  # Required for MinIO
+```
+
+**Node Configuration:**
+```bash
+export SCRIBE_NODE_ID="custom-node-id"
+export SCRIBE_DATA_DIR="/custom/data/path"
+```
+
+**Network Configuration:**
+```bash
+export SCRIBE_LISTEN_ADDR="127.0.0.1"
+export SCRIBE_CLIENT_PORT="8080"
+export SCRIBE_CONSENSUS_PORT="8081"
+```
+
+#### Configuration Priority (Highest to Lowest)
+1. **Environment Variables** - `SCRIBE_*` prefixed variables
+2. **Configuration Files** - `config.toml`, `config-dev.toml`
+3. **Built-in Defaults** - Fallback values
+
+#### Example: Custom MinIO Setup
+```bash
+# Set custom MinIO configuration
+export SCRIBE_S3_ENDPOINT="http://my-minio:9000"
+export SCRIBE_S3_ACCESS_KEY="my-admin"
+export SCRIBE_S3_SECRET_KEY="my-password"
+export SCRIBE_S3_BUCKET="my-test-bucket"
+export SCRIBE_S3_PATH_STYLE="true"
+
+# Run with environment overrides
+cargo run --bin scribe-node
+```
+
 ## Architecture & Implementation Details
 
 ### Current Architecture
