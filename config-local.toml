@@ -1,0 +1,21 @@
+# Simple local configuration for testing
+[node]
+id = "test-node-1"
+data_dir = "./data_test"
+
+[network]
+listen_addr = "0.0.0.0"
+client_port = 8080
+
+[storage]
+buffer_size = 67108864  # 64MB
+segment_size_limit = 1073741824  # 1GB
+
+# Disable S3 for local testing
+# [storage.s3]
+# bucket = "test-bucket"
+
+[consensus]
+peers = []
+election_timeout_ms = 5000
+heartbeat_interval_ms = 1000

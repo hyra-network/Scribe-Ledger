@@ -12,7 +12,16 @@ Thumbs.db
 
 # Local data
 data/
+data_test/
 *.log
+
+# Benchmark results and test outputs
+tests/e2e/benchmark_*.json
+tests/e2e/*_results.json
+
+# MinIO data
+docker/minio/data/
+docker/minio/config/certs/
 
 # Environment
 .env
