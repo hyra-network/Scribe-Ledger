@@ -42,7 +42,8 @@ Scribe Ledger employs a multi-tiered, log-structured architecture inspired by hi
 
 - **Write Nodes (Ingestion Tier):** Entry point for all data. Each node runs a local instance of the Sled embedded database to buffer incoming writes in a crash-safe Write-Ahead Log (WAL) for immediate, low-latency acknowledgements.
 - **S3-Compatible Storage (Durable Tier):** Permanent, cold storage layer. Data is flushed from Write Nodes to S3 in the form of sorted, immutable files called Segments.
-- **Raft Consensus Cluster (Coordination Tier):** Fault-tolerant cluster managing global system metadata. Maintains the Manifest, a global index mapping which key ranges exist in which S3 Segments.
+- **Raft Consensus Cluster (Coordination Tier):** Fault-tolerant distributed cluster managing global system metadata and ensuring strong consistency across all nodes. Maintains the Manifest, a global index mapping which key ranges exist in which S3 Segments.
+- **Distributed Consensus Layer:** Multi-node Raft implementation providing leader election, log replication, and cluster membership management for high availability and fault tolerance.
 
 ### **Write Path**
 1. **Ingest & Local Commit:** Client sends a `put(key, value)` request to a Write Node, which commits it to its local Sled WAL and acknowledges the client.
@@ -92,9 +93,26 @@ This project is built on the shoulders of giants in the Rust ecosystem:
    cargo build --release
    ```
 
-3. **Run the server:**
+3. **Run a single node:**
    ```bash
-   cargo run
+   cargo run --bin scribe-node
+   ```
+
+4. **Run a 3-node cluster:**
+   ```bash
+   # Terminal 1 - Node 1 (Leader)
+   cargo run --bin scribe-node -- --config config-node1.toml
+   
+   # Terminal 2 - Node 2 (Follower)
+   cargo run --bin scribe-node -- --config config-node2.toml
+   
+   # Terminal 3 - Node 3 (Follower) 
+   cargo run --bin scribe-node -- --config config-node3.toml
+   ```
+
+5. **Run E2E tests:**
+   ```bash
+   python3 e2e_test.py
    ```
 
 The HTTP server will start on `http://localhost:8080` by default.
@@ -119,21 +137,40 @@ curl http://localhost:8080/my-key
 
 ### Configuration
 
+#### Single Node Configuration
 Create a `config.toml` file to customize settings:
 
 ```toml
 [node]
-id = "node-1"
+id = 1
+address = "127.0.0.1:8001"
 data_dir = "./data"
 
-[network]
-listen_addr = "0.0.0.0"
-client_port = 8080
-
 [storage]
-s3_bucket = "scribe-ledger-dev"
+segment_size = 1048576  # 1MB
+max_cache_size = 268435456  # 256MB
+s3_bucket = "scribe-ledger"
 s3_region = "us-east-1"
+s3_endpoint = "http://localhost:9000"  # MinIO for development
+
+[consensus]
+election_timeout = 10
+heartbeat_timeout = 3
+max_log_entries = 1000
+
+[network]
+listen_address = "127.0.0.1:8001"
+max_connections = 100
+request_timeout = 30
 ```
+
+#### Multi-Node Cluster Configuration
+For production deployments, use the provided cluster configuration files:
+- `config-node1.toml` - Primary leader node
+- `config-node2.toml` - Follower node
+- `config-node3.toml` - Follower node
+
+Each node configuration includes cluster membership and consensus settings for automatic discovery and leader election.
 
 ### Development
 
@@ -156,11 +193,16 @@ For development, use the provided development script:
 - **Local Storage** - Sled embedded database for persistent key-value storage (hot tier)
 - **S3 Cold Storage** - Complete S3-compatible storage with automatic flush and recovery
 - **Hybrid Architecture** - Multi-tier storage with local cache + durable S3 backend
+- **Distributed Consensus** - Raft-based multi-node cluster with leader election
+- **Cluster Management** - Dynamic node membership with join/leave operations
+- **Fault Tolerance** - Automatic failover and recovery from node failures
+- **Manifest Synchronization** - Distributed metadata management across cluster
 - **Async Operations** - High-performance asynchronous I/O with Tokio
 - **Error Handling** - Comprehensive error types and handling
 - **Configuration System** - Flexible TOML + environment variable configuration
 - **Environment Variable Support** - Complete runtime configuration via env vars
 - **MinIO Integration** - Full S3-compatible development environment
+- **E2E Testing Framework** - Python-based multi-node cluster testing
 - **Comprehensive Testing** - Unit, integration, and S3 workflow tests
 - **Merkle Trees** - Complete cryptographic proof generation and verification
 
@@ -172,11 +214,18 @@ For development, use the provided development script:
 - **Immutable Segments** - Readonly S3 objects ensuring data immutability
 - **Comprehensive Testing** - Full test suite for S3 integration workflows
 
-### 🚧 In Development
-- **Raft Consensus** - Distributed coordination and consistency
-- **Merkle Proofs** - Cryptographic verification of data integrity (✅ Implemented, pending integration)
-- **Write Node Clustering** - Multi-node distributed architecture
-- **Manifest Management** - Global metadata and segment tracking
+### 🎯 Advanced Features
+- **Merkle Tree Verification** - Complete cryptographic proof system for data integrity
+- **Distributed Consensus** - Production-ready Raft implementation with 3+ node clusters  
+- **Cluster Orchestration** - Automated leader election, log replication, and state management
+- **Network Transport** - HTTP-based inter-node communication with retry logic
+- **State Machine Replication** - Consistent manifest updates across all cluster nodes
+
+### 🚧 Future Enhancements
+- **Multi-Region Support** - Cross-region data replication and disaster recovery
+- **Advanced Monitoring** - Metrics, alerts, and observability dashboards
+- **Security Hardening** - Authentication, authorization, and encryption at rest
+- **Performance Optimization** - Log compaction, batch operations, and caching improvements
 
 ---
 
@@ -198,11 +247,14 @@ cargo test crypto
 ```
 
 The test suite includes:
-- Unit tests for core functionality
-- Integration tests for HTTP endpoints
-- Storage persistence tests
-- Configuration validation tests
-- Unicode and large data handling tests
+- **Unit tests** for core functionality (34 tests)
+- **Consensus tests** for Raft cluster behavior (3 tests)
+- **Integration tests** for HTTP endpoints
+- **Storage tests** including S3 integration (7 S3-specific tests)
+- **Cryptographic tests** for Merkle tree verification (10 tests)
+- **E2E tests** for multi-node cluster scenarios
+- **Configuration validation** and environment variable tests
+- **Performance tests** for large data handling and concurrent operations
 
 ---
 

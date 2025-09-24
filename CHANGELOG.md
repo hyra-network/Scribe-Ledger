@@ -7,7 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [0.3.0] - 2025-09-24
+
+### Added - Phase 3: Distributed Consensus
+- **Raft Consensus Implementation**: Complete Raft-based distributed consensus using raft-rs 0.7
+  - ConsensusNode with leader election and log replication
+  - NetworkTransport trait for cluster communication
+  - ClusterMessage system for inter-node messaging
+  - Peer management with add/remove node operations
+- **Enhanced Manifest Management**: Distributed cluster state management
+  - ClusterManifest with cluster-wide metadata tracking
+  - ClusterNode representation with status tracking (Active/Inactive/Joining/Leaving)
+  - ManifestManager with membership management capabilities
+- **Multi-Node Cluster Support**: Production-ready 3-node cluster configuration
+  - Individual node configuration files (config-node1.toml, config-node2.toml, config-node3.toml)
+  - Cluster membership management with automatic discovery
+  - Fault tolerance with automatic failover and recovery
+- **E2E Testing Framework**: Comprehensive Python-based testing infrastructure
+  - Multi-node cluster test scenarios
+  - Data replication validation across nodes
+  - Leader election and failover testing
+  - Node failure and recovery simulation
+  - Concurrent write testing with multiple clients
+- **Network Transport Layer**: HTTP-based inter-node communication foundation
+  - HttpTransport implementation for cluster messaging
+  - Retry logic and failure handling capabilities
+  - Message serialization and routing infrastructure
+
+### Enhanced
+- **S3 Integration**: Complete immutable storage with MinIO compatibility
+  - Automatic background flush to S3-compatible storage
+  - Data recovery from S3 on node startup
+  - Read-through cache for seamless data access
+  - Immutable segment design ensuring data durability
+- **Testing Infrastructure**: Expanded test coverage (34 unit tests, 3 consensus tests)
+  - Comprehensive consensus behavior validation
+  - Multi-node integration testing capabilities
+  - Performance testing for concurrent operations
+  - S3 storage integration testing (7 S3-specific tests)
+- **Configuration System**: Enhanced multi-node configuration support
+  - Consensus timing parameters (election_timeout, heartbeat_timeout)
+  - Cluster membership configuration with initial peer discovery
+  - Network configuration for inter-node communication
+  - Storage configuration for distributed S3 access
+
+### Technical Improvements
+- **Dependencies**: Added production-grade distributed systems libraries
+  - `raft = "0.7"` - Battle-tested Raft consensus implementation
+  - `slog` ecosystem - Structured logging for distributed systems
+  - `async-trait = "0.1"` - Async trait support for network interfaces
+  - `reqwest = "0.11"` - HTTP client for inter-node communication
+- **Architecture**: Distributed system design patterns
+  - Leader-follower cluster topology
+  - State machine replication for consistent metadata
+  - Asynchronous message passing between nodes
+  - Graceful degradation under node failures
+
+### Fixed
+- Resolved compilation issues with Raft message serialization
+- Fixed ClusterNode field naming consistency (id vs node_id)
+- Corrected timestamp handling in cluster node metadata
+- Improved error handling in consensus operations
+
+## [0.2.1] - 2025-09-23
+
+### Added - Phase 2: S3 Integration  
+- **Complete S3 Storage Backend**: Full S3-compatible storage implementation
+  - S3Storage struct with comprehensive CRUD operations
+  - MinIO development environment support
+  - Immutable segment-based data organization
+  - Automatic retry logic and error handling
+- **Hybrid Storage Architecture**: Multi-tier storage system  
+  - Hot tier: Sled embedded database for low-latency access
+  - Cold tier: S3-compatible storage for durability
+  - Background flush mechanism for seamless data migration
+  - Read-through cache for transparent data access
+- **Data Recovery System**: Robust data recovery from S3
+  - Automatic recovery of data on node restart
+  - Segment-based recovery with manifest validation
+  - Comprehensive error handling and logging
+- **Configuration Enhancements**: Advanced configuration options
+  - S3 endpoint configuration for MinIO compatibility
+  - Environment variable support with precedence over TOML
+  - Storage-specific settings (segment size, flush intervals)
+  - AWS credentials and region configuration
+
+### Added - Phase 1 Continued
 - HTTP API server with PUT/GET endpoints for key-value operations
 - Comprehensive test suite with unit and integration tests
 - Configuration system with TOML support and environment variable overrides
@@ -17,9 +102,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error handling with proper HTTP status code mapping
 
 ### Changed
-- Updated README.md with current implementation status and HTTP API documentation
-- Enhanced DEVELOPMENT.md with testing strategies and troubleshooting guide
-- Refactored project structure to focus on server-side functionality
+- Updated README.md with distributed consensus architecture
+- Enhanced DEVELOPMENT.md with cluster setup and E2E testing instructions
+- Refactored project structure for distributed systems support
 
 ## [0.2.0] - 2025-09-23
 

@@ -1,0 +1,38 @@
+# Node 1 Configuration - Primary Leader
+[node]
+id = 1
+address = "127.0.0.1:8001"
+data_dir = "./data/node1"
+
+[storage]
+# Local storage settings
+segment_size = 1048576  # 1MB
+max_cache_size = 268435456  # 256MB
+
+# S3 settings for distributed storage
+s3_bucket = "scribe-ledger-cluster"
+s3_region = "us-east-1"
+s3_endpoint = "http://localhost:9000"  # MinIO
+s3_access_key = "minioadmin"
+s3_secret_key = "minioadmin"
+
+[consensus]
+election_timeout = 10
+heartbeat_timeout = 3
+max_log_entries = 1000
+
+# Initial cluster members
+cluster_members = [
+    { id = 1, address = "127.0.0.1:8001" },
+    { id = 2, address = "127.0.0.1:8002" },
+    { id = 3, address = "127.0.0.1:8003" }
+]
+
+[network]
+listen_address = "127.0.0.1:8001"
+max_connections = 100
+request_timeout = 30
+
+[logging]
+level = "info"
+output = "stdout"
