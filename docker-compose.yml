@@ -1,0 +1,46 @@
+# Docker Compose for Scribe Ledger MinIO Development
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: scribe-minio
+    ports:
+      - "9000:9000"      # MinIO API port
+      - "9001:9001"      # MinIO Console port
+    environment:
+      # Default credentials for development
+      MINIO_ROOT_USER: scribe-admin
+      MINIO_ROOT_PASSWORD: scribe-password-123
+      # Console configuration
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    volumes:
+      - minio_data:/data
+      - ./docker/minio/config:/root/.minio
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - scribe-network
+
+  # MinIO Client for bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: scribe-minio-init
+    depends_on:
+      - minio
+    volumes:
+      - ./docker/minio/init:/init
+    entrypoint: /init/setup-buckets.sh
+    networks:
+      - scribe-network
+
+volumes:
+  minio_data:
+    driver: local
+
+networks:
+  scribe-network:
+    driver: bridge

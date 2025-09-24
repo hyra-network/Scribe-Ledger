@@ -1,0 +1,28 @@
+[node]
+id = "dev-node-1"
+data_dir = "./data"
+
+[network]
+listen_addr = "0.0.0.0"
+client_port = 8080
+consensus_port = 8081
+
+[storage]
+# MinIO S3-compatible storage configuration
+s3_endpoint = "http://localhost:9000"
+s3_bucket = "scribe-ledger-dev"
+s3_region = "us-east-1"  # MinIO doesn't require real region
+s3_access_key = "scribe-admin"
+s3_secret_key = "scribe-password-123"
+s3_path_style = true  # Required for MinIO
+buffer_size = 67108864  # 64MB
+segment_size_limit = 1073741824  # 1GB
+
+[consensus]
+peers = []
+election_timeout_ms = 5000
+heartbeat_interval_ms = 1000
+
+[logging]
+level = "debug"
+format = "pretty"

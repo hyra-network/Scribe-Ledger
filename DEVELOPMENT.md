@@ -139,7 +139,7 @@ election_timeout_ms = 5000
 heartbeat_interval_ms = 1000
 ```
 
-#### Configuration Override
+##### Configuration Override
 ```bash
 # Use custom config file
 SCRIBE_CONFIG=./custom-config.toml cargo run
@@ -147,6 +147,51 @@ SCRIBE_CONFIG=./custom-config.toml cargo run
 # Override specific values via environment
 SCRIBE_NODE_DATA_DIR=/tmp/scribe-data cargo run
 ```
+
+### S3-Compatible Storage with MinIO
+
+For development, we use MinIO as an S3-compatible storage backend. This allows us to develop and test S3 integration features locally without requiring AWS credentials.
+
+#### MinIO Setup
+```bash
+# Start MinIO and create buckets
+./dev.sh start-minio
+
+# Check MinIO status
+./dev.sh minio-status
+
+# Stop MinIO
+./dev.sh stop-minio
+
+# View MinIO logs
+./dev.sh minio-logs
+
+# Reset all MinIO data (destructive)
+./dev.sh minio-reset
+```
+
+#### MinIO Access
+- **Console UI**: http://localhost:9001
+- **S3 API Endpoint**: http://localhost:9000
+- **Username**: `scribe-admin`
+- **Password**: `scribe-password-123`
+
+#### Development with MinIO
+```bash
+# Run Scribe Ledger with MinIO configuration
+./dev.sh run-dev
+
+# This automatically:
+# 1. Starts MinIO if not running
+# 2. Uses config-dev.toml with MinIO settings
+# 3. Enables debug logging
+```
+
+#### MinIO Buckets
+The setup automatically creates these buckets:
+- `scribe-ledger-dev` - Development bucket
+- `scribe-ledger-test` - Testing bucket  
+- `scribe-ledger-prod` - Production-like bucket
 
 ## Architecture & Implementation Details
 
@@ -234,11 +279,14 @@ cargo test --test integration
 
 ### Future Development Roadmap
 
-#### Phase 2: S3 Integration
-- [ ] Implement S3 storage backend
+#### Phase 2: S3 Integration 🚧
+- [x] Set up MinIO for local S3-compatible development
+- [x] Configure Docker Compose for development environment
+- [x] Create development configuration with MinIO endpoints
+- [ ] Implement S3 storage backend in Rust code
 - [ ] Add segment-based storage architecture
 - [ ] Implement background flush operations
-- [ ] Add S3 configuration and credentials handling
+- [ ] Add production AWS S3 configuration
 
 #### Phase 3: Consensus Layer
 - [ ] Implement Raft consensus cluster
