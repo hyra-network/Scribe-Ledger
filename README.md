@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hyra-network/Scribe-Ledger/main/assets/logo.png" alt="Hyra Scribe Ledger Logo" width="200"/>
+  <img width="1024" height="1024" alt="co_image_1_" src="https://github.com/user-attachments/assets/cc1bf6f4-7884-4653-950a-62cc9ee9cb2c" />
+
 </p>
 
 # Hyra Scribe Ledger
