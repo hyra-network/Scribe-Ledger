@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     
     info!("Starting Scribe Ledger Node");
     info!("Config file: {}", cli.config);
-    info!("Listen address: {}", cli.listen);
+    println!("Listen address: {}", cli.listen);
     
     // Load configuration
     let config = Config::from_file(&cli.config).unwrap_or_else(|_| {
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     });
     
     // Create and start the ledger
-    let ledger = match ScribeLedger::new(config) {
+    let ledger = match ScribeLedger::new(config).await {
         Ok(ledger) => ledger,
         Err(e) => {
             error!("Failed to create ledger: {}", e);

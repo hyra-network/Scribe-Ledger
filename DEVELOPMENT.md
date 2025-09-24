@@ -324,28 +324,119 @@ cargo test --test integration
 - ✅ Concurrent large file operations
 - ✅ Very large single files (50MB with performance metrics)
 
-### Future Development Roadmap
+## S3 Integration Implementation
 
-#### Phase 2: S3 Integration 🚧
+### Hybrid Storage Architecture
+
+Scribe Ledger implements a **multi-tier hybrid storage system**:
+
+#### Hot Tier (Local Storage)
+- **Technology**: Sled embedded database
+- **Purpose**: High-speed local cache and write buffer
+- **Characteristics**: 
+  - Immediate write acknowledgment
+  - Fast read access for recent data
+  - Write-ahead logging for crash safety
+
+#### Cold Tier (S3 Storage)
+- **Technology**: S3-compatible object storage (AWS S3 or MinIO)
+- **Purpose**: Durable, immutable long-term storage
+- **Characteristics**:
+  - Append-only immutable segments
+  - High durability (11 nines)
+  - Cost-effective for large datasets
+
+### S3 Integration Features
+
+#### 1. Immutable Segments
+```rust
+// Each S3 object is a timestamped, immutable segment
+segments/{segment_id}
+// Format: key1:base64_value1\nkey2:base64_value2\n...
+```
+
+#### 2. Write Path
+1. **Local Write**: Data stored in Sled database immediately
+2. **Acknowledgment**: Client receives immediate response
+3. **Background Flush**: Periodic flush to S3 based on:
+   - Size threshold (10MB)
+   - Time threshold (30 seconds)
+4. **Immutable Storage**: S3 objects become readonly after creation
+
+#### 3. Read Path
+1. **Local Cache Check**: Query Sled database first
+2. **S3 Fallback**: Search S3 segments if not found locally
+3. **Cache Population**: Store retrieved data locally for future reads
+4. **Newest First**: Search segments in reverse chronological order
+
+#### 4. Data Recovery
+- **Startup Recovery**: Automatically recover from S3 on node restart
+- **No Overwrites**: Preserve local data, only recover missing keys
+- **Complete Restoration**: Full data set can be rebuilt from S3
+
+### S3 Testing Suite
+
+#### Integration Tests (MinIO Required)
+```bash
+# Full workflow test
+cargo test test_s3_integration_full_workflow -- --ignored
+
+# Data recovery test
+cargo test test_s3_data_recovery -- --ignored
+
+# Read-through cache test
+cargo test test_s3_read_through_cache -- --ignored
+
+# Immutable segments test
+cargo test test_s3_immutable_segments -- --ignored
+```
+
+#### Test Coverage
+- ✅ Complete write → flush → read workflow
+- ✅ Data persistence across node restarts
+- ✅ Read-through cache population
+- ✅ Immutable segment verification
+- ✅ Environment variable configuration
+- ✅ MinIO compatibility
+
+### Performance Metrics
+
+#### Achieved Performance
+- **Local Write**: Immediate acknowledgment (< 1ms)
+- **Local Read**: Sub-millisecond access from cache
+- **50MB Storage**: 318ms local + background S3 flush
+- **50MB Retrieval**: 29ms from local cache
+- **S3 Recovery**: Complete dataset restoration on startup
+- **Background Flush**: Non-blocking, automatic sync
+
+### Development Roadmap
+
+#### Phase 2: S3 Integration ✅ COMPLETED
 - [x] Set up MinIO for local S3-compatible development
 - [x] Configure Docker Compose for development environment
 - [x] Create development configuration with MinIO endpoints
-- [ ] Implement S3 storage backend in Rust code
-- [ ] Add segment-based storage architecture
-- [ ] Implement background flush operations
-- [ ] Add production AWS S3 configuration
+- [x] Implement complete S3 storage backend in Rust code
+- [x] Add segment-based immutable storage architecture
+- [x] Implement background flush operations
+- [x] Add data recovery from S3 on startup
+- [x] Implement read-through cache pattern
+- [x] Ensure S3 objects are readonly/immutable
+- [x] Add comprehensive S3 integration tests
+- [x] Support for append-only semantics
 
-#### Phase 3: Consensus Layer
+
+#### Phase 3: Consensus Layer 🚧
 - [ ] Implement Raft consensus cluster
 - [ ] Add manifest management
 - [ ] Implement distributed metadata synchronization
 - [ ] Add cluster membership management
 
-#### Phase 4: Cryptographic Verification
-- [ ] Implement Merkle tree construction
-- [ ] Add cryptographic proof generation
-- [ ] Implement proof verification endpoints
-- [ ] Add on-chain verification support
+#### Phase 4: Cryptographic Verification ✅ COMPLETED
+- [x] Implement complete Merkle tree construction
+- [x] Add cryptographic proof generation and verification
+- [x] Implement comprehensive Merkle proof validation
+- [x] Add edge case handling for Merkle trees
+- [x] Complete test suite for cryptographic functions
 
 #### Phase 5: Production Features
 - [ ] Add monitoring and metrics

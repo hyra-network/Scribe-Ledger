@@ -13,6 +13,7 @@ use crate::storage::StorageBackend;
 // Re-export from config module
 pub use crate::config::S3StorageConfig as S3Config;
 
+#[derive(Clone)]
 pub struct S3Storage {
     client: Client,
     bucket: String,

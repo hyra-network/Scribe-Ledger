@@ -153,16 +153,28 @@ For development, use the provided development script:
 
 ### ✅ Implemented
 - **HTTP API Server** - RESTful API for data storage and retrieval
-- **Local Storage** - Sled embedded database for persistent key-value storage
+- **Local Storage** - Sled embedded database for persistent key-value storage (hot tier)
+- **S3 Cold Storage** - Complete S3-compatible storage with automatic flush and recovery
+- **Hybrid Architecture** - Multi-tier storage with local cache + durable S3 backend
 - **Async Operations** - High-performance asynchronous I/O with Tokio
 - **Error Handling** - Comprehensive error types and handling
-- **Configuration System** - TOML-based configuration management
-- **Testing Suite** - Comprehensive unit and integration tests
+- **Configuration System** - Flexible TOML + environment variable configuration
+- **Environment Variable Support** - Complete runtime configuration via env vars
+- **MinIO Integration** - Full S3-compatible development environment
+- **Comprehensive Testing** - Unit, integration, and S3 workflow tests
+- **Merkle Trees** - Complete cryptographic proof generation and verification
+
+### ✅ Phase 2 Complete: S3 Integration
+- **S3 Cold Storage** - Complete S3-compatible storage integration with MinIO support
+- **Data Recovery** - Automatic data recovery from S3 on startup
+- **Read-through Cache** - Seamless data retrieval from S3 when not in local cache
+- **Background Flush** - Automatic periodic flushing of data to S3
+- **Immutable Segments** - Readonly S3 objects ensuring data immutability
+- **Comprehensive Testing** - Full test suite for S3 integration workflows
 
 ### 🚧 In Development
-- **S3 Integration** - Cold storage tier for durability
 - **Raft Consensus** - Distributed coordination and consistency
-- **Merkle Proofs** - Cryptographic verification of data integrity
+- **Merkle Proofs** - Cryptographic verification of data integrity (✅ Implemented, pending integration)
 - **Write Node Clustering** - Multi-node distributed architecture
 - **Manifest Management** - Global metadata and segment tracking
 
