@@ -81,11 +81,11 @@ pub struct NetworkConfig {
     /// Listen address for the node
     pub listen_addr: String,
     
-    /// Client API port
+    /// Client API port (HTTP)
     pub client_port: u16,
     
-    /// Consensus port for Raft communication
-    pub consensus_port: u16,
+    /// Raft TCP port for consensus communication
+    pub raft_tcp_port: u16,
 }
 
 impl Default for Config {
@@ -115,7 +115,7 @@ impl Default for Config {
             network: NetworkConfig {
                 listen_addr: "0.0.0.0".to_string(),
                 client_port: 8080,
-                consensus_port: 8081,
+                raft_tcp_port: 8081,
             },
         }
     }
@@ -182,9 +182,9 @@ impl Config {
                 self.network.client_port = port;
             }
         }
-        if let Ok(consensus_port) = std::env::var("SCRIBE_CONSENSUS_PORT") {
-            if let Ok(port) = consensus_port.parse::<u16>() {
-                self.network.consensus_port = port;
+        if let Ok(raft_tcp_port) = std::env::var("SCRIBE_RAFT_TCP_PORT") {
+            if let Ok(port) = raft_tcp_port.parse::<u16>() {
+                self.network.raft_tcp_port = port;
             }
         }
     }
@@ -198,5 +198,73 @@ impl Config {
             .map_err(|e| ScribeError::Config(format!("Failed to write config file: {}", e)))?;
         
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tcp_port_separation() {
+        let config_content = r#"
+[node]
+id = "test-node"
+data_dir = "./test-data"
+
+[network]
+listen_addr = "127.0.0.1"
+client_port = 8080
+raft_tcp_port = 8081
+
+[storage]
+buffer_size = 1048576
+segment_size_limit = 10485760
+
+[storage.s3]
+bucket = "test-bucket"
+region = "us-east-1"
+
+[consensus]
+peers = []
+election_timeout_ms = 5000
+heartbeat_interval_ms = 1000
+"#;
+
+        let config: Config = toml::from_str(config_content).unwrap();
+        
+        // Verify TCP port separation
+        assert_eq!(config.network.client_port, 8080);
+        assert_eq!(config.network.raft_tcp_port, 8081);
+        assert_eq!(config.network.listen_addr, "127.0.0.1");
+        
+        // Verify other fields are correctly parsed
+        assert_eq!(config.node.id, "test-node");
+        assert_eq!(config.storage.s3.bucket, "test-bucket");
+    }
+
+    #[test]
+    fn test_environment_variable_override_tcp_port() {
+        use std::env;
+        
+        // Set environment variable for TCP port
+        env::set_var("SCRIBE_RAFT_TCP_PORT", "9999");
+        
+        let config = Config::load_with_env();
+        
+        assert_eq!(config.network.raft_tcp_port, 9999);
+        
+        // Clean up
+        env::remove_var("SCRIBE_RAFT_TCP_PORT");
+    }
+
+    #[test]
+    fn test_default_configuration() {
+        let config = Config::default();
+        
+        // Verify default TCP port values
+        assert_eq!(config.network.client_port, 8080);
+        assert_eq!(config.network.raft_tcp_port, 8081);
+        assert_eq!(config.network.listen_addr, "0.0.0.0");
     }
 }

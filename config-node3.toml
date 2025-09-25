@@ -1,37 +1,29 @@
 # Node 3 Configuration - Follower
 [node]
-id = 3
-address = "127.0.0.1:8003"
+id = "node-3"
 data_dir = "./data/node3"
 
 [storage]
-# Local storage settings
-segment_size = 1048576  # 1MB
-max_cache_size = 268435456  # 256MB
+buffer_size = 67108864  # 64MB
+segment_size_limit = 1073741824  # 1GB
 
-# S3 settings for distributed storage
-s3_bucket = "scribe-ledger-cluster"
-s3_region = "us-east-1"
-s3_endpoint = "http://localhost:9000"  # MinIO
-s3_access_key = "minioadmin"
-s3_secret_key = "minioadmin"
+[storage.s3]
+bucket = "scribe-ledger-cluster"
+region = "us-east-1"
+endpoint = "http://localhost:9000"  # MinIO
+access_key = "minioadmin"
+secret_key = "minioadmin"
+path_style = true  # Use path-style for MinIO
 
 [consensus]
-election_timeout = 10
-heartbeat_timeout = 3
-max_log_entries = 1000
-
-# Initial cluster members
-cluster_members = [
-    { id = 1, address = "127.0.0.1:8001" },
-    { id = 2, address = "127.0.0.1:8002" },
-    { id = 3, address = "127.0.0.1:8003" }
-]
+peers = ["127.0.0.1:8081", "127.0.0.1:8082", "127.0.0.1:8083"]
+election_timeout_ms = 5000
+heartbeat_interval_ms = 1000
 
 [network]
-listen_address = "127.0.0.1:8003"
-max_connections = 100
-request_timeout = 30
+listen_addr = "127.0.0.1"
+client_port = 8100
+raft_tcp_port = 8083
 
 [logging]
 level = "info"

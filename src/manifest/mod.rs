@@ -1,5 +1,5 @@
 /// Manifest management for tracking segment metadata
-use crate::types::{Manifest, SegmentMetadata, KeyRange, SegmentId};
+use crate::types::{SegmentMetadata, KeyRange, SegmentId};
 use crate::error::{Result, ScribeError};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};

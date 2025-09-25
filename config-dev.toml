@@ -5,7 +5,7 @@ data_dir = "./data"
 [network]
 listen_addr = "0.0.0.0"
 client_port = 8080
-consensus_port = 8081
+raft_tcp_port = 8081
 
 [storage]
 buffer_size = 67108864  # 64MB

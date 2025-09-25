@@ -6,13 +6,15 @@ Hyra Scribe Ledger is a distributed, immutable, append-only key-value storage sy
 
 ## Current Implementation Status
 
-### ✅ Phase 3: Distributed Consensus (COMPLETE)
+### ✅ Phase 3: Advanced Distributed Consensus (COMPLETE)
 - **Raft Consensus**: Production-ready multi-node cluster with leader election
-- **Cluster Management**: Dynamic node membership with join/leave operations
-- **Fault Tolerance**: Automatic failover and recovery from node failures
+- **Advanced Cluster Management**: Dynamic node membership with join/leave operations
+- **TCP Server**: Dedicated TCP server for high-performance Raft protocol communication
+- **Cluster Discovery**: Auto-discovery service for dynamic node joining and health monitoring
+- **Fault Tolerance**: Automatic failover and recovery from node failures with leadership transfer
+- **Network Transport**: Dual-protocol support (HTTP + TCP) with connection pooling and retry logic
 - **Manifest Synchronization**: Distributed metadata management across cluster
-- **Network Transport**: HTTP-based inter-node communication
-- **E2E Testing**: Comprehensive Python-based multi-node testing framework
+- **E2E Testing**: Comprehensive Python-based multi-node testing framework with performance benchmarks
 
 ### ✅ Phase 2: S3 Integration (COMPLETE)
 - **S3 Cold Storage**: Complete S3-compatible storage with MinIO support
@@ -200,7 +202,8 @@ data_dir = "./data"
 
 [network]
 listen_addr = "0.0.0.0"
-client_port = 8080
+client_port = 8080          # HTTP API port for client requests
+raft_tcp_port = 8081        # Dedicated TCP port for Raft consensus
 
 [storage]
 s3_bucket = "scribe-ledger-dev"
@@ -381,17 +384,69 @@ The current implementation provides a complete distributed system with these com
 
 ### Consensus Layer Architecture
 
-#### Raft Implementation
+#### Advanced Raft Implementation
 - **Leader Election**: Automatic leader selection using Raft algorithm
 - **Log Replication**: Consistent state replication across all nodes
 - **Fault Tolerance**: Cluster remains operational with majority of nodes
-- **Network Transport**: HTTP-based inter-node communication
+- **Dual Transport**: HTTP + dedicated TCP server for optimal performance
+- **Connection Pooling**: Efficient connection management with retry logic
 
-#### Cluster Management
-- **Dynamic Membership**: Add/remove nodes from active cluster
-- **Health Monitoring**: Continuous monitoring of node availability
-- **Failover**: Automatic leader re-election on failure
-- **State Synchronization**: Consistent manifest updates across cluster
+#### Advanced Cluster Management
+- **Dynamic Membership**: Join/leave operations with leadership transfer
+- **Cluster Discovery**: Auto-discovery service for new nodes
+- **Health Monitoring**: Heartbeat-based node health tracking
+- **State Management**: Comprehensive node lifecycle (Joining → Active → Leaving → Failed)
+- **Graceful Operations**: Proper cleanup during node removal
+
+#### Network Architecture
+
+**Dual-Port Design:**
+```
+┌─────────────────────────────────┐
+│           Node Process          │
+├─────────────────────────────────┤
+│ HTTP API Server  │ TCP Server   │
+│ Port: 8080       │ Port: 8081   │
+│ (Client API)     │ (Raft Only)  │
+├──────────────────┼──────────────┤
+│ • GET/PUT data   │ • Log entries│
+│ • Health checks  │ • Heartbeats │
+│ • Status queries │ • Elections  │
+│ • JSON responses │ • Binary msgs│
+└──────────────────┴──────────────┘
+```
+
+**Port Separation Benefits:**
+- **Performance**: TCP server optimized for Raft protocol efficiency
+- **Security**: Separate Raft traffic from client API traffic
+- **Scalability**: Independent tuning of client vs consensus communication
+- **Monitoring**: Clear separation for network traffic analysis
+
+#### Network Architecture
+```
+TCP Server (Port 8001)     HTTP API (Port 8001)
+┌─────────────────┐        ┌─────────────────┐
+│ Raft Messages   │        │ Client Requests │
+│ Heartbeats      │◄──────►│ Cluster API     │
+│ Join/Leave      │        │ Data Operations │
+│ Discovery       │        │ Health Checks   │
+└─────────────────┘        └─────────────────┘
+         ▲                           ▲
+         │                           │
+    ┌────▼────┐                 ┌────▼────┐
+    │ TCP     │                 │ HTTP    │
+    │Transport│                 │Transport│
+    └─────────┘                 └─────────┘
+         ▲                           ▲
+         └───────────┬───────────────┘
+                     │
+            ┌────────▼────────┐
+            │ ConsensusNode   │
+            │ - Raft Engine   │
+            │ - Cluster State │
+            │ - Discovery     │
+            └─────────────────┘
+```
 
 ### Key Components
 
@@ -420,6 +475,51 @@ The current implementation provides a complete distributed system with these com
 - **Propagation**: Proper error propagation through Result types
 - **HTTP Mapping**: Clean mapping to HTTP status codes
 - **Debugging**: Detailed error messages for development
+
+#### 5. Advanced Consensus (`consensus/mod.rs`)
+- **Raft Engine**: Complete Raft consensus implementation with leader election
+- **TCP Transport**: Dedicated TCP server for high-performance Raft communication
+- **HTTP Transport**: Fallback HTTP transport for compatibility
+- **Connection Management**: Connection pooling with retry logic and health monitoring
+- **Message Types**: Comprehensive message system for cluster operations
+
+#### 6. Cluster Discovery (`discovery.rs`)
+- **Auto-Discovery**: Automatic service discovery for dynamic cluster formation
+- **Health Monitoring**: Continuous health checking with configurable intervals
+- **Membership Management**: Join/leave operations with proper state transitions
+- **Service Registry**: Maintain registry of active cluster nodes with metadata
+- **Failure Detection**: Detect and handle node failures gracefully
+
+### Cluster Discovery Architecture
+
+The cluster discovery service enables dynamic cluster formation and management:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   New Node      │    │  Discovery      │    │  Cluster Node   │
+│                 │    │  Service        │    │  (Existing)     │
+├─────────────────┤    ├─────────────────┤    ├─────────────────┤
+│ 1. Broadcast    │───►│ 2. Receive      │    │ 4. Join         │
+│    Discovery    │    │    Request      │    │    Request      │
+│                 │    │                 │    │                 │
+│ 6. Join         │◄───│ 3. Find Leader  │───►│ 5. Process      │
+│    Response     │    │    & Members    │    │    Request      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+#### Discovery Process Flow
+1. **New Node Startup**: Node starts and initiates discovery process
+2. **Broadcast Discovery**: Send discovery messages to known endpoints
+3. **Receive Responses**: Collect responses from active cluster members
+4. **Leader Identification**: Identify current cluster leader
+5. **Join Request**: Send formal join request to cluster leader
+6. **Cluster Integration**: Become active cluster member after approval
+
+#### Health Monitoring System
+- **Heartbeat Protocol**: Regular heartbeat messages between nodes
+- **Failure Detection**: Configurable timeout-based failure detection
+- **Status Tracking**: Track node states (Joining, Active, Leaving, Failed)
+- **Automatic Cleanup**: Remove failed nodes from cluster membership
 
 ### Testing Strategy
 

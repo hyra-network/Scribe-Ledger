@@ -1,6 +1,6 @@
 /// Cluster discovery and membership management
-use crate::error::{Result, ScribeError};
-use crate::consensus::{ClusterMessage, ClusterNodeState, NodeState};
+use crate::error::Result;
+use crate::consensus::{ClusterNodeState, NodeState};
 use crate::manifest::ClusterNode;
 use std::collections::HashMap;
 use std::sync::Arc;

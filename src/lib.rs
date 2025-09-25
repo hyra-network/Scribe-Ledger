@@ -39,7 +39,7 @@ use base64::{Engine, engine::general_purpose};
 
 /// Represents a segment of data to be flushed to S3
 #[derive(Debug, Clone)]
-struct PendingSegment {
+pub struct PendingSegment {
     data: HashMap<String, Vec<u8>>,
     timestamp: u64,
     size: usize,

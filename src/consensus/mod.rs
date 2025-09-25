@@ -9,7 +9,7 @@ use tokio::sync::{RwLock, Mutex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use serde::{Serialize, Deserialize};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 
 /// Messages exchanged between cluster nodes
@@ -291,7 +291,6 @@ pub struct ConsensusNode {
     cluster_state: Arc<RwLock<HashMap<u64, ClusterNodeState>>>,
     is_leader: Arc<RwLock<bool>>,
     tcp_server_handle: Option<tokio::task::JoinHandle<()>>,
-    last_heartbeat_time: Arc<RwLock<Instant>>,
 }
 
 impl ConsensusNode {
@@ -335,7 +334,6 @@ impl ConsensusNode {
             cluster_state: Arc::new(RwLock::new(HashMap::new())),
             is_leader: Arc::new(RwLock::new(false)),
             tcp_server_handle: None,
-            last_heartbeat_time: Arc::new(RwLock::new(Instant::now())),
         })
     }
 
@@ -923,19 +921,20 @@ mod tests {
     #[tokio::test]
     async fn test_consensus_node_creation() {
         let transport = Arc::new(MockTransport);
-        let node = ConsensusNode::new(1, "127.0.0.1:8001".to_string(), transport);
+        let node = ConsensusNode::new(1, "127.0.0.1".to_string(), 8001, transport);
         assert!(node.is_ok());
         
         let node = node.unwrap();
         assert_eq!(node.node_id(), 1);
-        assert_eq!(node.address(), "127.0.0.1:8001");
+        assert_eq!(node.address(), "127.0.0.1");
+        assert_eq!(node.tcp_port, 8001);
         assert!(!node.is_raft_leader()); // Initially not leader
     }
     
     #[tokio::test]
     async fn test_cluster_initialization() {
         let transport = Arc::new(MockTransport);
-        let mut node = ConsensusNode::new(1, "127.0.0.1:8001".to_string(), transport).unwrap();
+        let mut node = ConsensusNode::new(1, "127.0.0.1".to_string(), 8001, transport).unwrap();
         
         let initial_nodes = vec![
             ClusterNode {
@@ -966,7 +965,10 @@ mod tests {
     #[tokio::test]
     async fn test_peer_management() {
         let transport = Arc::new(MockTransport);
-        let mut node = ConsensusNode::new(1, "127.0.0.1:8001".to_string(), transport).unwrap();
+        let mut node = ConsensusNode::new(1, "127.0.0.1".to_string(), 8001, transport).unwrap();
+        
+        // Make node a leader for testing
+        *node.is_leader.write().await = true;
         
         let new_peer = ClusterNode {
             id: 3,

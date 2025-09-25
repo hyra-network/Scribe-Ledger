@@ -24,4 +24,4 @@ heartbeat_interval_ms = 1000
 [network]
 listen_addr = "0.0.0.0"
 client_port = 8080
-consensus_port = 8081
+raft_tcp_port = 8081

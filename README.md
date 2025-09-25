@@ -42,8 +42,9 @@ Scribe Ledger employs a multi-tiered, log-structured architecture inspired by hi
 
 - **Write Nodes (Ingestion Tier):** Entry point for all data. Each node runs a local instance of the Sled embedded database to buffer incoming writes in a crash-safe Write-Ahead Log (WAL) for immediate, low-latency acknowledgements.
 - **S3-Compatible Storage (Durable Tier):** Permanent, cold storage layer. Data is flushed from Write Nodes to S3 in the form of sorted, immutable files called Segments.
-- **Raft Consensus Cluster (Coordination Tier):** Fault-tolerant distributed cluster managing global system metadata and ensuring strong consistency across all nodes. Maintains the Manifest, a global index mapping which key ranges exist in which S3 Segments.
-- **Distributed Consensus Layer:** Multi-node Raft implementation providing leader election, log replication, and cluster membership management for high availability and fault tolerance.
+- **Advanced Raft Consensus Cluster (Coordination Tier):** Fault-tolerant distributed cluster with sophisticated membership management, auto-discovery, and dual-transport architecture (HTTP + TCP) for optimal performance.
+- **Cluster Discovery Service:** Dynamic node discovery and health monitoring system enabling automatic cluster formation and membership management.
+- **Distributed Consensus Layer:** Production-ready multi-node Raft implementation with leader election, log replication, join/leave operations, and comprehensive failure handling.
 
 ### **Write Path**
 1. **Ingest & Local Commit:** Client sends a `put(key, value)` request to a Write Node, which commits it to its local Sled WAL and acknowledges the client.
@@ -170,18 +171,22 @@ heartbeat_timeout = 3
 max_log_entries = 1000
 
 [network]
-listen_address = "127.0.0.1:8001"
-max_connections = 100
-request_timeout = 30
+listen_addr = "127.0.0.1"
+client_port = 8080          # HTTP API port for client requests
+raft_tcp_port = 8081        # Dedicated TCP port for Raft consensus
 ```
 
 #### Multi-Node Cluster Configuration
 For production deployments, use the provided cluster configuration files:
-- `config-node1.toml` - Primary leader node
-- `config-node2.toml` - Follower node
-- `config-node3.toml` - Follower node
+- `config-node1.toml` - Primary leader node (HTTP: 8080, Raft TCP: 8081)
+- `config-node2.toml` - Follower node (HTTP: 8090, Raft TCP: 8082)
+- `config-node3.toml` - Follower node (HTTP: 8100, Raft TCP: 8083)
 
-Each node configuration includes cluster membership and consensus settings for automatic discovery and leader election.
+Each node configuration includes:
+- **Separate ports**: HTTP API port for client communication and dedicated TCP port for Raft consensus
+- **Cluster membership**: Peer discovery and automatic leader election
+- **S3 integration**: Shared MinIO/S3 storage for distributed persistence
+- **Health monitoring**: Heartbeat and failure detection mechanisms
 
 ### Development
 
@@ -211,10 +216,11 @@ For development, use the provided development and testing scripts:
 - **Local Storage** - Sled embedded database for persistent key-value storage (hot tier)
 - **S3 Cold Storage** - Complete S3-compatible storage with automatic flush and recovery
 - **Hybrid Architecture** - Multi-tier storage with local cache + durable S3 backend
-- **Distributed Consensus** - Raft-based multi-node cluster with leader election
-- **Cluster Management** - Dynamic node membership with join/leave operations
-- **Fault Tolerance** - Automatic failover and recovery from node failures
-- **Manifest Synchronization** - Distributed metadata management across cluster
+- **Advanced Distributed Consensus** - Production-ready Raft cluster with TCP + HTTP dual transport
+- **Dynamic Cluster Management** - Join/leave operations with leadership transfer and auto-discovery
+- **Cluster Discovery Service** - Automatic node discovery and health monitoring
+- **Fault Tolerance** - Comprehensive failure handling with graceful node recovery
+- **Manifest Synchronization** - Distributed metadata management with strong consistency
 - **Async Operations** - High-performance asynchronous I/O with Tokio
 - **Error Handling** - Comprehensive error types and handling
 - **Configuration System** - Flexible TOML + environment variable configuration
@@ -234,10 +240,12 @@ For development, use the provided development and testing scripts:
 
 ### 🎯 Advanced Features
 - **Merkle Tree Verification** - Complete cryptographic proof system for data integrity
-- **Distributed Consensus** - Production-ready Raft implementation with 3+ node clusters  
-- **Cluster Orchestration** - Automated leader election, log replication, and state management
-- **Network Transport** - HTTP-based inter-node communication with retry logic
-- **State Machine Replication** - Consistent manifest updates across all cluster nodes
+- **Production-Ready Consensus** - Advanced Raft implementation with TCP server and connection pooling
+- **Sophisticated Cluster Management** - Join/leave operations, leadership transfer, and graceful node handling
+- **Dual Transport Architecture** - HTTP API + dedicated TCP server for optimal Raft performance
+- **Auto-Discovery System** - Dynamic cluster formation with health monitoring and failure detection
+- **Connection Management** - Connection pooling, retry logic, and comprehensive error handling
+- **State Machine Replication** - Consistent manifest updates with distributed consensus guarantees
 
 ### 🚧 Future Enhancements
 - **Multi-Region Support** - Cross-region data replication and disaster recovery
