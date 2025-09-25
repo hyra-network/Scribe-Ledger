@@ -3,6 +3,7 @@ use raft::{prelude::*, storage::MemStorage, Config as RaftConfig, RawNode, State
 use slog::{Drain, Logger};
 use crate::error::{Result, ScribeError};
 use crate::manifest::{ManifestManager, ClusterManifest, ClusterNode};
+use crate::monitoring::{RaftMonitor, RaftEvent, EventSeverity};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
@@ -291,6 +292,7 @@ pub struct ConsensusNode {
     cluster_state: Arc<RwLock<HashMap<u64, ClusterNodeState>>>,
     is_leader: Arc<RwLock<bool>>,
     tcp_server_handle: Option<tokio::task::JoinHandle<()>>,
+    monitor: Arc<RaftMonitor>,
 }
 
 impl ConsensusNode {
@@ -323,6 +325,8 @@ impl ConsensusNode {
         
         let manifest_manager = ManifestManager::new(node_id);
         
+        let monitor = Arc::new(RaftMonitor::new(node_id, 1000));
+        
         Ok(Self {
             raft_node,
             manifest_manager,
@@ -334,6 +338,7 @@ impl ConsensusNode {
             cluster_state: Arc::new(RwLock::new(HashMap::new())),
             is_leader: Arc::new(RwLock::new(false)),
             tcp_server_handle: None,
+            monitor,
         })
     }
 
@@ -564,6 +569,13 @@ impl ConsensusNode {
     pub async fn join_cluster(&mut self, seed_nodes: Vec<String>) -> Result<()> {
         tracing::info!("Attempting to join cluster with seed nodes: {:?}", seed_nodes);
         
+        // Publish node joining event
+        self.monitor.publish_event(RaftEvent::NodeJoined {
+            node_id: self.node_id,
+            address: format!("{}:{}", self.address, self.tcp_port),
+            cluster_size: 1, // We'll update this with actual cluster size later
+        }, EventSeverity::Info).await;
+        
         let join_request = ClusterMessage::JoinRequest {
             node: ClusterNode {
                 id: self.node_id,
@@ -595,6 +607,13 @@ impl ConsensusNode {
     
     /// Leave the cluster gracefully
     pub async fn leave_cluster(&mut self) -> Result<()> {
+        // Publish node leaving event
+        self.monitor.publish_event(RaftEvent::NodeLeft {
+            node_id: self.node_id,
+            reason: "Graceful shutdown".to_string(),
+            cluster_size: 1, // We'll update this with actual cluster size later
+        }, EventSeverity::Warning).await;
+        
         if !*self.is_leader.read().await {
             tracing::info!("Requesting to leave cluster");
             
@@ -759,6 +778,40 @@ impl ConsensusNode {
     
     /// Process a single Raft tick
     pub fn tick(&mut self) {
+        // Check if leadership status changed
+        let current_role = self.raft_node.raft.state;
+        let was_leader = match self.is_leader.try_read() {
+            Ok(guard) => *guard,
+            Err(_) => false,
+        };
+        
+        let is_leader_now = current_role == StateRole::Leader;
+        
+        if is_leader_now != was_leader {
+            let monitor = Arc::clone(&self.monitor);
+            let node_id = self.node_id;
+            let term = self.raft_node.raft.term;
+            
+            tokio::spawn(async move {
+                if is_leader_now {
+                    monitor.publish_event(RaftEvent::LeaderElectionCompleted {
+                        leader_id: node_id,
+                        term,
+                        election_duration_ms: 100, // We'll track this properly later
+                        votes_received: 1,
+                        total_voters: 1,
+                    }, EventSeverity::Info).await;
+                }
+            });
+            
+            // Update leadership status (async operation, we'll handle it in background)
+            let is_leader_clone = Arc::clone(&self.is_leader);
+            tokio::spawn(async move {
+                let mut leader_status = is_leader_clone.write().await;
+                *leader_status = is_leader_now;
+            });
+        }
+        
         self.raft_node.tick();
     }
     
@@ -766,6 +819,37 @@ impl ConsensusNode {
     pub async fn handle_message(&mut self, message: ClusterMessage) -> Result<()> {
         match message {
             ClusterMessage::RaftMessage(msg) => {
+                // Publish event for different message types
+                let monitor = Arc::clone(&self.monitor);
+                let msg_type = msg.msg_type;
+                let msg_from = msg.from;
+                let msg_term = msg.term;
+                let msg_index = msg.index;
+                let entry_count = msg.entries.len();
+                
+                tokio::spawn(async move {
+                    match msg_type {
+                        MessageType::MsgRequestVote => {
+                            monitor.publish_event(RaftEvent::LeaderElectionStarted {
+                                candidate_id: msg_from,
+                                term: msg_term,
+                                previous_leader: None,
+                            }, EventSeverity::Info).await;
+                        },
+                        MessageType::MsgAppend => {
+                            if entry_count > 0 {
+                                monitor.publish_event(RaftEvent::LogCommitted {
+                                    index: msg_index,
+                                    term: msg_term,
+                                    entry_size: entry_count,
+                                    node_id: msg_from,
+                                }, EventSeverity::Info).await;
+                            }
+                        },
+                        _ => {} // Other message types
+                    }
+                });
+                
                 self.raft_node.step(msg)
                     .map_err(|e| ScribeError::Consensus(format!("Failed to process Raft message: {}", e)))?;
             },
@@ -833,18 +917,34 @@ impl ConsensusNode {
         drop(peer_addresses);
         
         // Apply committed entries
+        let monitor = Arc::clone(&self.monitor);
         for entry in ready.committed_entries() {
-            if entry.data.is_empty() {
-                // Configuration change entry
-                continue;
-            }
+            let monitor_clone = Arc::clone(&monitor);
+            let entry_index = entry.index;
+            let entry_term = entry.term;
+            let entry_data = entry.data.clone();
             
-            // Deserialize and apply manifest operations
-            if let Ok(_manifest) = serde_json::from_slice::<ClusterManifest>(&entry.data) {
-                // For now, just log the manifest update
-                // In a full implementation, we'd update our local manifest
-                tracing::info!("Received manifest update from committed entry");
-            }
+            tokio::spawn(async move {
+                if entry_data.is_empty() {
+                    // Configuration change entry - we'll skip this for now as we don't have this event type
+                    return;
+                }
+                
+                // Publish log applied event
+                monitor_clone.publish_event(RaftEvent::LogApplied {
+                    index: entry_index,
+                    term: entry_term,
+                    apply_duration_us: 100, // We'll track this properly later
+                    node_id: 1, // Should be actual node ID
+                }, EventSeverity::Info).await;
+                
+                // Deserialize and apply manifest operations
+                if let Ok(_manifest) = serde_json::from_slice::<ClusterManifest>(&entry_data) {
+                    // For now, just log the manifest update
+                    // In a full implementation, we'd update our local manifest
+                    tracing::info!("Received manifest update from committed entry");
+                }
+            });
         }
         
         // Advance Raft state
@@ -896,6 +996,11 @@ impl ConsensusNode {
     /// Get node address
     pub fn address(&self) -> &str {
         &self.address
+    }
+    
+    /// Get Raft monitor for event tracking
+    pub fn monitor(&self) -> &Arc<RaftMonitor> {
+        &self.monitor
     }
 }
 

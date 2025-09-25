@@ -7,6 +7,7 @@
 
 pub mod consensus;
 pub mod manifest;
+pub mod monitoring;
 pub mod storage;
 pub mod write_node;
 pub mod discovery;
@@ -29,12 +30,17 @@ use bytes::Bytes;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, State, WebSocketUpgrade, ws::{WebSocket, Message}},
     http::StatusCode,
+    response::{Json, Response},
     routing::{get, put},
     Router,
 };
+use serde_json::{json, Value};
+use tokio::sync::broadcast;
 use crate::storage::{StorageBackend, s3::S3Storage};
+use crate::consensus::ConsensusNode;
+use crate::consensus::TcpTransport;
 use base64::{Engine, engine::general_purpose};
 
 /// Represents a segment of data to be flushed to S3
@@ -52,6 +58,7 @@ pub struct ScribeLedger {
     s3_storage: Option<S3Storage>,
     pending_flush: Arc<Mutex<PendingSegment>>,
     last_flush_time: Arc<Mutex<u64>>,
+    consensus_node: Option<Arc<Mutex<ConsensusNode>>>,
 }
 
 impl ScribeLedger {
@@ -75,12 +82,23 @@ impl ScribeLedger {
         
         let last_flush_time = Arc::new(Mutex::new(current_timestamp()));
         
+        // Initialize consensus node
+        let transport = Arc::new(TcpTransport::new());
+        let consensus_node = ConsensusNode::new(
+            1, // Node ID - should be configurable
+            config.network.listen_addr.clone(),
+            config.network.raft_tcp_port,
+            transport,
+        )?;
+        let consensus_node = Some(Arc::new(Mutex::new(consensus_node)));
+        
         let mut ledger = Self { 
             db, 
             config, 
             s3_storage,
             pending_flush,
             last_flush_time,
+            consensus_node,
         };
         
         // Recover data from S3 on startup
@@ -111,6 +129,7 @@ impl ScribeLedger {
             s3_storage: None,
             pending_flush,
             last_flush_time,
+            consensus_node: None, // No consensus in local-only mode
         })
     }
 
@@ -203,9 +222,20 @@ impl ScribeLedger {
             )?;
         }
         
+        // Start consensus node TCP server if available
+        if let Some(consensus_node) = &ledger.consensus_node {
+            let mut node = consensus_node.lock().await;
+            node.start_tcp_server().await?;
+            tracing::info!("Raft consensus node started on TCP port {}", node.address());
+        }
+        
         let app = Router::new()
             .route("/:key", put(put_handler))
             .route("/:key", get(get_handler))
+            .route("/raft/status", get(raft_status_handler))
+            .route("/raft/metrics", get(raft_metrics_handler))
+            .route("/raft/events", get(raft_events_handler))
+            .route("/raft/live", get(raft_live_handler))
             .with_state(ledger);
         
         tracing::info!("ScribeLedger HTTP server running on {} with S3 integration", addr);
@@ -372,6 +402,165 @@ async fn get_handler(
         Ok(Some(value)) => Ok(value),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+/// Get current Raft status
+async fn raft_status_handler(
+    State(ledger): State<Arc<ScribeLedger>>,
+) -> std::result::Result<Json<Value>, StatusCode> {
+    if let Some(consensus_node) = &ledger.consensus_node {
+        let node = consensus_node.lock().await;
+        let status = json!({
+            "node_id": node.node_id(),
+            "address": node.address(),
+            "is_leader": node.is_raft_leader(),
+            "status": "active"
+        });
+        Ok(Json(status))
+    } else {
+        Err(StatusCode::SERVICE_UNAVAILABLE)
+    }
+}
+
+/// Get Raft performance metrics
+async fn raft_metrics_handler(
+    State(ledger): State<Arc<ScribeLedger>>,
+) -> std::result::Result<Json<Value>, StatusCode> {
+    if let Some(consensus_node) = &ledger.consensus_node {
+        let node = consensus_node.lock().await;
+        let monitor = node.monitor();
+    let metrics = monitor.get_current_metrics().await;
+        
+        let response = json!({
+            "node_id": metrics.node_id,
+            "current_term": metrics.current_term,
+            "leader_id": metrics.leader_id,
+            "is_leader": metrics.is_leader,
+            "commit_index": metrics.commit_index,
+            "last_applied": metrics.last_applied,
+            "avg_apply_latency_us": metrics.avg_apply_latency_us,
+            "heartbeat_success_rate": metrics.heartbeat_success_rate,
+            "messages_sent_per_sec": metrics.messages_sent_per_sec,
+            "messages_received_per_sec": metrics.messages_received_per_sec,
+            "timestamp": metrics.timestamp
+        });
+        Ok(Json(response))
+    } else {
+        Err(StatusCode::SERVICE_UNAVAILABLE)
+    }
+}
+
+/// Get recent Raft events
+async fn raft_events_handler(
+    State(ledger): State<Arc<ScribeLedger>>,
+) -> std::result::Result<Json<Value>, StatusCode> {
+    if let Some(consensus_node) = &ledger.consensus_node {
+        let node = consensus_node.lock().await;
+        let monitor = node.monitor();
+        let events = monitor.get_recent_events(50).await; // Get last 50 events
+        
+        let response = json!({
+            "events": events,
+            "count": events.len()
+        });
+        Ok(Json(response))
+    } else {
+        Err(StatusCode::SERVICE_UNAVAILABLE)
+    }
+}
+
+/// WebSocket endpoint for real-time Raft events
+async fn raft_live_handler(
+    ws: WebSocketUpgrade,
+    State(ledger): State<Arc<ScribeLedger>>,
+) -> Response {
+    ws.on_upgrade(|socket| handle_websocket(socket, ledger))
+}
+
+/// Handle WebSocket connection for real-time events
+async fn handle_websocket(mut socket: WebSocket, ledger: Arc<ScribeLedger>) {
+    if let Some(consensus_node) = &ledger.consensus_node {
+        let node = consensus_node.lock().await;
+        let monitor = node.monitor();
+        let mut receiver = monitor.subscribe();
+        drop(node); // Release lock
+        
+        // Send initial status
+        let status_msg = json!({
+            "type": "status",
+            "message": "Connected to Raft monitoring"
+        });
+        if socket.send(Message::Text(status_msg.to_string())).await.is_err() {
+            return;
+        }
+        
+        // Listen for events and forward to WebSocket
+        let mut heartbeat_interval = interval(Duration::from_secs(30));
+        
+        loop {
+            tokio::select! {
+                // Receive monitoring events
+                event_result = receiver.recv() => {
+                    match event_result {
+                        Ok(event) => {
+                            let msg = json!({
+                                "type": "event",
+                                "data": event
+                            });
+                            if socket.send(Message::Text(msg.to_string())).await.is_err() {
+                                break;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            break;
+                        }
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            let lag_msg = json!({
+                                "type": "warning",
+                                "message": format!("Lagged behind, skipped {} events", skipped)
+                            });
+                            if socket.send(Message::Text(lag_msg.to_string())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Send periodic heartbeat
+                _ = heartbeat_interval.tick() => {
+                    let heartbeat_msg = json!({
+                        "type": "heartbeat",
+                        "timestamp": std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs()
+                    });
+                    if socket.send(Message::Text(heartbeat_msg.to_string())).await.is_err() {
+                        break;
+                    }
+                }
+                
+                // Handle incoming WebSocket messages
+                msg_result = socket.recv() => {
+                    match msg_result {
+                        Some(Ok(Message::Close(_))) => {
+                            break;
+                        }
+                        Some(Err(_)) => {
+                            break;
+                        }
+                        _ => {} // Ignore other message types
+                    }
+                }
+            }
+        }
+    } else {
+        let error_msg = json!({
+            "type": "error",
+            "message": "Consensus node not available"
+        });
+        let _ = socket.send(Message::Text(error_msg.to_string())).await;
     }
 }
 
@@ -992,6 +1181,127 @@ mod tests {
         if let Some(s3) = &ledger.s3_storage {
             let segments = s3.list_segments().await.unwrap();
             assert!(segments.len() >= 2, "Should have at least 2 immutable segments");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_raft_monitoring_integration() {
+        use crate::consensus::TcpTransport;
+        use crate::monitoring::{RaftEvent, EventSeverity};
+        use std::sync::Arc;
+
+        // Create a consensus node with monitoring
+        let transport = Arc::new(TcpTransport::new());
+        let consensus_node = crate::consensus::ConsensusNode::new(
+            1,
+            "127.0.0.1".to_string(),
+            8081,
+            transport,
+        ).unwrap();
+
+        // Test that monitor is accessible
+        let monitor = consensus_node.monitor();
+        assert_eq!(monitor.node_id(), 1);
+
+        // Test event publishing
+        monitor.publish_event(
+            RaftEvent::NodeJoined {
+                node_id: 1,
+                address: "127.0.0.1:8081".to_string(),
+                cluster_size: 1,
+            },
+            EventSeverity::Info,
+        ).await;
+
+        // Test event retrieval
+        let events = monitor.get_recent_events(10).await;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].node_id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_monitoring_api_endpoints() {
+        let (config, _temp_dir) = create_test_config();
+        let mut config = config;
+        config.network.raft_tcp_port = 8082; // Use different port for test
+        
+        let ledger = Arc::new(ScribeLedger::new_local_only(config.clone()).unwrap());
+
+        // Test raft status endpoint (should return unavailable for local-only ledger)
+        let response = raft_status_handler(axum::extract::State(ledger.clone())).await;
+        match response {
+            Err(status_code) => assert_eq!(status_code, StatusCode::SERVICE_UNAVAILABLE),
+            Ok(_) => panic!("Expected SERVICE_UNAVAILABLE for local-only ledger"),
+        }
+
+        // Test with consensus node
+        let transport = Arc::new(crate::consensus::TcpTransport::new());
+        let consensus_node = crate::consensus::ConsensusNode::new(
+            1,
+            "127.0.0.1".to_string(),
+            8083,
+            transport,
+        ).unwrap();
+        
+        // Create a new config with different data directory to avoid lock conflicts
+        let (config2, _temp_dir2) = create_test_config();
+        let mut config2 = config2;
+        config2.network.raft_tcp_port = 8083;
+        
+        let mut ledger_with_consensus = ScribeLedger::new_local_only(config2).unwrap();
+        ledger_with_consensus.consensus_node = Some(Arc::new(tokio::sync::Mutex::new(consensus_node)));
+        let ledger_with_consensus = Arc::new(ledger_with_consensus);
+
+        // Test raft status endpoint (should work now)
+        let response = raft_status_handler(axum::extract::State(ledger_with_consensus.clone())).await;
+        assert!(response.is_ok());
+
+        // Test raft metrics endpoint
+        let response = raft_metrics_handler(axum::extract::State(ledger_with_consensus.clone())).await;
+        assert!(response.is_ok());
+
+        // Test raft events endpoint
+        let response = raft_events_handler(axum::extract::State(ledger_with_consensus.clone())).await;
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_monitoring_event_broadcasting() {
+        use crate::consensus::TcpTransport;
+        use crate::monitoring::{RaftEvent, EventSeverity};
+        use std::sync::Arc;
+        use tokio::time::{timeout, Duration};
+
+        // Create a consensus node with monitoring
+        let transport = Arc::new(TcpTransport::new());
+        let consensus_node = crate::consensus::ConsensusNode::new(
+            1,
+            "127.0.0.1".to_string(),
+            8084,
+            transport,
+        ).unwrap();
+
+        let monitor = consensus_node.monitor();
+        let mut receiver = monitor.subscribe();
+
+        // Publish an event
+        let test_event = RaftEvent::NodeJoined {
+            node_id: 1,
+            address: "127.0.0.1:8084".to_string(),
+            cluster_size: 1,
+        };
+
+        monitor.publish_event(test_event.clone(), EventSeverity::Info).await;
+
+        // Verify we can receive the event
+        let received_event = timeout(Duration::from_secs(1), receiver.recv()).await
+            .expect("Should receive event within timeout")
+            .expect("Should receive event successfully");
+
+        assert_eq!(received_event.node_id, 1);
+        match received_event.event {
+            RaftEvent::NodeJoined { node_id, .. } => assert_eq!(node_id, 1),
+            _ => panic!("Expected NodeJoined event"),
         }
     }
 }
