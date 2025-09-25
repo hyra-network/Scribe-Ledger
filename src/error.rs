@@ -10,10 +10,16 @@ pub enum ScribeError {
     Consensus(String),
     
     #[error("Network error: {0}")]
-    Network(#[from] hyper::Error),
+    Network(String),
+    
+    #[error("HTTP error: {0}")]
+    Http(#[from] hyper::Error),
     
     #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    Serialization(String),
+    
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
     
     #[error("AWS error: {0}")]
     Aws(String),

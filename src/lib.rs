@@ -9,6 +9,7 @@ pub mod consensus;
 pub mod manifest;
 pub mod storage;
 pub mod write_node;
+pub mod discovery;
 
 pub mod error;
 pub mod types;
