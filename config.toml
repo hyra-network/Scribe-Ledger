@@ -1,27 +1,30 @@
-# Hyra Scribe Ledger Configuration
-
 [node]
-id = "node-1"
+id = "dev-node-1"
 data_dir = "./data"
+
+[network]
+listen_addr = "0.0.0.0"
+client_port = 8080
+raft_tcp_port = 8081
 
 [storage]
 buffer_size = 67108864  # 64MB
 segment_size_limit = 1073741824  # 1GB
 
 [storage.s3]
+# MinIO S3-compatible storage configuration
+endpoint = "http://localhost:9000"
 bucket = "scribe-ledger-dev"
-region = "us-east-1"
-# endpoint = "https://s3.amazonaws.com"  # Optional: defaults to AWS S3
-# access_key = ""  # Optional: will use IAM role or env vars
-# secret_key = ""  # Optional: will use IAM role or env vars
-path_style = false  # Use virtual-hosted-style for AWS S3
+region = "us-east-1"  # MinIO doesn't require real region
+access_key = "scribe-admin"
+secret_key = "scribe-password-123"
+path_style = true  # Required for MinIO
 
 [consensus]
 peers = []
 election_timeout_ms = 5000
 heartbeat_interval_ms = 1000
 
-[network]
-listen_addr = "0.0.0.0"
-client_port = 8080
-raft_tcp_port = 8081
+[logging]
+level = "debug"
+format = "pretty"
