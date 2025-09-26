@@ -1,0 +1,20 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# Database files
+/data/
+*.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Benchmark output
+criterion/

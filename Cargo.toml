@@ -1,0 +1,17 @@
+[package]
+name = "simple-scribe-ledger"
+version = "0.1.0"
+edition = "2021"
+default-run = "simple-scribe-ledger"
+
+[dependencies]
+sled = "0.34"
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "storage_benchmark"
+harness = false
