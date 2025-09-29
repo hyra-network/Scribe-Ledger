@@ -187,12 +187,17 @@ This will start an interactive command-line application where you can:
 Test the performance of your storage:
 
 ```bash
-# Run the built-in performance test
-cargo run --bin performance_test
+# Run the optimized performance test (recommended)
+cargo run --release --bin optimized_performance_test
+
+# Run the basic performance test
+cargo run --release --bin performance_test
 
 # Run comprehensive benchmarks
 cargo bench
 ```
+
+**Important**: Always use `--release` flag for accurate performance measurements. Debug builds are ~5-10x slower.
 
 ### Step 5: Advanced Usage
 
@@ -298,23 +303,30 @@ cargo test
 
 ### Running Performance Tests
 
+Run the optimized performance benchmark:
+
+```bash
+cargo run --release --bin optimized_performance_test
+```
+
 Run the custom performance benchmark:
 
 ```bash
-cargo run --bin performance_test
+cargo run --release --bin performance_test
 ```
 
-Expected output:
+Expected output (release mode):
 ```
-Simple Scribe Ledger Performance Test
-====================================
+Optimized Simple Scribe Ledger Performance Test
+===============================================
 
-Testing with 100 operations:
-  PUT operations: 27759 ops/sec (3.60 ms total)
-  GET operations: 255044 ops/sec (0.39 ms total)
-  MIXED operations: 106598 ops/sec (0.94 ms total)
-...
+Testing with 10000 operations:
+  PUT operations (batched): 285,772 ops/sec (34.99 ms total)
+  GET operations (optimized): 1,912,032 ops/sec (5.23 ms total)
+  MIXED operations (optimized): 509,253 ops/sec (19.64 ms total)
 ```
+
+**⚠️ Performance Note**: Always use `--release` flag for benchmarking. Debug builds are significantly slower (~5-10x).
 
 Run the comprehensive Criterion benchmarks:
 
@@ -324,27 +336,42 @@ cargo bench
 
 ## 📊 Performance
 
-The implementation achieves excellent performance:
+The implementation achieves excellent performance with our optimizations:
 
-- **PUT operations**: ~24,000-60,000 ops/sec
-- **GET operations**: ~200,000-280,000 ops/sec  
-- **Mixed operations**: ~80,000-106,000 ops/sec
+**Release mode performance (recommended)**:
+- **PUT operations**: ~200,000-300,000 ops/sec
+- **GET operations**: ~1,500,000-2,500,000 ops/sec  
+- **Mixed operations**: ~400,000-600,000 ops/sec
 
-Performance varies based on operation size and system characteristics.
+**Debug mode performance**:
+- **PUT operations**: ~50,000-65,000 ops/sec
+- **GET operations**: ~200,000-280,000 ops/sec
+- **Mixed operations**: ~70,000-110,000 ops/sec
+
+Performance varies based on operation size, batching, and system characteristics.
+
+### Performance Tips
+
+1. **Use release builds**: Always compile with `cargo run --release` for production performance
+2. **Batch operations**: Use `apply_batch()` for bulk operations to improve write throughput
+3. **Reduce flush frequency**: Let sled handle automatic flushing for temporary data
+4. **Pre-allocate data**: Pre-generate keys/values to avoid allocation overhead in hot paths
 
 ### Benchmarks
 
-Performance Test (cargo run --bin performance_test)
+**Optimized Performance Test** (cargo run --release --bin optimized_performance_test)
 ```
 ╔══════════╦══════════════════════════════╦══════════════════════════════╦══════════════════════════════╗
 ║ Ops      ║ PUT (ops/sec, total ms)      ║ GET (ops/sec, total ms)      ║ MIXED (ops/sec, total ms)    ║
 ╠══════════╬══════════════════════════════╬══════════════════════════════╬══════════════════════════════╣
-║     100  ║ 17,288   (5.78 ms)           ║ 157,111   (0.64 ms)          ║ 51,036   (1.96 ms)           ║
-║   1,000  ║ 31,045  (32.21 ms)           ║ 218,685   (4.57 ms)          ║ 61,255  (16.33 ms)           ║
-║   5,000  ║ 28,588 (174.90 ms)           ║ 157,680  (31.71 ms)          ║ 55,507  (90.08 ms)           ║
-║  10,000  ║ 28,127 (355.53 ms)           ║ 116,685  (85.70 ms)          ║ 47,867 (208.91 ms)           ║
+║     100  ║ 108,852   (0.92 ms)          ║ 2,484,163   (0.04 ms)        ║ 434,556   (0.23 ms)          ║
+║   1,000  ║ 282,111   (3.54 ms)          ║ 2,179,186   (0.46 ms)        ║ 596,053   (1.68 ms)          ║
+║   5,000  ║ 288,302  (17.34 ms)          ║ 1,763,890   (2.83 ms)        ║ 527,662   (9.48 ms)          ║
+║  10,000  ║ 285,772  (34.99 ms)          ║ 1,912,032   (5.23 ms)        ║ 509,253  (19.64 ms)          ║
 ╚══════════╩══════════════════════════════╩══════════════════════════════╩══════════════════════════════╝
 ```
+
+**Note**: These are release mode results. Debug mode performance will be significantly lower but still meets production targets for most use cases.
 Sustained (10,000 ops) → MIXED: 30,171 ops/sec (364.59 ms total)
 
 Benchmark Results (cargo bench)
