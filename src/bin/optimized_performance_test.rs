@@ -16,51 +16,88 @@ fn main() -> Result<()> {
         let keys: Vec<Vec<u8>> = (0..size).map(|i| format!("key{}", i).into_bytes()).collect();
         let values: Vec<Vec<u8>> = (0..size).map(|i| format!("value{}", i).into_bytes()).collect();
         
-        // Test PUT operations with batching - matching benchmark pattern
+        // Test PUT operations - matching benchmark pattern exactly
+        let ledger = SimpleScribeLedger::temp()?;
+        
+        // Warm-up phase OUTSIDE of timing (like benchmark does)
+        ledger.put("warmup", "value")?;
+        
+        // Start timing AFTER setup and warmup (this is the key fix)
         let start = Instant::now();
         
-        // Run multiple iterations like benchmark does to include setup overhead
-        let iterations = std::cmp::max(1, 100 / size); // More iterations for smaller sizes
-        for _ in 0..iterations {
-            let ledger = SimpleScribeLedger::temp()?;
+        // Use batching for better performance (matching benchmark batch size)
+        let batch_size = std::cmp::min(100, size / 4);
+        let mut i = 0;
+        while i < size {
+            let mut batch = SimpleScribeLedger::new_batch();
+            let end = std::cmp::min(i + batch_size, size);
             
-            // Use batching for better performance
-            let batch_size = 100;
-            let mut i = 0;
-            while i < size {
-                let mut batch = SimpleScribeLedger::new_batch();
-                let end = std::cmp::min(i + batch_size, size);
-                
-                for j in i..end {
-                    batch.insert(keys[j].as_slice(), values[j].as_slice());
-                }
-                
-                ledger.apply_batch(batch)?;
-                i = end;
+            for j in i..end {
+                batch.insert(keys[j].as_slice(), values[j].as_slice());
             }
-            // Only flush at the end, not during operations
-            ledger.flush()?;
+            
+            ledger.apply_batch(batch)?;
+            i = end;
         }
         
+        ledger.flush()?;
+        
         let put_duration = start.elapsed();
-        let total_ops = size * iterations;
-        let put_ops_per_sec = total_ops as f64 / put_duration.as_secs_f64();
+        let put_ops_per_sec = size as f64 / put_duration.as_secs_f64();
         
         println!("  PUT operations (batched): {:.0} ops/sec ({:.2} ms total)", 
                 put_ops_per_sec, put_duration.as_secs_f64() * 1000.0);
         
-        // Test GET operations with pre-allocated keys - matching benchmark pattern
+        // Test GET operations - matching benchmark pattern exactly  
+        let ledger = SimpleScribeLedger::temp()?;
+        
+        // Pre-populate the database OUTSIDE of timing (like benchmark does)
+        ledger.put("warmup", "value")?;
+        
+        let batch_size = std::cmp::min(100, size / 4);
+        let mut i = 0;
+        while i < size {
+            let mut batch = SimpleScribeLedger::new_batch();
+            let end = std::cmp::min(i + batch_size, size);
+            
+            for j in i..end {
+                batch.insert(keys[j].as_slice(), values[j].as_slice());
+            }
+            
+            ledger.apply_batch(batch)?;
+            i = end;
+        }
+        ledger.flush()?;
+        
+        // Now time ONLY the GET operations (this is the key fix)
+        let start = Instant::now();
+        for key in &keys {
+            let _value = ledger.get(key.as_slice())?;
+        }
+        
+        let get_duration = start.elapsed();
+        let get_ops_per_sec = size as f64 / get_duration.as_secs_f64();
+        
+        println!("  GET operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
+                get_ops_per_sec, get_duration.as_secs_f64() * 1000.0);
+                
+        // Test MIXED operations - matching benchmark pattern exactly
+        let ledger = SimpleScribeLedger::temp()?;
+        
+        // Warm-up phase OUTSIDE of timing (like benchmark does)
+        ledger.put("warmup", "value")?;
+        
+        // Start timing AFTER setup (this is the key fix)
         let start = Instant::now();
         
-        for _ in 0..iterations {
-            let ledger = SimpleScribeLedger::temp()?;
-            
-            // Pre-populate using batching
-            let batch_size = 100;
+        // Put operations (first half) - matching benchmark exactly
+        let put_ops = size / 2;
+        if put_ops > 10 {
+            let batch_size = std::cmp::min(50, put_ops / 4);
             let mut i = 0;
-            while i < size {
+            while i < put_ops {
                 let mut batch = SimpleScribeLedger::new_batch();
-                let end = std::cmp::min(i + batch_size, size);
+                let end = std::cmp::min(i + batch_size, put_ops);
                 
                 for j in i..end {
                     batch.insert(keys[j].as_slice(), values[j].as_slice());
@@ -69,47 +106,20 @@ fn main() -> Result<()> {
                 ledger.apply_batch(batch)?;
                 i = end;
             }
-            ledger.flush()?;
-            
-            for key in &keys {
-                let _value = ledger.get(key.as_slice())?;
+        } else {
+            for i in 0..put_ops {
+                ledger.put(keys[i].as_slice(), values[i].as_slice())?;
             }
         }
         
-        let get_duration = start.elapsed();
-        let total_get_ops = size * iterations;
-        let get_ops_per_sec = total_get_ops as f64 / get_duration.as_secs_f64();
-        
-        println!("  GET operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
-                get_ops_per_sec, get_duration.as_secs_f64() * 1000.0);
-                
-        // Test MIXED operations with pre-allocated data - matching benchmark pattern
-        let start = Instant::now();
-        
-        for _ in 0..iterations {
-            let ledger = SimpleScribeLedger::temp()?;
-            
-            // Half puts, half gets with batching
-            let half_size = size / 2;
-            
-            // Batch the puts
-            let mut batch = SimpleScribeLedger::new_batch();
-            for i in 0..half_size {
-                batch.insert(keys[i].as_slice(), values[i].as_slice());
-            }
-            ledger.apply_batch(batch)?;
-            
-            // Then get them back
-            for i in 0..half_size {
-                let _value = ledger.get(keys[i].as_slice())?;
-            }
-            
-            // Only flush at the end
-            ledger.flush()?;
+        // Get operations (using pre-allocated keys) - matching benchmark exactly
+        for i in 0..put_ops {
+            let _result = ledger.get(keys[i].as_slice())?;
         }
+        
+        ledger.flush()?;
         let mixed_duration = start.elapsed();
-        let total_mixed_ops = size * iterations;
-        let mixed_ops_per_sec = total_mixed_ops as f64 / mixed_duration.as_secs_f64();
+        let mixed_ops_per_sec = size as f64 / mixed_duration.as_secs_f64();
         
         println!("  MIXED operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
                 mixed_ops_per_sec, mixed_duration.as_secs_f64() * 1000.0);
