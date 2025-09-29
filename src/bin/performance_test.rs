@@ -16,100 +16,139 @@ fn main() -> Result<()> {
         let keys: Vec<String> = (0..size).map(|i| format!("key{}", i)).collect();
         let values: Vec<String> = (0..size).map(|i| format!("value{}", i)).collect();
         
-        // Test PUT operations with optimizations
-        let ledger = SimpleScribeLedger::temp()?;
-        
-        // Warm-up phase
-        ledger.put("warmup", "value")?;
-        ledger.flush()?;
-        
+        // Test PUT operations matching benchmark pattern (create new ledger each iteration for realism)
         let start = Instant::now();
         
-        // Use batching for better performance when size is large
-        if size > 100 {
-            let batch_size = std::cmp::min(100, size / 4);
-            let mut i = 0;
-            while i < size {
-                let mut batch = SimpleScribeLedger::new_batch();
-                let end = std::cmp::min(i + batch_size, size);
-                
-                for j in i..end {
-                    batch.insert(keys[j].as_bytes(), values[j].as_bytes());
+        // Run multiple iterations like benchmark does
+        let iterations = std::cmp::max(1, 100 / size); // More iterations for smaller sizes
+        for _ in 0..iterations {
+            let ledger = SimpleScribeLedger::temp()?;
+            
+            // Warm-up phase
+            ledger.put("warmup", "value")?;
+            
+            // Use batching for better performance when size is large
+            if size > 10 {
+                let batch_size = std::cmp::min(100, size / 4);
+                let mut i = 0;
+                while i < size {
+                    let mut batch = SimpleScribeLedger::new_batch();
+                    let end = std::cmp::min(i + batch_size, size);
+                    
+                    for j in i..end {
+                        batch.insert(keys[j].as_bytes(), values[j].as_bytes());
+                    }
+                    
+                    ledger.apply_batch(batch)?;
+                    i = end;
                 }
-                
-                ledger.apply_batch(batch)?;
-                i = end;
+            } else {
+                // For smaller sizes, individual operations might be more appropriate
+                for i in 0..size {
+                    ledger.put(&keys[i], &values[i])?;
+                }
             }
-        } else {
-            // For smaller sizes, individual operations might be more appropriate
-            for i in 0..size {
-                ledger.put(&keys[i], &values[i])?;
-            }
+            
+            ledger.flush()?;
         }
         
-        ledger.flush()?;
-        
         let put_duration = start.elapsed();
-        let put_ops_per_sec = size as f64 / put_duration.as_secs_f64();
+        let total_ops = size * iterations;
+        let put_ops_per_sec = total_ops as f64 / put_duration.as_secs_f64();
         
         println!("  PUT operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
                 put_ops_per_sec, put_duration.as_secs_f64() * 1000.0);
         
-        // Test GET operations using pre-allocated keys
+        // Test GET operations matching benchmark pattern 
         let start = Instant::now();
         
-        for key in &keys {
-            let _value = ledger.get(key)?;
+        // Pre-populate database and do multiple GET iterations
+        for _ in 0..iterations {
+            let ledger = SimpleScribeLedger::temp()?;
+            
+            // Warm-up phase
+            ledger.put("warmup", "value")?;
+            
+            // Pre-populate using same pattern as benchmark
+            if size > 10 {
+                let batch_size = std::cmp::min(100, size / 4);
+                let mut i = 0;
+                while i < size {
+                    let mut batch = SimpleScribeLedger::new_batch();
+                    let end = std::cmp::min(i + batch_size, size);
+                    
+                    for j in i..end {
+                        batch.insert(keys[j].as_bytes(), values[j].as_bytes());
+                    }
+                    
+                    ledger.apply_batch(batch)?;
+                    i = end;
+                }
+            } else {
+                for i in 0..size {
+                    ledger.put(&keys[i], &values[i])?;
+                }
+            }
+            
+            ledger.flush()?;
+            
+            // Now do the gets (this is what's being timed in benchmark)
+            for key in &keys {
+                let _value = ledger.get(key)?;
+            }
         }
         
         let get_duration = start.elapsed();
-        let get_ops_per_sec = size as f64 / get_duration.as_secs_f64();
+        let total_get_ops = size * iterations;
+        let get_ops_per_sec = total_get_ops as f64 / get_duration.as_secs_f64();
         
         println!("  GET operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
                 get_ops_per_sec, get_duration.as_secs_f64() * 1000.0);
                 
-        // Test MIXED operations with optimizations
-        let ledger = SimpleScribeLedger::temp()?;
-        
-        // Warm-up phase
-        ledger.put("warmup_mixed", "value")?;
-        ledger.flush()?;
-        
+        // Test MIXED operations matching benchmark pattern
         let start = Instant::now();
         
-        // Half puts, half gets using pre-allocated data
-        let half_size = size / 2;
-        
-        // First put half the data using batching for larger sizes
-        if half_size > 50 {
-            let batch_size = std::cmp::min(50, half_size / 4);
-            let mut i = 0;
-            while i < half_size {
-                let mut batch = SimpleScribeLedger::new_batch();
-                let end = std::cmp::min(i + batch_size, half_size);
-                
-                for j in i..end {
-                    batch.insert(keys[j].as_bytes(), values[j].as_bytes());
+        // Run multiple iterations like benchmark
+        for _ in 0..iterations {
+            let ledger = SimpleScribeLedger::temp()?;
+            
+            // Warm-up phase
+            ledger.put("warmup", "value")?;
+            
+            // Half puts, half gets using pre-allocated data (matching benchmark)
+            let put_ops = size / 2;
+            
+            // First put half the data using batching for larger sizes
+            if put_ops > 10 {
+                let batch_size = std::cmp::min(50, put_ops / 4);
+                let mut i = 0;
+                while i < put_ops {
+                    let mut batch = SimpleScribeLedger::new_batch();
+                    let end = std::cmp::min(i + batch_size, put_ops);
+                    
+                    for j in i..end {
+                        batch.insert(keys[j].as_bytes(), values[j].as_bytes());
+                    }
+                    
+                    ledger.apply_batch(batch)?;
+                    i = end;
                 }
-                
-                ledger.apply_batch(batch)?;
-                i = end;
+            } else {
+                for i in 0..put_ops {
+                    ledger.put(&keys[i], &values[i])?;
+                }
             }
-        } else {
-            // For smaller sizes, use individual operations
-            for i in 0..half_size {
-                ledger.put(&keys[i], &values[i])?;
+            
+            // Then get it back using pre-allocated keys  
+            for i in 0..put_ops {
+                let _value = ledger.get(&keys[i])?;
             }
+            
+            ledger.flush()?;
         }
-        
-        // Then get it back using pre-allocated keys
-        for i in 0..half_size {
-            let _value = ledger.get(&keys[i])?;
-        }
-        
-        ledger.flush()?;
         let mixed_duration = start.elapsed();
-        let mixed_ops_per_sec = size as f64 / mixed_duration.as_secs_f64();
+        let total_mixed_ops = size * iterations;
+        let mixed_ops_per_sec = total_mixed_ops as f64 / mixed_duration.as_secs_f64();
         
         println!("  MIXED operations (optimized): {:.0} ops/sec ({:.2} ms total)", 
                 mixed_ops_per_sec, mixed_duration.as_secs_f64() * 1000.0);
