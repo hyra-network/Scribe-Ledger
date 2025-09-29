@@ -18,3 +18,7 @@ Thumbs.db
 
 # Benchmark output
 criterion/
+optimized_demo_db/
+my_store/
+*.db
+test_*_db/
