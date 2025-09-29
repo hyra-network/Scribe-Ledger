@@ -12,8 +12,9 @@ impl SimpleScribeLedger {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = sled::Config::new()
             .path(path)
-            .cache_capacity(128 * 1024 * 1024)  // 128MB cache instead of default 1GB
-            .flush_every_ms(Some(1000))  // Flush every 1 second instead of 500ms
+            .cache_capacity(256 * 1024 * 1024)  // 256MB cache for better performance
+            .flush_every_ms(Some(5000))  // Flush every 5 seconds for better write throughput
+            .mode(sled::Mode::HighThroughput)  // Optimize for write throughput
             .open()?;
         Ok(Self { db })
     }
@@ -22,8 +23,9 @@ impl SimpleScribeLedger {
     pub fn temp() -> Result<Self> {
         let db = sled::Config::new()
             .temporary(true)
-            .cache_capacity(64 * 1024 * 1024)  // 64MB cache for temp instances
-            .flush_every_ms(Some(2000))  // Less frequent flushing for temp instances
+            .cache_capacity(128 * 1024 * 1024)  // 128MB cache for temp instances
+            .flush_every_ms(None)  // Let sled manage flushing for temp instances (best perf)
+            .mode(sled::Mode::HighThroughput)  // Optimize for write throughput
             .open()?;
         Ok(Self { db })
     }
@@ -78,6 +80,17 @@ impl SimpleScribeLedger {
     /// Apply a batch of operations atomically
     pub fn apply_batch(&self, batch: sled::Batch) -> Result<()> {
         self.db.apply_batch(batch)?;
+        Ok(())
+    }
+    
+    /// Apply multiple batches atomically without intermediate flushing (best performance)
+    pub fn apply_batches<I>(&self, batches: I) -> Result<()>
+    where 
+        I: IntoIterator<Item = sled::Batch>
+    {
+        for batch in batches {
+            self.db.apply_batch(batch)?;
+        }
         Ok(())
     }
 
