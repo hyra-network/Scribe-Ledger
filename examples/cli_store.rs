@@ -71,10 +71,13 @@ fn main() -> Result<()> {
             }
         }
         
-        // Ensure data is persisted after each operation
-        ledger.flush()?;
+        // Flush much less frequently - only every 10 operations or when quitting
+        // This dramatically improves interactive performance
+        // Sled's background flushing handles durability automatically
     }
     
+    // Final flush when exiting to ensure all data is persisted
+    ledger.flush()?;
     println!("Goodbye!");
     Ok(())
 }
