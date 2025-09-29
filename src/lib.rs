@@ -8,15 +8,23 @@ pub struct SimpleScribeLedger {
 }
 
 impl SimpleScribeLedger {
-    /// Create a new instance of the storage engine
+    /// Create a new instance of the storage engine with optimized configuration
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let db = sled::open(path)?;
+        let db = sled::Config::new()
+            .path(path)
+            .cache_capacity(128 * 1024 * 1024)  // 128MB cache instead of default 1GB
+            .flush_every_ms(Some(1000))  // Flush every 1 second instead of 500ms
+            .open()?;
         Ok(Self { db })
     }
 
-    /// Create a temporary in-memory instance for testing
+    /// Create a temporary in-memory instance for testing with optimized config
     pub fn temp() -> Result<Self> {
-        let db = sled::Config::new().temporary(true).open()?;
+        let db = sled::Config::new()
+            .temporary(true)
+            .cache_capacity(64 * 1024 * 1024)  // 64MB cache for temp instances
+            .flush_every_ms(Some(2000))  // Less frequent flushing for temp instances
+            .open()?;
         Ok(Self { db })
     }
 
@@ -49,9 +57,15 @@ impl SimpleScribeLedger {
         self.db.is_empty()
     }
 
-    /// Flush any pending writes to disk
+    /// Flush any pending writes to disk synchronously (expensive)
     pub fn flush(&self) -> Result<()> {
         self.db.flush()?;
+        Ok(())
+    }
+
+    /// Flush any pending writes to disk asynchronously (preferred)
+    pub async fn flush_async(&self) -> Result<()> {
+        self.db.flush_async().await?;
         Ok(())
     }
 
@@ -59,6 +73,42 @@ impl SimpleScribeLedger {
     pub fn clear(&self) -> Result<()> {
         self.db.clear()?;
         Ok(())
+    }
+
+    /// Apply a batch of operations atomically
+    pub fn apply_batch(&self, batch: sled::Batch) -> Result<()> {
+        self.db.apply_batch(batch)?;
+        Ok(())
+    }
+
+    /// Create a new batch for bulk operations
+    pub fn new_batch() -> sled::Batch {
+        sled::Batch::default()
+    }
+
+    /// Put a serializable value using binary encoding (faster than JSON)
+    pub fn put_bincode<K, V>(&self, key: K, value: &V) -> Result<()>
+    where
+        K: AsRef<[u8]>,
+        V: serde::Serialize,
+    {
+        let encoded = bincode::serialize(value)?;
+        self.db.insert(key.as_ref(), encoded)?;
+        Ok(())
+    }
+
+    /// Get and deserialize a value using binary encoding
+    pub fn get_bincode<K, V>(&self, key: K) -> Result<Option<V>>
+    where
+        K: AsRef<[u8]>,
+        V: serde::de::DeserializeOwned,
+    {
+        if let Some(data) = self.db.get(key.as_ref())? {
+            let decoded: V = bincode::deserialize(&data)?;
+            Ok(Some(decoded))
+        } else {
+            Ok(None)
+        }
     }
 }
 
