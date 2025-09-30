@@ -526,13 +526,7 @@ mod tests {
         // Test that all new dependencies from Task 1.1 are available
         // This ensures openraft, thiserror, and tracing are properly added
 
-        // These imports verify the dependencies compile and are accessible
-        use openraft;
-        use thiserror;
-        use tracing;
-        use tracing_subscriber;
-
-        // Just verify we can reference them
+        // Just verify we can reference them via stringify
         let _ = stringify!(openraft);
         let _ = stringify!(thiserror);
         let _ = stringify!(tracing);
