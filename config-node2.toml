@@ -1,0 +1,19 @@
+# Node 2 Configuration
+
+[node]
+id = 2
+address = "127.0.0.1"
+data_dir = "./node-2"
+
+[network]
+listen_addr = "127.0.0.1:8002"
+client_port = 8002
+raft_port = 9002
+
+[storage]
+segment_size = 67108864
+max_cache_size = 268435456
+
+[consensus]
+election_timeout_ms = 1000
+heartbeat_interval_ms = 300

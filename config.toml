@@ -1,0 +1,30 @@
+# Simple Scribe Ledger Configuration
+# This is the default configuration file
+
+[node]
+# Unique identifier for this node (must be > 0)
+id = 1
+# Address for this node
+address = "127.0.0.1"
+# Data directory for storage
+data_dir = "./node-1"
+
+[network]
+# Address to listen on for client connections
+listen_addr = "127.0.0.1:8001"
+# Port for client HTTP API
+client_port = 8001
+# Port for Raft consensus communication
+raft_port = 9001
+
+[storage]
+# Maximum size of a data segment in bytes (64MB)
+segment_size = 67108864
+# Maximum cache size in bytes (256MB)
+max_cache_size = 268435456
+
+[consensus]
+# Election timeout in milliseconds
+election_timeout_ms = 1000
+# Heartbeat interval in milliseconds (must be less than election timeout)
+heartbeat_interval_ms = 300
