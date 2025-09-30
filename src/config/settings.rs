@@ -85,7 +85,7 @@ impl Config {
         Self {
             node: NodeConfig {
                 id: node_id,
-                address: format!("127.0.0.1"),
+                address: "127.0.0.1".to_string(),
                 data_dir: PathBuf::from(format!("./node-{}", node_id)),
             },
             network: NetworkConfig {

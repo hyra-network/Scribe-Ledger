@@ -2,6 +2,6 @@
 //!
 //! This module contains the configuration system for the distributed ledger.
 
-mod config;
+mod settings;
 
-pub use config::{Config, ConsensusConfig, NetworkConfig, NodeConfig, StorageConfig};
+pub use settings::{Config, ConsensusConfig, NetworkConfig, NodeConfig, StorageConfig};
