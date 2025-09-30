@@ -7,16 +7,22 @@ use std::path::Path;
 /// Integration test for real-world sled database scenarios
 #[test]
 fn test_database_lifecycle() -> Result<()> {
-    let test_db = "./test_integration_db";
+    // Use timestamp + thread ID to ensure unique path for each test run
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let thread_id = format!("{:?}", std::thread::current().id());
+    let test_db = format!("./test_integration_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
 
     // Clean up any existing test database
-    if Path::new(test_db).exists() {
-        fs::remove_dir_all(test_db).ok();
+    if Path::new(&test_db).exists() {
+        fs::remove_dir_all(&test_db).ok();
     }
 
     // Phase 1: Create database and populate it
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
 
         // Simulate user data storage
         let users = vec![
@@ -52,7 +58,7 @@ fn test_database_lifecycle() -> Result<()> {
 
     // Phase 2: Reopen database and verify persistence
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 7);
 
         // Verify user data
@@ -79,7 +85,7 @@ fn test_database_lifecycle() -> Result<()> {
 
     // Phase 3: Final verification and cleanup
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 8);
 
         // Verify the updates persisted
@@ -91,7 +97,7 @@ fn test_database_lifecycle() -> Result<()> {
     }
 
     // Cleanup
-    fs::remove_dir_all(test_db).ok();
+    fs::remove_dir_all(&test_db).ok();
     Ok(())
 }
 
@@ -146,11 +152,17 @@ fn test_high_load_sled_operations() -> Result<()> {
 /// Test sled database recovery and consistency
 #[test]
 fn test_database_consistency() -> Result<()> {
-    let test_db = "./test_consistency_db";
+    // Use timestamp + thread ID to ensure unique path for each test run
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let thread_id = format!("{:?}", std::thread::current().id());
+    let test_db = format!("./test_consistency_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
 
     // Clean up any existing test database
-    if Path::new(test_db).exists() {
-        fs::remove_dir_all(test_db).ok();
+    if Path::new(&test_db).exists() {
+        fs::remove_dir_all(&test_db).ok();
     }
 
     let initial_data: HashMap<String, String> = (0..100)
@@ -164,7 +176,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 1: Write initial data
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
 
         for (key, value) in &initial_data {
             ledger.put(key, value)?;
@@ -176,7 +188,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 2: Verify all data is consistent after reopening
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), initial_data.len());
 
         // Verify all original data
@@ -207,7 +219,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 3: Verify consistency after updates
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), initial_data.len());
 
         // Verify updated values
@@ -228,22 +240,28 @@ fn test_database_consistency() -> Result<()> {
     }
 
     // Cleanup
-    fs::remove_dir_all(test_db).ok();
+    fs::remove_dir_all(&test_db).ok();
     Ok(())
 }
 
 /// Test sled's memory usage and cleanup behavior
 #[test]
 fn test_memory_and_cleanup() -> Result<()> {
-    let test_db = "./test_memory_db";
+    // Use timestamp to ensure unique path for each test run
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let thread_id = format!("{:?}", std::thread::current().id());
+    let test_db = format!("./test_memory_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
 
     // Clean up any existing test database
-    if Path::new(test_db).exists() {
-        fs::remove_dir_all(test_db).ok();
+    if Path::new(&test_db).exists() {
+        fs::remove_dir_all(&test_db).ok();
     }
 
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
 
         // Create a large dataset
         let large_value = "x".repeat(1000); // 1KB per value
@@ -288,7 +306,7 @@ fn test_memory_and_cleanup() -> Result<()> {
 
     // Verify database is actually empty after reopening
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 0);
         assert!(ledger.is_empty());
 
@@ -299,7 +317,7 @@ fn test_memory_and_cleanup() -> Result<()> {
     }
 
     // Cleanup
-    fs::remove_dir_all(test_db).ok();
+    fs::remove_dir_all(&test_db).ok();
     Ok(())
 }
 
