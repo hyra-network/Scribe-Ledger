@@ -68,13 +68,16 @@ jobs:
       run: cargo test --verbose
     
     - name: Test config module
-      run: cargo test --lib config:: --verbose
+      run: cargo test --lib 'config::' --verbose
     
     - name: Test error module
-      run: cargo test --lib error:: --verbose
+      run: cargo test --lib 'error::' --verbose
     
     - name: Test types module
-      run: cargo test --lib types:: --verbose
+      run: cargo test --lib 'types::' --verbose
     
     - name: Test storage module
-      run: cargo test --lib storage:: --verbose
+      run: cargo test --lib 'storage::' --verbose
+    
+    - name: Test segment module
+      run: cargo test --lib 'storage::segment::' --verbose
