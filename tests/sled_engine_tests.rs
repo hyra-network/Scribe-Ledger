@@ -224,11 +224,17 @@ fn test_sled_durability() -> Result<()> {
     use std::fs;
     use std::path::Path;
 
-    let test_db = "./test_durability_db";
+    // Use timestamp + thread ID to ensure unique path for each test run
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let thread_id = format!("{:?}", std::thread::current().id());
+    let test_db = format!("./test_durability_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
 
     // Clean up any existing test database
-    if Path::new(test_db).exists() {
-        fs::remove_dir_all(test_db).ok();
+    if Path::new(&test_db).exists() {
+        fs::remove_dir_all(&test_db).ok();
     }
 
     let test_data = vec![
@@ -239,7 +245,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 1: Write data and explicitly flush
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
 
         for (key, value) in &test_data {
             ledger.put(key, value)?;
@@ -251,7 +257,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 2: Verify data survived process restart
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), test_data.len());
 
         for (key, expected_value) in &test_data {
@@ -262,7 +268,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 3: Test durability without explicit flush
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
 
         // Add more data but rely on Drop trait for flushing
         ledger.put("auto_flush:key1", "Data written without explicit flush")?;
@@ -273,7 +279,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 4: Verify auto-flush worked
     {
-        let ledger = SimpleScribeLedger::new(test_db)?;
+        let ledger = SimpleScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), test_data.len() + 2);
 
         let auto_data = ledger.get("auto_flush:key1")?;
@@ -284,7 +290,7 @@ fn test_sled_durability() -> Result<()> {
     }
 
     // Cleanup
-    fs::remove_dir_all(test_db).ok();
+    fs::remove_dir_all(&test_db).ok();
     Ok(())
 }
 
