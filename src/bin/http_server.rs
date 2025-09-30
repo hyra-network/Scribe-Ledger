@@ -55,26 +55,21 @@ async fn get_handler(
     Path(key): Path<String>,
 ) -> Result<(StatusCode, Json<GetResponse>), (StatusCode, Json<ErrorResponse>)> {
     match ledger.get(&key) {
-        Ok(Some(value_bytes)) => {
-            match String::from_utf8(value_bytes) {
-                Ok(value_str) => Ok((
-                    StatusCode::OK,
-                    Json(GetResponse {
-                        value: Some(value_str),
-                    }),
-                )),
-                Err(e) => Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: format!("Failed to decode value as UTF-8: {}", e),
-                    }),
-                )),
-            }
-        }
-        Ok(None) => Ok((
-            StatusCode::OK,
-            Json(GetResponse { value: None }),
-        )),
+        Ok(Some(value_bytes)) => match String::from_utf8(value_bytes) {
+            Ok(value_str) => Ok((
+                StatusCode::OK,
+                Json(GetResponse {
+                    value: Some(value_str),
+                }),
+            )),
+            Err(e) => Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Failed to decode value as UTF-8: {}", e),
+                }),
+            )),
+        },
+        Ok(None) => Ok((StatusCode::OK, Json(GetResponse { value: None }))),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -95,11 +90,11 @@ async fn health_handler() -> Json<serde_json::Value> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("Starting Simple Scribe Ledger HTTP Server...");
-    
+
     // Initialize the ledger with optimized configuration
     let ledger = SimpleScribeLedger::temp()?;
     let app_state = Arc::new(ledger);
-    
+
     // Build the router
     let app = Router::new()
         .route("/health", get(health_handler))
@@ -107,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/kv/:key", get(get_handler))
         .with_state(app_state)
         .layer(CorsLayer::permissive());
-    
+
     println!("Server starting on http://0.0.0.0:3000");
     println!("Available endpoints:");
     println!("  GET  /health       - Health check");
@@ -117,10 +112,10 @@ async fn main() -> anyhow::Result<()> {
     println!("Example usage:");
     println!("  curl -X PUT http://localhost:3000/kv/test -H 'Content-Type: application/json' -d '{{\"value\": \"hello world\"}}'");
     println!("  curl http://localhost:3000/kv/test");
-    
+
     // Run the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, app).await?;
-    
+
     Ok(())
 }

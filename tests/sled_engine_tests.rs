@@ -1,5 +1,5 @@
-use simple_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
+use simple_scribe_ledger::SimpleScribeLedger;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -50,7 +50,7 @@ fn test_sled_concurrent_read_write() -> Result<()> {
         let handle = thread::spawn(move || -> Result<()> {
             barrier.wait();
             thread::sleep(Duration::from_millis(50)); // Let writers get started
-            
+
             let mut successful_reads = 0;
             for i in 0..1000 {
                 let key = format!("writer1_key_{}", i);
@@ -58,7 +58,7 @@ fn test_sled_concurrent_read_write() -> Result<()> {
                     successful_reads += 1;
                 }
             }
-            
+
             // We should be able to read at least some data
             assert!(successful_reads > 0);
             Ok(())
@@ -73,7 +73,7 @@ fn test_sled_concurrent_read_write() -> Result<()> {
         let handle = thread::spawn(move || -> Result<()> {
             barrier.wait();
             thread::sleep(Duration::from_millis(50)); // Let writers get started
-            
+
             let mut successful_reads = 0;
             for i in 0..1000 {
                 let key = format!("writer2_key_{}", i);
@@ -81,7 +81,7 @@ fn test_sled_concurrent_read_write() -> Result<()> {
                     successful_reads += 1;
                 }
             }
-            
+
             // We should be able to read at least some data
             assert!(successful_reads > 0);
             Ok(())
@@ -104,11 +104,17 @@ fn test_sled_concurrent_read_write() -> Result<()> {
     for i in (0..1000).step_by(100) {
         let key1 = format!("writer1_key_{}", i);
         let value1 = ledger.get(&key1)?;
-        assert_eq!(value1, Some(format!("writer1_value_{}", i).as_bytes().to_vec()));
+        assert_eq!(
+            value1,
+            Some(format!("writer1_value_{}", i).as_bytes().to_vec())
+        );
 
         let key2 = format!("writer2_key_{}", i);
         let value2 = ledger.get(&key2)?;
-        assert_eq!(value2, Some(format!("writer2_value_{}", i).as_bytes().to_vec()));
+        assert_eq!(
+            value2,
+            Some(format!("writer2_value_{}", i).as_bytes().to_vec())
+        );
     }
 
     Ok(())
@@ -167,23 +173,42 @@ fn test_sled_data_consistency() -> Result<()> {
     ledger.put("total_funds", "1500")?;
 
     // Simulate a transfer: Alice sends 200 to Bob
-    let alice_balance: i32 = String::from_utf8_lossy(&ledger.get("account:alice:balance")?.unwrap()).parse().unwrap();
-    let bob_balance: i32 = String::from_utf8_lossy(&ledger.get("account:bob:balance")?.unwrap()).parse().unwrap();
-    let total_funds: i32 = String::from_utf8_lossy(&ledger.get("total_funds")?.unwrap()).parse().unwrap();
+    let alice_balance: i32 =
+        String::from_utf8_lossy(&ledger.get("account:alice:balance")?.unwrap())
+            .parse()
+            .unwrap();
+    let bob_balance: i32 = String::from_utf8_lossy(&ledger.get("account:bob:balance")?.unwrap())
+        .parse()
+        .unwrap();
+    let total_funds: i32 = String::from_utf8_lossy(&ledger.get("total_funds")?.unwrap())
+        .parse()
+        .unwrap();
 
     let transfer_amount = 200;
 
     // Update balances
-    ledger.put("account:alice:balance", &(alice_balance - transfer_amount).to_string())?;
-    ledger.put("account:bob:balance", &(bob_balance + transfer_amount).to_string())?;
+    ledger.put(
+        "account:alice:balance",
+        &(alice_balance - transfer_amount).to_string(),
+    )?;
+    ledger.put(
+        "account:bob:balance",
+        &(bob_balance + transfer_amount).to_string(),
+    )?;
     // Note: total_funds should remain the same
 
     ledger.flush()?;
 
     // Verify consistency
-    let final_alice: i32 = String::from_utf8_lossy(&ledger.get("account:alice:balance")?.unwrap()).parse().unwrap();
-    let final_bob: i32 = String::from_utf8_lossy(&ledger.get("account:bob:balance")?.unwrap()).parse().unwrap();
-    let final_total: i32 = String::from_utf8_lossy(&ledger.get("total_funds")?.unwrap()).parse().unwrap();
+    let final_alice: i32 = String::from_utf8_lossy(&ledger.get("account:alice:balance")?.unwrap())
+        .parse()
+        .unwrap();
+    let final_bob: i32 = String::from_utf8_lossy(&ledger.get("account:bob:balance")?.unwrap())
+        .parse()
+        .unwrap();
+    let final_total: i32 = String::from_utf8_lossy(&ledger.get("total_funds")?.unwrap())
+        .parse()
+        .unwrap();
 
     assert_eq!(final_alice, 800);
     assert_eq!(final_bob, 700);
@@ -200,7 +225,7 @@ fn test_sled_durability() -> Result<()> {
     use std::path::Path;
 
     let test_db = "./test_durability_db";
-    
+
     // Clean up any existing test database
     if Path::new(test_db).exists() {
         fs::remove_dir_all(test_db).ok();
@@ -215,11 +240,11 @@ fn test_sled_durability() -> Result<()> {
     // Phase 1: Write data and explicitly flush
     {
         let ledger = SimpleScribeLedger::new(test_db)?;
-        
+
         for (key, value) in &test_data {
             ledger.put(key, value)?;
         }
-        
+
         // Explicit flush to ensure durability
         ledger.flush()?;
     } // Ledger is dropped here, simulating process termination
@@ -228,7 +253,7 @@ fn test_sled_durability() -> Result<()> {
     {
         let ledger = SimpleScribeLedger::new(test_db)?;
         assert_eq!(ledger.len(), test_data.len());
-        
+
         for (key, expected_value) in &test_data {
             let stored_value = ledger.get(key)?;
             assert_eq!(stored_value, Some(expected_value.as_bytes().to_vec()));
@@ -238,11 +263,11 @@ fn test_sled_durability() -> Result<()> {
     // Phase 3: Test durability without explicit flush
     {
         let ledger = SimpleScribeLedger::new(test_db)?;
-        
+
         // Add more data but rely on Drop trait for flushing
         ledger.put("auto_flush:key1", "Data written without explicit flush")?;
         ledger.put("auto_flush:key2", "Another piece of data")?;
-        
+
         // Don't call flush explicitly - rely on Drop implementation
     } // Drop should flush automatically
 
@@ -250,9 +275,12 @@ fn test_sled_durability() -> Result<()> {
     {
         let ledger = SimpleScribeLedger::new(test_db)?;
         assert_eq!(ledger.len(), test_data.len() + 2);
-        
+
         let auto_data = ledger.get("auto_flush:key1")?;
-        assert_eq!(auto_data, Some(b"Data written without explicit flush".to_vec()));
+        assert_eq!(
+            auto_data,
+            Some(b"Data written without explicit flush".to_vec())
+        );
     }
 
     // Cleanup
@@ -295,7 +323,12 @@ fn test_sled_data_patterns() -> Result<()> {
 
     for i in 0..100 {
         let timestamp_key = format!("events:{}:{:03}", now + i, i);
-        let event_data = format!(r#"{{"event_id": {}, "timestamp": {}, "data": "event_{}"}} "#, i, now + i, i);
+        let event_data = format!(
+            r#"{{"event_id": {}, "timestamp": {}, "data": "event_{}"}} "#,
+            i,
+            now + i,
+            i
+        );
         ledger.put(&timestamp_key, &event_data)?;
     }
 
@@ -327,7 +360,7 @@ fn test_sled_data_patterns() -> Result<()> {
 }
 
 /// Test sled's memory efficiency with large datasets
-#[test] 
+#[test]
 fn test_sled_memory_efficiency() -> Result<()> {
     let ledger = SimpleScribeLedger::temp()?;
 
