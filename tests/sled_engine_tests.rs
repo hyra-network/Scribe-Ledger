@@ -230,7 +230,14 @@ fn test_sled_durability() -> Result<()> {
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
-    let test_db = format!("./test_durability_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
+    let test_db = format!(
+        "./test_durability_db_{}_{}",
+        timestamp,
+        thread_id
+            .replace("ThreadId", "")
+            .replace("(", "")
+            .replace(")", "")
+    );
 
     // Clean up any existing test database
     if Path::new(&test_db).exists() {

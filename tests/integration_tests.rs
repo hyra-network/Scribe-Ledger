@@ -13,7 +13,14 @@ fn test_database_lifecycle() -> Result<()> {
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
-    let test_db = format!("./test_integration_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
+    let test_db = format!(
+        "./test_integration_db_{}_{}",
+        timestamp,
+        thread_id
+            .replace("ThreadId", "")
+            .replace("(", "")
+            .replace(")", "")
+    );
 
     // Clean up any existing test database
     if Path::new(&test_db).exists() {
@@ -158,7 +165,14 @@ fn test_database_consistency() -> Result<()> {
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
-    let test_db = format!("./test_consistency_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
+    let test_db = format!(
+        "./test_consistency_db_{}_{}",
+        timestamp,
+        thread_id
+            .replace("ThreadId", "")
+            .replace("(", "")
+            .replace(")", "")
+    );
 
     // Clean up any existing test database
     if Path::new(&test_db).exists() {
@@ -253,7 +267,14 @@ fn test_memory_and_cleanup() -> Result<()> {
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
-    let test_db = format!("./test_memory_db_{}_{}", timestamp, thread_id.replace("ThreadId", "").replace("(", "").replace(")", ""));
+    let test_db = format!(
+        "./test_memory_db_{}_{}",
+        timestamp,
+        thread_id
+            .replace("ThreadId", "")
+            .replace("(", "")
+            .replace(")", "")
+    );
 
     // Clean up any existing test database
     if Path::new(&test_db).exists() {
