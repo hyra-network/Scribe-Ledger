@@ -3,6 +3,9 @@
 //! This module implements the RaftStateMachine trait for applying log entries
 //! to the key-value store state machine.
 
+// Allow large error types from OpenRaft - this is a library design choice
+#![allow(clippy::result_large_err)]
+
 use openraft::entry::RaftPayload;
 use openraft::storage::RaftStateMachine;
 use openraft::{LogId, RaftSnapshotBuilder, SnapshotMeta, StorageError, StorageIOError, StoredMembership};

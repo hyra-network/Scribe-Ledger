@@ -3,6 +3,9 @@
 //! This module implements RaftLogStorage and RaftLogReader traits for persistent
 //! storage of Raft log entries, hard state (vote), and metadata using Sled.
 
+// Allow large error types from OpenRaft - this is a library design choice
+#![allow(clippy::result_large_err)]
+
 use openraft::storage::{LogFlushed, RaftLogStorage};
 use openraft::{
     LogId, LogState, RaftLogReader, StorageError, StorageIOError, Vote,
