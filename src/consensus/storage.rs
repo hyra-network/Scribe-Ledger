@@ -7,9 +7,7 @@
 #![allow(clippy::result_large_err)]
 
 use openraft::storage::{LogFlushed, RaftLogStorage};
-use openraft::{
-    LogId, LogState, RaftLogReader, StorageError, StorageIOError, Vote,
-};
+use openraft::{LogId, LogState, RaftLogReader, StorageError, StorageIOError, Vote};
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
@@ -76,7 +74,6 @@ impl RaftStorage {
     fn log_key(index: u64) -> Vec<u8> {
         index.to_be_bytes().to_vec()
     }
-
 }
 
 /// Log reader for reading log entries
@@ -119,9 +116,12 @@ impl RaftLogReader<TypeConfig> for LogReader {
         let mut entries = Vec::new();
         for index in start..end {
             let key = RaftStorage::log_key(index);
-            if let Some(value) = logs.get(&key).map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))? {
-                let entry: openraft::Entry<TypeConfig> =
-                    bincode::deserialize(&value).map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?;
+            if let Some(value) = logs
+                .get(&key)
+                .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?
+            {
+                let entry: openraft::Entry<TypeConfig> = bincode::deserialize(&value)
+                    .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?;
                 entries.push(entry);
             } else {
                 break;
@@ -154,14 +154,18 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
             .get(Self::KEY_LAST_PURGED)
             .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?
             .map(|v| {
-                bincode::deserialize::<LogId<NodeId>>(&v).map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))
+                bincode::deserialize::<LogId<NodeId>>(&v)
+                    .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))
             })
             .transpose()?;
 
         // Get last log entry
-        let last_log_id = if let Some((_key, value)) = logs.last().map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))? {
-            let entry: openraft::Entry<TypeConfig> =
-                bincode::deserialize(&value).map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?;
+        let last_log_id = if let Some((_key, value)) = logs
+            .last()
+            .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?
+        {
+            let entry: openraft::Entry<TypeConfig> = bincode::deserialize(&value)
+                .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?;
             Some(entry.log_id)
         } else {
             last_purged
@@ -175,11 +179,14 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
 
     async fn save_vote(&mut self, vote: &Vote<NodeId>) -> Result<(), StorageError<NodeId>> {
         let vote_tree = self.vote_tree()?;
-        let encoded = bincode::serialize(vote).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        let encoded = bincode::serialize(vote)
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         vote_tree
             .insert(Self::KEY_VOTE, encoded)
             .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
-        vote_tree.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        vote_tree
+            .flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         Ok(())
     }
 
@@ -188,7 +195,10 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
         vote_tree
             .get(Self::KEY_VOTE)
             .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?
-            .map(|v| bincode::deserialize(&v).map_err(|e| StorageError::from(StorageIOError::read_logs(&e))))
+            .map(|v| {
+                bincode::deserialize(&v)
+                    .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))
+            })
             .transpose()
     }
 
@@ -198,7 +208,8 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
     ) -> Result<(), StorageError<NodeId>> {
         let state = self.state_tree()?;
         if let Some(log_id) = committed {
-            let encoded = bincode::serialize(&log_id).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+            let encoded = bincode::serialize(&log_id)
+                .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
             state
                 .insert(Self::KEY_COMMITTED, encoded)
                 .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
@@ -207,7 +218,9 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
                 .remove(Self::KEY_COMMITTED)
                 .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         }
-        state.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        state
+            .flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         Ok(())
     }
 
@@ -216,7 +229,10 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
         state
             .get(Self::KEY_COMMITTED)
             .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))?
-            .map(|v| bincode::deserialize(&v).map_err(|e| StorageError::from(StorageIOError::read_logs(&e))))
+            .map(|v| {
+                bincode::deserialize(&v)
+                    .map_err(|e| StorageError::from(StorageIOError::read_logs(&e)))
+            })
             .transpose()
     }
 
@@ -237,12 +253,15 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
 
         for entry in entries {
             let key = Self::log_key(entry.log_id.index);
-            let value = bincode::serialize(&entry).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
-            logs.insert(key, value).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+            let value = bincode::serialize(&entry)
+                .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+            logs.insert(key, value)
+                .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         }
 
         // Flush to disk
-        logs.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        logs.flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
 
         // Call the callback to signal that entries are persisted
         callback.log_io_completed(Ok(()));
@@ -260,10 +279,12 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
             .collect();
 
         for key in keys_to_remove {
-            logs.remove(key).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+            logs.remove(key)
+                .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         }
 
-        logs.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        logs.flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         Ok(())
     }
 
@@ -278,17 +299,22 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
             .collect();
 
         for key in keys_to_remove {
-            logs.remove(key).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+            logs.remove(key)
+                .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         }
 
         // Update last purged log id
-        let encoded = bincode::serialize(&log_id).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        let encoded = bincode::serialize(&log_id)
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         state
             .insert(Self::KEY_LAST_PURGED, encoded)
             .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
 
-        logs.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
-        state.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        logs.flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        state
+            .flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         Ok(())
     }
 }
@@ -296,8 +322,8 @@ impl RaftLogStorage<TypeConfig> for RaftStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openraft::{EntryPayload, LeaderId};
     use crate::consensus::type_config::AppRequest;
+    use openraft::{EntryPayload, LeaderId};
 
     fn create_test_storage() -> RaftStorage {
         let db = sled::Config::new().temporary(true).open().unwrap();
@@ -305,12 +331,18 @@ mod tests {
     }
 
     // Helper to manually insert log entries for testing without using append callback
-    async fn test_insert_log(storage: &RaftStorage, entry: openraft::Entry<TypeConfig>) -> Result<(), StorageError<NodeId>> {
+    async fn test_insert_log(
+        storage: &RaftStorage,
+        entry: openraft::Entry<TypeConfig>,
+    ) -> Result<(), StorageError<NodeId>> {
         let logs = storage.logs()?;
         let key = RaftStorage::log_key(entry.log_id.index);
-        let value = bincode::serialize(&entry).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
-        logs.insert(key, value).map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
-        logs.flush().map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        let value = bincode::serialize(&entry)
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        logs.insert(key, value)
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
+        logs.flush()
+            .map_err(|e| StorageError::from(StorageIOError::write_logs(&e)))?;
         Ok(())
     }
 
@@ -352,7 +384,7 @@ mod tests {
 
         let mut reader = storage.get_log_reader().await;
         let entries = reader.try_get_log_entries(1..3).await.unwrap();
-        
+
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].log_id, log_id1);
         assert_eq!(entries[1].log_id, log_id2);

@@ -8,7 +8,9 @@
 
 use openraft::entry::RaftPayload;
 use openraft::storage::RaftStateMachine;
-use openraft::{LogId, RaftSnapshotBuilder, SnapshotMeta, StorageError, StorageIOError, StoredMembership};
+use openraft::{
+    LogId, RaftSnapshotBuilder, SnapshotMeta, StorageError, StorageIOError, StoredMembership,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -16,7 +18,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::consensus::type_config::{AppRequest, AppResponse, TypeConfig};
-use crate::types::{Key, Value, NodeId};
+use crate::types::{Key, NodeId, Value};
 
 /// Snapshot data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +91,9 @@ impl SnapshotBuilder {
 }
 
 impl RaftSnapshotBuilder<TypeConfig> for SnapshotBuilder {
-    async fn build_snapshot(&mut self) -> Result<openraft::Snapshot<TypeConfig>, StorageError<NodeId>> {
+    async fn build_snapshot(
+        &mut self,
+    ) -> Result<openraft::Snapshot<TypeConfig>, StorageError<NodeId>> {
         let snapshot_id = format!(
             "{:?}",
             self.snapshot_data
@@ -222,8 +226,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         snapshot: Box<Cursor<Vec<u8>>>,
     ) -> Result<(), StorageError<NodeId>> {
         let data = snapshot.into_inner();
-        let snapshot_data: SnapshotData = bincode::deserialize(&data)
-            .map_err(|e| StorageError::from(StorageIOError::read_snapshot(Some(meta.signature()), &e)))?;
+        let snapshot_data: SnapshotData = bincode::deserialize(&data).map_err(|e| {
+            StorageError::from(StorageIOError::read_snapshot(Some(meta.signature()), &e))
+        })?;
 
         let mut sm = self.inner.write().await;
         sm.last_applied = snapshot_data.last_applied;

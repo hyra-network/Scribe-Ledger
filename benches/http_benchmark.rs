@@ -5,7 +5,7 @@ use tokio::runtime::Runtime;
 // NOTE: These benchmarks measure JSON serialization overhead only, NOT actual HTTP network operations.
 // They are useful for understanding the CPU overhead of preparing HTTP requests/responses,
 // but do not include actual network latency, HTTP server processing, or database operations.
-// 
+//
 // For realistic HTTP benchmarks, use integration tests with an actual HTTP server running.
 
 fn benchmark_json_serialization_overhead(c: &mut Criterion) {
@@ -15,29 +15,33 @@ fn benchmark_json_serialization_overhead(c: &mut Criterion) {
     // Measures JSON serialization CPU overhead for PUT operations
     // This represents the minimum CPU cost to prepare an HTTP PUT request body
     for ops in [10, 100, 500, 10000].iter() {
-        group.bench_with_input(BenchmarkId::new("put_json_serialization", ops), ops, |b, &ops| {
-            let rt = Runtime::new().unwrap();
+        group.bench_with_input(
+            BenchmarkId::new("put_json_serialization", ops),
+            ops,
+            |b, &ops| {
+                let rt = Runtime::new().unwrap();
 
-            // Pre-allocate reusable buffers for keys and values
-            let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
-            let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
+                // Pre-allocate reusable buffers for keys and values
+                let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
+                let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
 
-            b.iter(|| {
-                rt.block_on(async {
-                    // JSON serialization overhead only (no network, no server)
-                    for i in 0..ops {
-                        let key = &keys[i];
-                        let value = &values[i];
+                b.iter(|| {
+                    rt.block_on(async {
+                        // JSON serialization overhead only (no network, no server)
+                        for i in 0..ops {
+                            let key = &keys[i];
+                            let value = &values[i];
 
-                        let _json_payload = serde_json::json!({"value": value});
+                            let _json_payload = serde_json::json!({"value": value});
 
-                        black_box(key);
-                        black_box(value);
-                        black_box(_json_payload);
-                    }
+                            black_box(key);
+                            black_box(value);
+                            black_box(_json_payload);
+                        }
+                    });
                 });
-            });
-        });
+            },
+        );
     }
 
     group.finish();
@@ -50,23 +54,27 @@ fn benchmark_json_deserialization_overhead(c: &mut Criterion) {
     // Measures JSON deserialization CPU overhead for GET operations
     // This represents the minimum CPU cost to parse an HTTP GET response
     for ops in [10, 100, 500, 10000].iter() {
-        group.bench_with_input(BenchmarkId::new("get_json_deserialization", ops), ops, |b, &ops| {
-            let rt = Runtime::new().unwrap();
+        group.bench_with_input(
+            BenchmarkId::new("get_json_deserialization", ops),
+            ops,
+            |b, &ops| {
+                let rt = Runtime::new().unwrap();
 
-            // Pre-allocate reusable buffer for keys
-            let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
+                // Pre-allocate reusable buffer for keys
+                let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
 
-            b.iter(|| {
-                rt.block_on(async {
-                    // JSON response parsing overhead only (no network, no server)
-                    for key in &keys {
-                        let _json_response = serde_json::json!({"value": "some_value"});
-                        black_box(key);
-                        black_box(_json_response);
-                    }
+                b.iter(|| {
+                    rt.block_on(async {
+                        // JSON response parsing overhead only (no network, no server)
+                        for key in &keys {
+                            let _json_response = serde_json::json!({"value": "some_value"});
+                            black_box(key);
+                            black_box(_json_response);
+                        }
+                    });
                 });
-            });
-        });
+            },
+        );
     }
 
     group.finish();
