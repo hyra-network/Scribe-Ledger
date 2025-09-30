@@ -1,0 +1,19 @@
+# Node 3 Configuration
+
+[node]
+id = 3
+address = "127.0.0.1"
+data_dir = "./node-3"
+
+[network]
+listen_addr = "127.0.0.1:8003"
+client_port = 8003
+raft_port = 9003
+
+[storage]
+segment_size = 67108864
+max_cache_size = 268435456
+
+[consensus]
+election_timeout_ms = 1000
+heartbeat_interval_ms = 300

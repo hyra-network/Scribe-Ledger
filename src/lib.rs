@@ -5,9 +5,11 @@ use std::path::Path;
 // New modules for distributed ledger functionality
 pub mod config;
 pub mod consensus;
+pub mod error;
 pub mod manifest;
 pub mod network;
 pub mod storage;
+pub mod types;
 
 /// Simple Scribe Ledger - A minimal key-value storage engine using sled
 pub struct SimpleScribeLedger {

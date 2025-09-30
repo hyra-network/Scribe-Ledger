@@ -1,0 +1,19 @@
+# Node 1 Configuration
+
+[node]
+id = 1
+address = "127.0.0.1"
+data_dir = "./node-1"
+
+[network]
+listen_addr = "127.0.0.1:8001"
+client_port = 8001
+raft_port = 9001
+
+[storage]
+segment_size = 67108864
+max_cache_size = 268435456
+
+[consensus]
+election_timeout_ms = 1000
+heartbeat_interval_ms = 300
