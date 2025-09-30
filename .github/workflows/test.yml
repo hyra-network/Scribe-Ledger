@@ -61,6 +61,9 @@ jobs:
     - name: Run sled engine tests
       run: cargo test --test sled_engine_tests --verbose
     
+    - name: Run storage tests
+      run: cargo test --test storage_tests --verbose
+    
     - name: Run all tests
       run: cargo test --verbose
     
@@ -72,3 +75,6 @@ jobs:
     
     - name: Test types module
       run: cargo test --lib types:: --verbose
+    
+    - name: Test storage module
+      run: cargo test --lib storage:: --verbose
