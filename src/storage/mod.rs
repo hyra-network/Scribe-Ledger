@@ -2,6 +2,8 @@
 //!
 //! This module contains the storage abstraction layer and Sled implementation.
 
+pub mod segment;
+
 use crate::error::{Result, ScribeError};
 use crate::types::{Key, Value};
 use async_trait::async_trait;
