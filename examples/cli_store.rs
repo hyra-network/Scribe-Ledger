@@ -1,5 +1,5 @@
-use simple_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
+use simple_scribe_ledger::SimpleScribeLedger;
 use std::io::{self, Write};
 
 fn main() -> Result<()> {
@@ -11,34 +11,32 @@ fn main() -> Result<()> {
     println!("  clear             - Remove all data");
     println!("  quit              - Exit the application");
     println!();
-    
+
     let ledger = SimpleScribeLedger::new("./my_store")?;
-    
+
     loop {
         print!("store> ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
-        
+
         if input.is_empty() {
             continue;
         }
-        
+
         let parts: Vec<&str> = input.splitn(3, ' ').collect();
-        
+
         match parts.as_slice() {
             ["put", key, value] => {
                 ledger.put(key, value)?;
                 println!("✓ Stored: {} = {}", key, value);
             }
-            ["get", key] => {
-                match ledger.get(key)? {
-                    Some(value) => println!("✓ Found: {} = {}", key, String::from_utf8_lossy(&value)),
-                    None => println!("✗ Key '{}' not found", key),
-                }
-            }
+            ["get", key] => match ledger.get(key)? {
+                Some(value) => println!("✓ Found: {} = {}", key, String::from_utf8_lossy(&value)),
+                None => println!("✗ Key '{}' not found", key),
+            },
             ["list"] => {
                 let count = ledger.len();
                 if count == 0 {
@@ -70,12 +68,12 @@ fn main() -> Result<()> {
                 }
             }
         }
-        
+
         // Flush much less frequently - only every 10 operations or when quitting
         // This dramatically improves interactive performance
         // Sled's background flushing handles durability automatically
     }
-    
+
     // Final flush when exiting to ensure all data is persisted
     ledger.flush()?;
     println!("Goodbye!");

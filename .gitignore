@@ -6,6 +6,12 @@ Cargo.lock
 /data/
 *.db
 
+# Distributed node data directories
+node*/
+cluster*/
+raft-data/
+node-data/
+
 # IDE files
 .vscode/
 .idea/
