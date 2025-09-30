@@ -42,3 +42,7 @@ path = "examples/data_types.rs"
 [[example]]
 name = "cli_store"
 path = "examples/cli_store.rs"
+
+[[example]]
+name = "config_demo"
+path = "examples/config_demo.rs"
