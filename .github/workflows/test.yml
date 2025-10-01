@@ -91,5 +91,11 @@ jobs:
     - name: Test consensus storage module
       run: cargo test --lib 'consensus::storage::' --verbose
     
+    - name: Test consensus network module
+      run: cargo test --lib 'consensus::network::' --verbose
+    
+    - name: Test consensus module
+      run: cargo test --lib 'consensus::tests::' --verbose
+    
     - name: Run performance regression tests
       run: cargo test --test performance_regression_tests --verbose
