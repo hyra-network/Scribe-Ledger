@@ -397,8 +397,6 @@ mod tests {
 
     #[test]
     fn test_network_response_serialization() {
-        use openraft::Vote;
-
         let response: AppendEntriesResponse<NodeId> = AppendEntriesResponse::Success;
 
         let net_response = NetworkResponse::AppendEntries(Ok(response));
