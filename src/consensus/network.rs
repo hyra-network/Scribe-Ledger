@@ -5,6 +5,10 @@
 
 // Allow large error types from OpenRaft - this is a library design choice
 #![allow(clippy::result_large_err)]
+// Allow io_other_error clippy lint as this is a standard pattern for network errors
+#![allow(clippy::io_other_error)]
+// Allow type complexity as it's from library requirements
+#![allow(clippy::type_complexity)]
 
 use openraft::error::{InstallSnapshotError, NetworkError, RPCError, RaftError};
 use openraft::network::{RPCOption, RaftNetwork, RaftNetworkFactory};
@@ -48,6 +52,7 @@ enum NetworkResponse {
 }
 
 /// Connection pool for managing TCP connections to other nodes
+#[allow(dead_code)]
 struct ConnectionPool {
     connections: Arc<RwLock<HashMap<NodeId, Arc<RwLock<Option<TcpStream>>>>>>,
 }
@@ -82,6 +87,7 @@ impl ConnectionPool {
 /// Network implementation for Raft RPC
 pub struct Network {
     /// The target node ID for this network instance
+    #[allow(dead_code)]
     target: NodeId,
     /// Target node address
     target_addr: String,

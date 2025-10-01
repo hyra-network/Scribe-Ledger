@@ -36,6 +36,10 @@ harness = false
 name = "http_benchmark"
 harness = false
 
+[[bench]]
+name = "simple_http_benchmark"
+harness = false
+
 [[example]]
 name = "basic_usage"
 path = "examples/basic_usage.rs"

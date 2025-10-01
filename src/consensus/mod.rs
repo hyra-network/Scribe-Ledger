@@ -2,6 +2,9 @@
 //!
 //! This module contains the Raft consensus implementation for the distributed ledger.
 
+// Allow io_other_error clippy lint as this is a standard pattern
+#![allow(clippy::io_other_error)]
+
 pub mod network;
 pub mod state_machine;
 pub mod storage;
@@ -12,7 +15,6 @@ pub use state_machine::{SnapshotBuilder, StateMachine, StateMachineStore};
 pub use storage::{LogReader, RaftStorage};
 pub use type_config::{AppRequest, AppResponse, TypeConfig};
 
-use openraft::error::Fatal;
 use openraft::{BasicNode, Config, Raft};
 use std::collections::BTreeSet;
 use std::sync::Arc;
