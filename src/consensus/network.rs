@@ -260,13 +260,14 @@ impl RaftNetwork<TypeConfig> for Network {
         RPCError<NodeId, BasicNode, RaftError<NodeId, InstallSnapshotError>>,
     > {
         let message = NetworkMessage::InstallSnapshot(rpc);
-        let response: NetworkResponse = self.send_with_retry(message).await.map_err(|e| match e {
-            RPCError::Network(n) => RPCError::Network(n),
-            _ => RPCError::Network(NetworkError::new(&std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Network error",
-            ))),
-        })?;
+        let response: NetworkResponse =
+            self.send_with_retry(message).await.map_err(|e| match e {
+                RPCError::Network(n) => RPCError::Network(n),
+                _ => RPCError::Network(NetworkError::new(&std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Network error",
+                ))),
+            })?;
 
         match response {
             NetworkResponse::InstallSnapshot(result) => result.map_err(|e| {
@@ -330,9 +331,7 @@ mod tests {
     #[tokio::test]
     async fn test_network_factory() {
         let factory = NetworkFactory::new(1);
-        factory
-            .register_node(2, "127.0.0.1:5002".to_string())
-            .await;
+        factory.register_node(2, "127.0.0.1:5002".to_string()).await;
 
         let addresses = factory.node_addresses.read().await;
         assert_eq!(addresses.get(&2), Some(&"127.0.0.1:5002".to_string()));

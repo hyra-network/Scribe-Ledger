@@ -43,7 +43,7 @@ impl ConsensusNode {
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Create storage
         let storage = RaftStorage::new(db);
-        
+
         // Create separate state machine instance (not from storage)
         let state_machine = StateMachineStore::new();
 
@@ -104,15 +104,12 @@ impl ConsensusNode {
         let mut nodes = BTreeSet::new();
         nodes.insert(self.node_id);
 
-        self.raft
-            .initialize(nodes)
-            .await
-            .map_err(|e| {
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to initialize cluster: {:?}", e),
-                )) as Box<dyn std::error::Error + Send + Sync>
-            })?;
+        self.raft.initialize(nodes).await.map_err(|e| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to initialize cluster: {:?}", e),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
 
         Ok(())
     }
@@ -171,9 +168,9 @@ impl ConsensusNode {
     pub async fn health_check(&self) -> HealthStatus {
         let is_leader = self.is_leader().await;
         let current_leader = self.current_leader().await;
-        
+
         let metrics = self.raft.metrics().borrow().clone();
-        
+
         HealthStatus {
             node_id: self.node_id,
             is_leader,
@@ -254,9 +251,9 @@ mod tests {
     async fn test_register_peer() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         node.register_peer(2, "127.0.0.1:5002".to_string()).await;
-        
+
         // Can't directly access node_addresses from outside, so just verify it doesn't error
     }
 
@@ -264,13 +261,13 @@ mod tests {
     async fn test_initialize_single_node_cluster() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         // Initialize as single-node cluster
         node.initialize().await.unwrap();
-        
+
         // Wait a bit for election
         tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-        
+
         // Should be leader
         assert!(node.is_leader().await);
     }
@@ -279,7 +276,7 @@ mod tests {
     async fn test_health_check() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         let health = node.health_check().await;
         assert_eq!(health.node_id, 1);
     }
@@ -288,7 +285,7 @@ mod tests {
     async fn test_metrics() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         let metrics = node.metrics().await;
         assert_eq!(metrics.id, 1);
     }
@@ -297,12 +294,12 @@ mod tests {
     async fn test_client_write_before_init() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         let request = AppRequest::Put {
             key: b"test_key".to_vec(),
             value: b"test_value".to_vec(),
         };
-        
+
         // Writing before initialization should fail
         let result = node.client_write(request).await;
         assert!(result.is_err());
@@ -312,7 +309,7 @@ mod tests {
     async fn test_current_leader() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         // Before initialization, there should be no leader
         let leader = node.current_leader().await;
         assert_eq!(leader, None);
@@ -322,7 +319,7 @@ mod tests {
     async fn test_shutdown() {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(1, db).await.unwrap();
-        
+
         // Shutdown should succeed
         node.shutdown().await.unwrap();
     }
