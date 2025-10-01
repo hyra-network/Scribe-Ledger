@@ -1,15 +1,26 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use serde::{Deserialize, Serialize};
 use simple_scribe_ledger::SimpleScribeLedger;
 use std::time::Duration;
 
-// Simple HTTP benchmark that tests actual database operations
-// This simulates the work done by an HTTP server handling requests
+// Simple HTTP benchmark that simulates actual HTTP server operations
+// This includes JSON serialization/deserialization overhead that HTTP handlers perform
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PutRequest {
+    value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GetResponse {
+    value: Option<String>,
+}
 
 fn benchmark_simple_http_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("simple_http_operations");
     group.measurement_time(Duration::from_secs(10));
 
-    // Benchmark PUT operations (simulating HTTP PUT handlers)
+    // Benchmark PUT operations (simulating HTTP PUT handlers with JSON serialization)
     for ops in [10, 100, 500].iter() {
         group.bench_with_input(
             BenchmarkId::new("http_put_operations", ops),
@@ -20,14 +31,27 @@ fn benchmark_simple_http_operations(c: &mut Criterion) {
                 let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
 
                 b.iter(|| {
-                    // Create ledger once per iteration (simulating a request to the server)
                     let ledger = SimpleScribeLedger::temp().unwrap();
 
-                    // Simulate HTTP PUT operations
+                    // Simulate HTTP PUT operations with JSON overhead
                     for i in 0..ops {
+                        // Simulate JSON deserialization of request
+                        let request = PutRequest {
+                            value: values[i].clone(),
+                        };
+                        let _json_request = serde_json::to_string(&request).unwrap();
+                        let deserialized: PutRequest =
+                            serde_json::from_str(&_json_request).unwrap();
+
+                        // Perform database operation
                         ledger
-                            .put(black_box(&keys[i]), black_box(&values[i]))
+                            .put(black_box(&keys[i]), black_box(&deserialized.value))
                             .unwrap();
+
+                        // Simulate JSON serialization of response
+                        let response = serde_json::json!({"status": "ok"});
+                        let _json_response = serde_json::to_string(&response).unwrap();
+                        black_box(_json_response);
                     }
 
                     ledger.flush().unwrap();
@@ -37,7 +61,7 @@ fn benchmark_simple_http_operations(c: &mut Criterion) {
         );
     }
 
-    // Benchmark GET operations (simulating HTTP GET handlers)
+    // Benchmark GET operations (simulating HTTP GET handlers with JSON serialization)
     for ops in [10, 100, 500].iter() {
         group.bench_with_input(
             BenchmarkId::new("http_get_operations", ops),
@@ -55,10 +79,17 @@ fn benchmark_simple_http_operations(c: &mut Criterion) {
                 ledger.flush().unwrap();
 
                 b.iter(|| {
-                    // Simulate HTTP GET operations
+                    // Simulate HTTP GET operations with JSON overhead
                     for key in &keys {
+                        // Perform database operation
                         let result = ledger.get(black_box(key)).unwrap();
-                        black_box(result);
+
+                        // Simulate JSON serialization of response
+                        let value_str =
+                            result.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+                        let response = GetResponse { value: value_str };
+                        let json_response = serde_json::to_string(&response).unwrap();
+                        black_box(json_response);
                     }
                 });
             },
@@ -85,16 +116,35 @@ fn benchmark_mixed_http_operations(c: &mut Criterion) {
                 b.iter(|| {
                     let ledger = SimpleScribeLedger::temp().unwrap();
 
-                    // Simulate mixed HTTP operations (50% PUT, 50% GET)
+                    // Simulate mixed HTTP operations (50% PUT, 50% GET) with JSON overhead
                     for i in 0..ops {
                         if i % 2 == 0 {
-                            // Simulate HTTP PUT
+                            // Simulate HTTP PUT with JSON
+                            let request = PutRequest {
+                                value: values[i].clone(),
+                            };
+                            let _json_request = serde_json::to_string(&request).unwrap();
+                            let deserialized: PutRequest =
+                                serde_json::from_str(&_json_request).unwrap();
+
                             ledger
-                                .put(black_box(&keys[i]), black_box(&values[i]))
+                                .put(black_box(&keys[i]), black_box(&deserialized.value))
                                 .unwrap();
+
+                            let response = serde_json::json!({"status": "ok"});
+                            let _json_response = serde_json::to_string(&response).unwrap();
+                            black_box(_json_response);
                         } else {
-                            // Simulate HTTP GET
-                            let _ = ledger.get(black_box(&keys[i]));
+                            // Simulate HTTP GET with JSON
+                            let result = ledger.get(black_box(&keys[i]));
+                            if let Ok(Some(bytes)) = result {
+                                let value_str = String::from_utf8_lossy(&bytes).to_string();
+                                let response = GetResponse {
+                                    value: Some(value_str),
+                                };
+                                let json_response = serde_json::to_string(&response).unwrap();
+                                black_box(json_response);
+                            }
                         }
                     }
 
@@ -125,9 +175,21 @@ fn benchmark_http_payload_sizes(c: &mut Criterion) {
                 b.iter(|| {
                     let ledger = SimpleScribeLedger::temp().unwrap();
 
-                    // Simulate HTTP PUT with varying payload sizes
-                    ledger.put(black_box(key), black_box(&value)).unwrap();
+                    // Simulate HTTP PUT with JSON and varying payload sizes
+                    let request = PutRequest {
+                        value: value.clone(),
+                    };
+                    let json_request = serde_json::to_string(&request).unwrap();
+                    let deserialized: PutRequest = serde_json::from_str(&json_request).unwrap();
+
+                    ledger
+                        .put(black_box(key), black_box(&deserialized.value))
+                        .unwrap();
                     ledger.flush().unwrap();
+
+                    let response = serde_json::json!({"status": "ok"});
+                    let json_response = serde_json::to_string(&response).unwrap();
+                    black_box(json_response);
 
                     black_box(&ledger);
                 });
@@ -147,9 +209,12 @@ fn benchmark_http_payload_sizes(c: &mut Criterion) {
                 ledger.flush().unwrap();
 
                 b.iter(|| {
-                    // Simulate HTTP GET with varying payload sizes
+                    // Simulate HTTP GET with JSON and varying payload sizes
                     let result = ledger.get(black_box(key)).unwrap();
-                    black_box(result);
+                    let value_str = result.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+                    let response = GetResponse { value: value_str };
+                    let json_response = serde_json::to_string(&response).unwrap();
+                    black_box(json_response);
                 });
             },
         );
