@@ -7,24 +7,36 @@ use std::path::Path;
 /// Integration test for real-world sled database scenarios
 #[test]
 fn test_database_lifecycle() -> Result<()> {
-    // Use timestamp + thread ID to ensure unique path for each test run
+    // Use timestamp + thread ID + random number to ensure unique path for each test run
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
+    let random_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_micros();
     let test_db = format!(
-        "./test_integration_db_{}_{}",
+        "./test_integration_db_{}_{}_{}",
         timestamp,
         thread_id
             .replace("ThreadId", "")
             .replace("(", "")
-            .replace(")", "")
+            .replace(")", ""),
+        random_suffix
     );
 
-    // Clean up any existing test database
+    // Clean up any existing test database with retries
     if Path::new(&test_db).exists() {
-        fs::remove_dir_all(&test_db).ok();
+        for attempt in 0..3 {
+            if fs::remove_dir_all(&test_db).is_ok() {
+                break;
+            }
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
     }
 
     // Phase 1: Create database and populate it
@@ -61,7 +73,13 @@ fn test_database_lifecycle() -> Result<()> {
 
         ledger.flush()?;
         assert_eq!(ledger.len(), 7);
+
+        // Explicitly drop the ledger to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 2: Reopen database and verify persistence
     {
@@ -88,7 +106,13 @@ fn test_database_lifecycle() -> Result<()> {
         )?;
 
         assert_eq!(ledger.len(), 8);
+
+        // Explicitly drop the ledger to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 3: Final verification and cleanup
     {
@@ -101,10 +125,24 @@ fn test_database_lifecycle() -> Result<()> {
 
         let diana = ledger.get("user:4")?;
         assert!(diana.is_some());
+
+        // Explicitly drop the ledger to release locks before cleanup
+        drop(ledger);
     }
 
-    // Cleanup
-    fs::remove_dir_all(&test_db).ok();
+    // Small delay before cleanup to ensure all locks are released
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // Cleanup with retries
+    for attempt in 0..5 {
+        if fs::remove_dir_all(&test_db).is_ok() {
+            break;
+        }
+        if attempt < 4 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
     Ok(())
 }
 
@@ -159,24 +197,36 @@ fn test_high_load_sled_operations() -> Result<()> {
 /// Test sled database recovery and consistency
 #[test]
 fn test_database_consistency() -> Result<()> {
-    // Use timestamp + thread ID to ensure unique path for each test run
+    // Use timestamp + thread ID + random number to ensure unique path for each test run
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
+    let random_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_micros();
     let test_db = format!(
-        "./test_consistency_db_{}_{}",
+        "./test_consistency_db_{}_{}_{}",
         timestamp,
         thread_id
             .replace("ThreadId", "")
             .replace("(", "")
-            .replace(")", "")
+            .replace(")", ""),
+        random_suffix
     );
 
-    // Clean up any existing test database
+    // Clean up any existing test database with retries
     if Path::new(&test_db).exists() {
-        fs::remove_dir_all(&test_db).ok();
+        for attempt in 0..3 {
+            if fs::remove_dir_all(&test_db).is_ok() {
+                break;
+            }
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
     }
 
     let initial_data: HashMap<String, String> = (0..100)
@@ -198,7 +248,13 @@ fn test_database_consistency() -> Result<()> {
 
         ledger.flush()?;
         assert_eq!(ledger.len(), initial_data.len());
+
+        // Explicitly drop the ledger to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 2: Verify all data is consistent after reopening
     {
@@ -229,7 +285,13 @@ fn test_database_consistency() -> Result<()> {
         assert_eq!(ledger.len(), initial_data.len());
 
         ledger.flush()?;
+
+        // Explicitly drop the ledger to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 3: Verify consistency after updates
     {
@@ -251,34 +313,60 @@ fn test_database_consistency() -> Result<()> {
             let stored_value = ledger.get(&key)?;
             assert_eq!(stored_value, Some(expected_value.as_bytes().to_vec()));
         }
+
+        // Explicitly drop the ledger to release locks before cleanup
+        drop(ledger);
     }
 
-    // Cleanup
-    fs::remove_dir_all(&test_db).ok();
+    // Small delay before cleanup to ensure all locks are released
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // Cleanup with retries
+    for attempt in 0..5 {
+        if fs::remove_dir_all(&test_db).is_ok() {
+            break;
+        }
+        if attempt < 4 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
     Ok(())
 }
 
 /// Test sled's memory usage and cleanup behavior
 #[test]
 fn test_memory_and_cleanup() -> Result<()> {
-    // Use timestamp to ensure unique path for each test run
+    // Use timestamp + random number to ensure unique path for each test run
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
+    let random_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_micros();
     let test_db = format!(
-        "./test_memory_db_{}_{}",
+        "./test_memory_db_{}_{}_{}",
         timestamp,
         thread_id
             .replace("ThreadId", "")
             .replace("(", "")
-            .replace(")", "")
+            .replace(")", ""),
+        random_suffix
     );
 
-    // Clean up any existing test database
+    // Clean up any existing test database with retries
     if Path::new(&test_db).exists() {
-        fs::remove_dir_all(&test_db).ok();
+        for attempt in 0..3 {
+            if fs::remove_dir_all(&test_db).is_ok() {
+                break;
+            }
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
     }
 
     {
@@ -323,7 +411,13 @@ fn test_memory_and_cleanup() -> Result<()> {
         assert!(ledger.is_empty());
 
         ledger.flush()?;
+
+        // Explicitly drop the ledger to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Verify database is actually empty after reopening
     {
@@ -335,10 +429,24 @@ fn test_memory_and_cleanup() -> Result<()> {
         ledger.put("new_key", "new_value")?;
         let result = ledger.get("new_key")?;
         assert_eq!(result, Some(b"new_value".to_vec()));
+
+        // Explicitly drop the ledger to release locks before cleanup
+        drop(ledger);
     }
 
-    // Cleanup
-    fs::remove_dir_all(&test_db).ok();
+    // Small delay before cleanup to ensure all locks are released
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // Cleanup with retries
+    for attempt in 0..5 {
+        if fs::remove_dir_all(&test_db).is_ok() {
+            break;
+        }
+        if attempt < 4 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
     Ok(())
 }
 

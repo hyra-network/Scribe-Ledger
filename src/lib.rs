@@ -226,26 +226,56 @@ mod tests {
         use std::fs;
         use std::path::Path;
 
-        // Create a temporary directory for this test
-        let test_dir = "./test_persistence_db";
+        // Create a unique directory for this test run to avoid lock contention
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let thread_id = format!("{:?}", std::thread::current().id());
+        let random_suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_micros();
+        let test_dir = format!(
+            "./test_persistence_db_{}_{}_{}",
+            timestamp,
+            thread_id
+                .replace("ThreadId", "")
+                .replace("(", "")
+                .replace(")", ""),
+            random_suffix
+        );
 
-        // Cleanup any existing test data
-        if Path::new(test_dir).exists() {
-            fs::remove_dir_all(test_dir).ok();
+        // Cleanup any existing test data with retries
+        if Path::new(&test_dir).exists() {
+            for attempt in 0..3 {
+                if fs::remove_dir_all(&test_dir).is_ok() {
+                    break;
+                }
+                if attempt < 2 {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
         }
 
         // Create ledger and store some data
         {
-            let ledger = SimpleScribeLedger::new(test_dir)?;
+            let ledger = SimpleScribeLedger::new(&test_dir)?;
             ledger.put("persistent_key", "persistent_value")?;
             ledger.put("another_key", "another_value")?;
             ledger.flush()?;
             assert_eq!(ledger.len(), 2);
-        } // ledger goes out of scope and is dropped
+
+            // Explicitly drop to release locks
+            drop(ledger);
+        }
+
+        // Small delay to ensure lock is released
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         // Open the same database again and verify data persists
         {
-            let ledger = SimpleScribeLedger::new(test_dir)?;
+            let ledger = SimpleScribeLedger::new(&test_dir)?;
             assert_eq!(ledger.len(), 2);
 
             let value1 = ledger.get("persistent_key")?;
@@ -253,10 +283,24 @@ mod tests {
 
             let value2 = ledger.get("another_key")?;
             assert_eq!(value2, Some(b"another_value".to_vec()));
+
+            // Explicitly drop to release locks before cleanup
+            drop(ledger);
         }
 
-        // Cleanup
-        fs::remove_dir_all(test_dir).ok();
+        // Small delay before cleanup
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        // Cleanup with retries
+        for attempt in 0..5 {
+            if fs::remove_dir_all(&test_dir).is_ok() {
+                break;
+            }
+            if attempt < 4 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+
         Ok(())
     }
 
@@ -418,33 +462,74 @@ mod tests {
         use std::fs;
         use std::path::Path;
 
-        let test_dir = "./test_flush_db";
+        // Create a unique directory for this test run to avoid lock contention
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let thread_id = format!("{:?}", std::thread::current().id());
+        let random_suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_micros();
+        let test_dir = format!(
+            "./test_flush_db_{}_{}_{}",
+            timestamp,
+            thread_id
+                .replace("ThreadId", "")
+                .replace("(", "")
+                .replace(")", ""),
+            random_suffix
+        );
 
-        // Cleanup any existing test data
-        if Path::new(test_dir).exists() {
-            fs::remove_dir_all(test_dir).ok();
+        // Cleanup any existing test data with retries
+        if Path::new(&test_dir).exists() {
+            for attempt in 0..3 {
+                if fs::remove_dir_all(&test_dir).is_ok() {
+                    break;
+                }
+                if attempt < 2 {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
         }
 
-        let ledger = SimpleScribeLedger::new(test_dir)?;
+        {
+            let ledger = SimpleScribeLedger::new(&test_dir)?;
 
-        // Add data but don't flush
-        ledger.put("test_key", "test_value")?;
+            // Add data but don't flush
+            ledger.put("test_key", "test_value")?;
 
-        // Manually flush
-        ledger.flush()?;
+            // Manually flush
+            ledger.flush()?;
 
-        // Verify flush doesn't affect functionality
-        let result = ledger.get("test_key")?;
-        assert_eq!(result, Some(b"test_value".to_vec()));
+            // Verify flush doesn't affect functionality
+            let result = ledger.get("test_key")?;
+            assert_eq!(result, Some(b"test_value".to_vec()));
 
-        // Add more data and flush again
-        ledger.put("test_key2", "test_value2")?;
-        ledger.flush()?;
+            // Add more data and flush again
+            ledger.put("test_key2", "test_value2")?;
+            ledger.flush()?;
 
-        assert_eq!(ledger.len(), 2);
+            assert_eq!(ledger.len(), 2);
 
-        // Cleanup
-        fs::remove_dir_all(test_dir).ok();
+            // Explicitly drop to release locks before cleanup
+            drop(ledger);
+        }
+
+        // Small delay before cleanup
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        // Cleanup with retries
+        for attempt in 0..5 {
+            if fs::remove_dir_all(&test_dir).is_ok() {
+                break;
+            }
+            if attempt < 4 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+
         Ok(())
     }
 
@@ -454,33 +539,70 @@ mod tests {
         use std::fs;
         use std::path::Path;
 
-        let test_dir = "./test_error_db";
+        // Create a unique directory for this test run to avoid lock contention
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let thread_id = format!("{:?}", std::thread::current().id());
+        let random_suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_micros();
+        let test_dir = format!(
+            "./test_error_db_{}_{}_{}",
+            timestamp,
+            thread_id
+                .replace("ThreadId", "")
+                .replace("(", "")
+                .replace(")", ""),
+            random_suffix
+        );
 
-        // Cleanup any existing test data
-        if Path::new(test_dir).exists() {
-            fs::remove_dir_all(test_dir).ok();
+        // Cleanup any existing test data with retries
+        if Path::new(&test_dir).exists() {
+            for attempt in 0..3 {
+                if fs::remove_dir_all(&test_dir).is_ok() {
+                    break;
+                }
+                if attempt < 2 {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
         }
 
         // Test 1: Create and use database normally
         {
-            let ledger = SimpleScribeLedger::new(test_dir)?;
+            let ledger = SimpleScribeLedger::new(&test_dir)?;
             ledger.put("test", "data")?;
 
             let result = ledger.get("test")?;
             assert_eq!(result, Some(b"data".to_vec()));
             assert_eq!(ledger.len(), 1);
-        } // ledger is dropped here
+
+            // Explicitly drop to release locks
+            drop(ledger);
+        }
+
+        // Small delay to ensure lock is released
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         // Test 2: Reopen the same database (should work after first is dropped)
         {
-            let ledger = SimpleScribeLedger::new(test_dir)?;
+            let ledger = SimpleScribeLedger::new(&test_dir)?;
             let result = ledger.get("test")?;
             assert_eq!(result, Some(b"data".to_vec()));
 
             // Add more data to verify it's working
             ledger.put("test2", "data2")?;
             assert_eq!(ledger.len(), 2);
+
+            // Explicitly drop to release locks before cleanup
+            drop(ledger);
         }
+
+        // Small delay before cleanup
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         // Test 3: Test with invalid operations (should handle gracefully)
         {
@@ -496,8 +618,16 @@ mod tests {
             assert_eq!(result, Some(vec![]));
         }
 
-        // Cleanup
-        fs::remove_dir_all(test_dir).ok();
+        // Cleanup with retries
+        for attempt in 0..5 {
+            if fs::remove_dir_all(&test_dir).is_ok() {
+                break;
+            }
+            if attempt < 4 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+
         Ok(())
     }
 

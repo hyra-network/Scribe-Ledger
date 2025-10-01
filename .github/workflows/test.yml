@@ -82,5 +82,14 @@ jobs:
     - name: Test segment module
       run: cargo test --lib 'storage::segment::' --verbose
     
+    - name: Test consensus type_config module
+      run: cargo test --lib 'consensus::type_config::' --verbose
+    
+    - name: Test consensus state_machine module
+      run: cargo test --lib 'consensus::state_machine::' --verbose
+    
+    - name: Test consensus storage module
+      run: cargo test --lib 'consensus::storage::' --verbose
+    
     - name: Run performance regression tests
       run: cargo test --test performance_regression_tests --verbose

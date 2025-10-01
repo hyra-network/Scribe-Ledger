@@ -28,3 +28,6 @@ optimized_demo_db/
 my_store/
 *.db
 test_*_db/
+
+# Test databases
+test_*_db_*/

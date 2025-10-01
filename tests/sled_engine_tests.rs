@@ -224,24 +224,36 @@ fn test_sled_durability() -> Result<()> {
     use std::fs;
     use std::path::Path;
 
-    // Use timestamp + thread ID to ensure unique path for each test run
+    // Use timestamp + thread ID + random suffix to ensure unique path for each test run
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = format!("{:?}", std::thread::current().id());
+    let random_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_micros();
     let test_db = format!(
-        "./test_durability_db_{}_{}",
+        "./test_durability_db_{}_{}_{}",
         timestamp,
         thread_id
             .replace("ThreadId", "")
             .replace("(", "")
-            .replace(")", "")
+            .replace(")", ""),
+        random_suffix
     );
 
-    // Clean up any existing test database
+    // Clean up any existing test database with retries
     if Path::new(&test_db).exists() {
-        fs::remove_dir_all(&test_db).ok();
+        for attempt in 0..3 {
+            if fs::remove_dir_all(&test_db).is_ok() {
+                break;
+            }
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
     }
 
     let test_data = vec![
@@ -260,7 +272,13 @@ fn test_sled_durability() -> Result<()> {
 
         // Explicit flush to ensure durability
         ledger.flush()?;
-    } // Ledger is dropped here, simulating process termination
+
+        // Explicitly drop to release locks
+        drop(ledger);
+    }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 2: Verify data survived process restart
     {
@@ -271,7 +289,13 @@ fn test_sled_durability() -> Result<()> {
             let stored_value = ledger.get(key)?;
             assert_eq!(stored_value, Some(expected_value.as_bytes().to_vec()));
         }
+
+        // Explicitly drop to release locks
+        drop(ledger);
     }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 3: Test durability without explicit flush
     {
@@ -282,7 +306,12 @@ fn test_sled_durability() -> Result<()> {
         ledger.put("auto_flush:key2", "Another piece of data")?;
 
         // Don't call flush explicitly - rely on Drop implementation
-    } // Drop should flush automatically
+        // Explicitly drop to release locks
+        drop(ledger);
+    }
+
+    // Small delay to ensure lock is released
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Phase 4: Verify auto-flush worked
     {
@@ -294,10 +323,24 @@ fn test_sled_durability() -> Result<()> {
             auto_data,
             Some(b"Data written without explicit flush".to_vec())
         );
+
+        // Explicitly drop to release locks before cleanup
+        drop(ledger);
     }
 
-    // Cleanup
-    fs::remove_dir_all(&test_db).ok();
+    // Small delay before cleanup
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // Cleanup with retries
+    for attempt in 0..5 {
+        if fs::remove_dir_all(&test_db).is_ok() {
+            break;
+        }
+        if attempt < 4 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
     Ok(())
 }
 
