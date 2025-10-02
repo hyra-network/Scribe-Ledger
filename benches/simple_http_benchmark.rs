@@ -1,14 +1,19 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde::{Deserialize, Serialize};
 use simple_scribe_ledger::SimpleScribeLedger;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::runtime::Runtime;
 
-// Simple HTTP benchmark that simulates actual HTTP server operations
-// This includes JSON serialization/deserialization overhead and HTTP processing that handlers perform
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::Json,
+    routing::{get, put},
+    Router,
+};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct PutRequest {
     value: String,
 }
@@ -18,290 +23,178 @@ struct GetResponse {
     value: Option<String>,
 }
 
-fn benchmark_simple_http_operations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("simple_http_operations");
+type AppState = Arc<SimpleScribeLedger>;
+
+// PUT endpoint handler (same as http_server.rs)
+async fn put_handler(
+    State(ledger): State<AppState>,
+    Path(key): Path<String>,
+    Json(payload): Json<PutRequest>,
+) -> Result<StatusCode, StatusCode> {
+    ledger
+        .put(&key, &payload.value)
+        .map(|_| StatusCode::OK)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+// GET endpoint handler (same as http_server.rs)
+async fn get_handler(
+    State(ledger): State<AppState>,
+    Path(key): Path<String>,
+) -> Result<Json<GetResponse>, StatusCode> {
+    match ledger.get(&key) {
+        Ok(Some(value_bytes)) => match String::from_utf8(value_bytes) {
+            Ok(value_str) => Ok(Json(GetResponse {
+                value: Some(value_str),
+            })),
+            Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        Ok(None) => Ok(Json(GetResponse { value: None })),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+// Helper function to create and start an HTTP server
+async fn start_test_server(port: u16) -> Arc<SimpleScribeLedger> {
+    let ledger = SimpleScribeLedger::temp().unwrap();
+    let app_state = Arc::new(ledger);
+
+    let app = Router::new()
+        .route("/kv/:key", put(put_handler))
+        .route("/kv/:key", get(get_handler))
+        .with_state(app_state.clone());
+
+    let addr = format!("127.0.0.1:{}", port);
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    // Give server time to start
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    app_state
+}
+
+fn benchmark_http_put_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("http_put_operations");
     group.measurement_time(Duration::from_secs(10));
 
-    // Benchmark PUT operations (simulating HTTP PUT handlers with full HTTP overhead)
-    for ops in [10, 100, 500].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("http_put_operations", ops),
-            ops,
-            |b, &ops| {
-                // Pre-allocate test data
-                let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
-                let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
+    for ops in [10, 100, 500, 1000].iter() {
+        group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
+            let rt = Runtime::new().unwrap();
 
-                b.iter(|| {
-                    let ledger = SimpleScribeLedger::temp().unwrap();
+            // Start server once for this benchmark
+            let port = 13000 + ops as u16; // Different port for each test
+            let _ledger = rt.block_on(async { start_test_server(port).await });
 
-                    // Warmup phase to match storage benchmark
-                    ledger.put("warmup", "warmup_value").unwrap();
+            let client = reqwest::Client::new();
+            let base_url = format!("http://127.0.0.1:{}/kv", port);
 
-                    // Simulate HTTP PUT operations with full HTTP overhead
+            b.iter(|| {
+                rt.block_on(async {
                     for i in 0..ops {
-                        // Simulate HTTP request parsing (URL parsing, header parsing, routing, etc.)
-                        let _method = "PUT";
-                        let path = format!("/api/v1/data/{}", keys[i]);
-                        let query_params = format!("timestamp={}&client_id=test", i);
-
-                        // Simulate request hash computation for caching/routing
-                        let mut hasher = DefaultHasher::new();
-                        path.hash(&mut hasher);
-                        query_params.hash(&mut hasher);
-                        let _request_hash = hasher.finish();
-
-                        let _content_type = "application/json; charset=utf-8";
-                        let _accept = "application/json";
-                        let _user_agent = "benchmark-client/1.0";
-                        let _authorization = "Bearer test_token_12345";
-                        black_box(&path);
-                        black_box(&query_params);
-
-                        // Simulate JSON deserialization of request body with validation
-                        let request = PutRequest {
-                            value: values[i].clone(),
+                        let key = format!("key{}", i);
+                        let url = format!("{}/{}", base_url, key);
+                        let payload = PutRequest {
+                            value: format!("value{}", i),
                         };
-                        let json_request = serde_json::to_string(&request).unwrap();
 
-                        // Simulate HTTP framework overhead (parsing, validation, middleware)
-                        let deserialized: PutRequest = serde_json::from_str(&json_request).unwrap();
+                        let response = client.put(&url).json(&payload).send().await.unwrap();
 
-                        // Simulate request validation and processing
-                        let _is_valid = !deserialized.value.is_empty();
-                        let _value_len = deserialized.value.len();
-                        black_box(&deserialized);
-
-                        // Perform database operation
-                        ledger
-                            .put(black_box(&keys[i]), black_box(&deserialized.value))
-                            .unwrap();
-
-                        // Simulate JSON serialization of response with metadata
-                        let timestamp = format!("{}", i);
-                        let response = serde_json::json!({
-                            "status": "success",
-                            "message": "Value stored successfully",
-                            "key": &keys[i],
-                            "timestamp": &timestamp,
-                            "version": "1.0"
-                        });
-                        let json_response = serde_json::to_string(&response).unwrap();
-
-                        // Simulate HTTP response preparation with multiple headers
-                        let _status_code = 200;
-                        let content_length = json_response.len().to_string();
-                        let request_id = format!("req-{}", i);
-                        let _response_headers = vec![
-                            ("Content-Type", "application/json; charset=utf-8"),
-                            ("Content-Length", content_length.as_str()),
-                            ("X-Request-ID", request_id.as_str()),
-                            ("X-Response-Time", "1ms"),
-                            ("Cache-Control", "no-cache"),
-                        ];
-
-                        // Simulate response hash for caching
-                        let mut resp_hasher = DefaultHasher::new();
-                        json_response.hash(&mut resp_hasher);
-                        let _response_hash = resp_hasher.finish();
-
-                        black_box(&json_response);
-                        black_box(&_response_headers);
-                    }
-
-                    ledger.flush().unwrap();
-                    black_box(&ledger);
-                });
-            },
-        );
-    }
-
-    // Benchmark GET operations (simulating HTTP GET handlers with full HTTP overhead)
-    for ops in [10, 100, 500].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("http_get_operations", ops),
-            ops,
-            |b, &ops| {
-                // Pre-allocate test data
-                let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
-                let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
-
-                // Create and populate ledger outside the benchmark iteration
-                let ledger = SimpleScribeLedger::temp().unwrap();
-                for i in 0..ops {
-                    ledger.put(&keys[i], &values[i]).unwrap();
-                }
-                ledger.flush().unwrap();
-
-                b.iter(|| {
-                    // Simulate HTTP GET operations with full HTTP overhead
-                    for key in &keys {
-                        // Simulate HTTP request parsing (header parsing, routing, etc.)
-                        let _path = format!("/data/{}", key);
-                        let _accept = "application/json";
-
-                        // Perform database operation
-                        let result = ledger.get(black_box(key)).unwrap();
-
-                        // Simulate JSON serialization of response
-                        let value_str =
-                            result.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
-                        let response = GetResponse { value: value_str };
-                        let json_response = serde_json::to_string(&response).unwrap();
-
-                        // Simulate HTTP response preparation
-                        let _status_code = 200;
-                        let _response_headers = vec![
-                            ("Content-Type", "application/json"),
-                            ("Content-Length", &json_response.len().to_string()),
-                        ];
-                        black_box(json_response);
+                        black_box(response.status());
                     }
                 });
-            },
-        );
+            });
+        });
     }
 
     group.finish();
 }
 
-// Benchmark mixed HTTP operations (PUT and GET)
-fn benchmark_mixed_http_operations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("mixed_http_operations");
+fn benchmark_http_get_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("http_get_operations");
     group.measurement_time(Duration::from_secs(10));
 
-    for ops in [10, 100, 500].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("http_mixed_operations", ops),
-            ops,
-            |b, &ops| {
-                // Pre-allocate test data
-                let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i % 100)).collect();
-                let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
+    for ops in [10, 100, 500, 1000].iter() {
+        group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
+            let rt = Runtime::new().unwrap();
 
-                b.iter(|| {
-                    let ledger = SimpleScribeLedger::temp().unwrap();
+            // Start server and pre-populate data
+            let port = 14000 + ops as u16; // Different port for each test
+            let _ledger = rt.block_on(async {
+                let ledger = start_test_server(port).await;
 
-                    // Warmup phase
-                    ledger.put("warmup", "warmup_value").unwrap();
+                // Pre-populate data directly
+                for i in 0..ops {
+                    let key = format!("key{}", i);
+                    let value = format!("value{}", i);
+                    ledger.put(&key, &value).unwrap();
+                }
 
-                    // Simulate mixed HTTP operations (50% PUT, 50% GET) with full HTTP overhead
+                ledger
+            });
+
+            let client = reqwest::Client::new();
+            let base_url = format!("http://127.0.0.1:{}/kv", port);
+
+            b.iter(|| {
+                rt.block_on(async {
                     for i in 0..ops {
+                        let key = format!("key{}", i);
+                        let url = format!("{}/{}", base_url, key);
+
+                        let response = client.get(&url).send().await.unwrap();
+
+                        let _data: GetResponse = response.json().await.unwrap();
+                        black_box(_data);
+                    }
+                });
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn benchmark_http_mixed_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("http_mixed_operations");
+    group.measurement_time(Duration::from_secs(10));
+
+    for ops in [10, 100, 500, 1000].iter() {
+        group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
+            let rt = Runtime::new().unwrap();
+
+            // Start server
+            let port = 15000 + ops as u16; // Different port for each test
+            let _ledger = rt.block_on(async { start_test_server(port).await });
+
+            let client = reqwest::Client::new();
+            let base_url = format!("http://127.0.0.1:{}/kv", port);
+
+            b.iter(|| {
+                rt.block_on(async {
+                    for i in 0..ops {
+                        let key = format!("key{}", i % 100);
+                        let url = format!("{}/{}", base_url, key);
+
                         if i % 2 == 0 {
-                            // Simulate HTTP PUT with full overhead
-                            let _path = format!("/data/{}", keys[i]);
-                            let _content_type = "application/json";
-
-                            let request = PutRequest {
-                                value: values[i].clone(),
+                            // PUT operation
+                            let payload = PutRequest {
+                                value: format!("value{}", i),
                             };
-                            let json_request = serde_json::to_string(&request).unwrap();
-                            let deserialized: PutRequest =
-                                serde_json::from_str(&json_request).unwrap();
-
-                            ledger
-                                .put(black_box(&keys[i]), black_box(&deserialized.value))
-                                .unwrap();
-
-                            let response = serde_json::json!({
-                                "status": "ok",
-                                "key": &keys[i]
-                            });
-                            let json_response = serde_json::to_string(&response).unwrap();
-                            let _status_code = 200;
-                            black_box(json_response);
+                            let response = client.put(&url).json(&payload).send().await.unwrap();
+                            black_box(response.status());
                         } else {
-                            // Simulate HTTP GET with full overhead
-                            let _path = format!("/data/{}", keys[i]);
-                            let _accept = "application/json";
-
-                            let result = ledger.get(black_box(&keys[i]));
-                            if let Ok(Some(bytes)) = result {
-                                let value_str = String::from_utf8_lossy(&bytes).to_string();
-                                let response = GetResponse {
-                                    value: Some(value_str),
-                                };
-                                let json_response = serde_json::to_string(&response).unwrap();
-                                let _status_code = 200;
-                                let _response_headers = vec![
-                                    ("Content-Type", "application/json"),
-                                    ("Content-Length", &json_response.len().to_string()),
-                                ];
-                                black_box(json_response);
-                            }
+                            // GET operation
+                            let response = client.get(&url).send().await.unwrap();
+                            black_box(response.status());
                         }
                     }
-
-                    ledger.flush().unwrap();
-                    black_box(&ledger);
                 });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-// Benchmark HTTP operations with varying payload sizes
-fn benchmark_http_payload_sizes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("http_payload_sizes");
-    group.measurement_time(Duration::from_secs(10));
-
-    // Test different payload sizes: 100 bytes, 1KB, 10KB, 100KB
-    for size in [100, 1024, 10 * 1024, 100 * 1024].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("http_put_payload", size),
-            size,
-            |b, &size| {
-                let key = "test_key";
-                let value = "x".repeat(size);
-
-                b.iter(|| {
-                    let ledger = SimpleScribeLedger::temp().unwrap();
-
-                    // Simulate HTTP PUT with JSON and varying payload sizes
-                    let request = PutRequest {
-                        value: value.clone(),
-                    };
-                    let json_request = serde_json::to_string(&request).unwrap();
-                    let deserialized: PutRequest = serde_json::from_str(&json_request).unwrap();
-
-                    ledger
-                        .put(black_box(key), black_box(&deserialized.value))
-                        .unwrap();
-                    ledger.flush().unwrap();
-
-                    let response = serde_json::json!({"status": "ok"});
-                    let json_response = serde_json::to_string(&response).unwrap();
-                    black_box(json_response);
-
-                    black_box(&ledger);
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("http_get_payload", size),
-            size,
-            |b, &size| {
-                let key = "test_key";
-                let value = "x".repeat(size);
-
-                // Pre-populate data outside the benchmark iteration
-                let ledger = SimpleScribeLedger::temp().unwrap();
-                ledger.put(key, &value).unwrap();
-                ledger.flush().unwrap();
-
-                b.iter(|| {
-                    // Simulate HTTP GET with JSON and varying payload sizes
-                    let result = ledger.get(black_box(key)).unwrap();
-                    let value_str = result.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
-                    let response = GetResponse { value: value_str };
-                    let json_response = serde_json::to_string(&response).unwrap();
-                    black_box(json_response);
-                });
-            },
-        );
+            });
+        });
     }
 
     group.finish();
@@ -309,8 +202,8 @@ fn benchmark_http_payload_sizes(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    benchmark_simple_http_operations,
-    benchmark_mixed_http_operations,
-    benchmark_http_payload_sizes
+    benchmark_http_put_operations,
+    benchmark_http_get_operations,
+    benchmark_http_mixed_operations
 );
 criterion_main!(benches);
