@@ -5,6 +5,7 @@ use std::path::Path;
 // New modules for distributed ledger functionality
 pub mod config;
 pub mod consensus;
+pub mod discovery;
 pub mod error;
 pub mod manifest;
 pub mod network;

@@ -111,3 +111,9 @@ jobs:
     
     - name: Run HTTP API tests
       run: cargo test --test http_tests --verbose
+    
+    - name: Run discovery service tests
+      run: cargo test --test discovery_tests --verbose
+    
+    - name: Test discovery module
+      run: cargo test --lib 'discovery::' --verbose
