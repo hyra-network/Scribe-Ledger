@@ -64,6 +64,9 @@ jobs:
     - name: Run storage tests
       run: cargo test --test storage_tests --verbose
     
+    - name: Run consensus integration tests
+      run: cargo test --test consensus_tests --verbose
+    
     - name: Run all tests
       run: cargo test --verbose
     

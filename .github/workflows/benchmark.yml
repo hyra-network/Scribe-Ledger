@@ -48,8 +48,8 @@ jobs:
     - name: Run async storage benchmarks
       run: cargo bench --bench async_storage_benchmark
     
-    - name: Run HTTP benchmarks
-      run: cargo bench --bench http_benchmark
+    - name: Run simple HTTP benchmarks
+      run: cargo bench --bench simple_http_benchmark
     
     - name: Run performance tests
       run: |
