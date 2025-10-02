@@ -205,6 +205,10 @@ async fn get_handler(
 }
 
 // DELETE endpoint handler
+// Note: In a production distributed ledger, data should be immutable and permanent.
+// This endpoint is provided for development/testing purposes. In a true distributed
+// setup with consensus, deletions would be handled as append-only log entries that
+// mark data as deleted without actually removing it.
 async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<String>) -> Response {
     state
         .deletes
