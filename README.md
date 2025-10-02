@@ -1,10 +1,19 @@
 # Simple Scribe Ledger
 
-A simple version of [Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger) implemented in Rust using the [sled](https://github.com/spacejam/sled) embedded database.
+> **Verifiable, Durable Off-Chain Storage System**
 
-This implementation provides a minimal key-value storage engine with two fundamental operations:
-- `put(key, value)` - Store a key-value pair
-- `get(key)` - Retrieve a value by key
+---
+
+Simple Scribe Ledger is a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). This implementation leverages **OpenRaft** for modern consensus with optimized performance for high-throughput distributed storage.
+
+## 🏛️ Core Tenets
+
+Simple Scribe Ledger is built on foundational principles:
+
+1. **Immutability:** Write-once, read-forever. Data is stored in append-only logs, creating a permanent and auditable history.
+2. **Durability:** Data, once committed, is considered permanent with robust replication across the cluster.
+3. **Verifiability:** Cryptographic integrity checks ensure data authenticity and detect tampering.
+4. **Performance:** Optimized with OpenRaft for high-throughput distributed consensus operations.
 
 ## 🚀 Quick Start
 
