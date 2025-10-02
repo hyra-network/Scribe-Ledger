@@ -43,6 +43,44 @@ struct MetricsResponse {
     total_deletes: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterJoinRequest {
+    node_id: u64,
+    address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterLeaveRequest {
+    node_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterStatusResponse {
+    node_id: u64,
+    is_leader: bool,
+    current_leader: Option<u64>,
+    state: String,
+    last_log_index: Option<u64>,
+    last_applied: Option<String>,
+    current_term: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterMembersResponse {
+    members: Vec<ClusterMemberInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterMemberInfo {
+    node_id: u64,
+    address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterLeaderResponse {
+    leader_id: Option<u64>,
+}
+
 // Application state with metrics
 struct AppState {
     ledger: Arc<SimpleScribeLedger>,
@@ -238,6 +276,68 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
         .into_response()
 }
 
+// Cluster join endpoint - stub implementation for tests
+async fn cluster_join_handler(Json(payload): Json<ClusterJoinRequest>) -> Response {
+    (
+        AxumStatusCode::OK,
+        Json(json!({
+            "status": "ok",
+            "message": format!("Node {} joining at {}", payload.node_id, payload.address),
+            "note": "Cluster management is not yet fully implemented in standalone mode"
+        })),
+    )
+        .into_response()
+}
+
+// Cluster leave endpoint - stub implementation
+async fn cluster_leave_handler(Json(payload): Json<ClusterLeaveRequest>) -> Response {
+    (
+        AxumStatusCode::OK,
+        Json(json!({
+            "status": "ok",
+            "message": format!("Node {} leaving cluster", payload.node_id),
+            "note": "Cluster management is not yet fully implemented in standalone mode"
+        })),
+    )
+        .into_response()
+}
+
+// Cluster status endpoint
+async fn cluster_status_handler() -> Response {
+    (
+        AxumStatusCode::OK,
+        Json(ClusterStatusResponse {
+            node_id: 1,
+            is_leader: true,
+            current_leader: Some(1),
+            state: "Leader".to_string(),
+            last_log_index: Some(0),
+            last_applied: Some("0:0".to_string()),
+            current_term: 1,
+        }),
+    )
+        .into_response()
+}
+
+// Cluster members endpoint
+async fn cluster_members_handler() -> Response {
+    let members = vec![ClusterMemberInfo {
+        node_id: 1,
+        address: "127.0.0.1:3000".to_string(),
+    }];
+
+    (AxumStatusCode::OK, Json(ClusterMembersResponse { members })).into_response()
+}
+
+// Cluster leader endpoint
+async fn cluster_leader_handler() -> Response {
+    (
+        AxumStatusCode::OK,
+        Json(ClusterLeaderResponse { leader_id: Some(1) }),
+    )
+        .into_response()
+}
+
 // Helper function to create test server
 async fn create_test_server() -> (String, tokio::task::JoinHandle<()>) {
     let ledger = SimpleScribeLedger::temp().expect("Failed to create temp ledger");
@@ -246,6 +346,11 @@ async fn create_test_server() -> (String, tokio::task::JoinHandle<()>) {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
+        .route("/cluster/join", axum::routing::post(cluster_join_handler))
+        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
+        .route("/cluster/status", get(cluster_status_handler))
+        .route("/cluster/members", get(cluster_members_handler))
+        .route("/cluster/leader", get(cluster_leader_handler))
         .route("/:key", put(put_handler))
         .route("/:key", get(get_handler))
         .route("/:key", delete(delete_handler))
@@ -642,6 +747,141 @@ async fn test_special_characters_in_keys() -> Result<()> {
 
     let body: GetResponse = response.json().await?;
     assert_eq!(body.value, Some("special_value".to_string()));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_status_endpoint() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/cluster/status", base_url))
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+
+    let body: ClusterStatusResponse = response.json().await?;
+    assert_eq!(body.node_id, 1);
+    assert_eq!(body.is_leader, true);
+    assert_eq!(body.current_leader, Some(1));
+    assert_eq!(body.state, "Leader");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_members_endpoint() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/cluster/members", base_url))
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+
+    let body: ClusterMembersResponse = response.json().await?;
+    assert_eq!(body.members.len(), 1);
+    assert_eq!(body.members[0].node_id, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_leader_endpoint() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/cluster/leader", base_url))
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+
+    let body: ClusterLeaderResponse = response.json().await?;
+    assert_eq!(body.leader_id, Some(1));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_join_endpoint() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+    let request = ClusterJoinRequest {
+        node_id: 2,
+        address: "127.0.0.1:3001".to_string(),
+    };
+
+    let response = client
+        .post(format!("{}/cluster/join", base_url))
+        .json(&request)
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+
+    let body: serde_json::Value = response.json().await?;
+    assert_eq!(body["status"], "ok");
+    assert!(body["message"].as_str().unwrap().contains("Node 2"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_leave_endpoint() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+    let request = ClusterLeaveRequest { node_id: 2 };
+
+    let response = client
+        .post(format!("{}/cluster/leave", base_url))
+        .json(&request)
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+
+    let body: serde_json::Value = response.json().await?;
+    assert_eq!(body["status"], "ok");
+    assert!(body["message"].as_str().unwrap().contains("Node 2"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cluster_endpoints_integration() -> Result<()> {
+    let (base_url, _handle) = create_test_server().await;
+
+    let client = reqwest::Client::new();
+
+    // Check initial status
+    let status_response = client
+        .get(format!("{}/cluster/status", base_url))
+        .send()
+        .await?;
+    assert_eq!(status_response.status().as_u16(), 200);
+
+    // Check members
+    let members_response = client
+        .get(format!("{}/cluster/members", base_url))
+        .send()
+        .await?;
+    assert_eq!(members_response.status().as_u16(), 200);
+
+    // Check leader
+    let leader_response = client
+        .get(format!("{}/cluster/leader", base_url))
+        .send()
+        .await?;
+    assert_eq!(leader_response.status().as_u16(), 200);
 
     Ok(())
 }

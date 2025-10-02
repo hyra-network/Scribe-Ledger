@@ -36,6 +36,44 @@ struct MetricsResponse {
     total_deletes: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterJoinRequest {
+    node_id: u64,
+    address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterLeaveRequest {
+    node_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterStatusResponse {
+    node_id: u64,
+    is_leader: bool,
+    current_leader: Option<u64>,
+    state: String,
+    last_log_index: Option<u64>,
+    last_applied: Option<String>,
+    current_term: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterMembersResponse {
+    members: Vec<ClusterMemberInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterMemberInfo {
+    node_id: u64,
+    address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClusterLeaderResponse {
+    leader_id: Option<u64>,
+}
+
 // Application state with metrics
 struct AppState {
     ledger: Arc<SimpleScribeLedger>,
@@ -242,6 +280,76 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
         .into_response()
 }
 
+// Cluster join endpoint - stub implementation for now
+async fn cluster_join_handler(Json(payload): Json<ClusterJoinRequest>) -> Response {
+    // For now, this is a stub implementation
+    // In a full distributed setup, this would:
+    // 1. Add the node as a learner
+    // 2. Wait for log replication to catch up
+    // 3. Promote to voting member
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "message": format!("Node {} joining at {}", payload.node_id, payload.address),
+            "note": "Cluster management is not yet fully implemented in standalone mode"
+        })),
+    )
+        .into_response()
+}
+
+// Cluster leave endpoint - stub implementation
+async fn cluster_leave_handler(Json(payload): Json<ClusterLeaveRequest>) -> Response {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "message": format!("Node {} leaving cluster", payload.node_id),
+            "note": "Cluster management is not yet fully implemented in standalone mode"
+        })),
+    )
+        .into_response()
+}
+
+// Cluster status endpoint
+async fn cluster_status_handler() -> Response {
+    // In standalone mode, we're always the leader
+    (
+        StatusCode::OK,
+        Json(ClusterStatusResponse {
+            node_id: 1,
+            is_leader: true,
+            current_leader: Some(1),
+            state: "Leader".to_string(),
+            last_log_index: Some(0),
+            last_applied: Some("0:0".to_string()),
+            current_term: 1,
+        }),
+    )
+        .into_response()
+}
+
+// Cluster members endpoint
+async fn cluster_members_handler() -> Response {
+    // In standalone mode, only one member
+    let members = vec![ClusterMemberInfo {
+        node_id: 1,
+        address: "127.0.0.1:3000".to_string(),
+    }];
+
+    (StatusCode::OK, Json(ClusterMembersResponse { members })).into_response()
+}
+
+// Cluster leader endpoint
+async fn cluster_leader_handler() -> Response {
+    // In standalone mode, we're always the leader
+    (
+        StatusCode::OK,
+        Json(ClusterLeaderResponse { leader_id: Some(1) }),
+    )
+        .into_response()
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("Starting Simple Scribe Ledger HTTP Server...");
@@ -254,6 +362,11 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
+        .route("/cluster/join", axum::routing::post(cluster_join_handler))
+        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
+        .route("/cluster/status", get(cluster_status_handler))
+        .route("/cluster/members", get(cluster_members_handler))
+        .route("/cluster/leader", get(cluster_leader_handler))
         .route("/:key", put(put_handler))
         .route("/:key", get(get_handler))
         .route("/:key", delete(delete_handler))
@@ -262,11 +375,18 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Server starting on http://0.0.0.0:3000");
     println!("Available endpoints:");
-    println!("  GET    /health       - Health check");
-    println!("  GET    /metrics      - Get server metrics");
-    println!("  PUT    /:key         - Store a value (JSON or binary)");
-    println!("  GET    /:key         - Retrieve a value (JSON or binary)");
-    println!("  DELETE /:key         - Delete a key");
+    println!("  GET    /health             - Health check");
+    println!("  GET    /metrics            - Get server metrics");
+    println!("  PUT    /:key               - Store a value (JSON or binary)");
+    println!("  GET    /:key               - Retrieve a value (JSON or binary)");
+    println!("  DELETE /:key               - Delete a key");
+    println!();
+    println!("Cluster management endpoints:");
+    println!("  POST   /cluster/join       - Join a node to the cluster");
+    println!("  POST   /cluster/leave      - Remove a node from the cluster");
+    println!("  GET    /cluster/status     - Get cluster status");
+    println!("  GET    /cluster/members    - List cluster members");
+    println!("  GET    /cluster/leader     - Get current leader");
     println!();
     println!("Example usage:");
     println!("  # JSON data:");
@@ -282,6 +402,9 @@ async fn main() -> anyhow::Result<()> {
     println!();
     println!("  # Metrics:");
     println!("  curl http://localhost:3000/metrics");
+    println!();
+    println!("  # Cluster status:");
+    println!("  curl http://localhost:3000/cluster/status");
 
     // Run the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
