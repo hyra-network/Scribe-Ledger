@@ -24,6 +24,7 @@ async-trait = "0.1"
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2.1"
 
 [[bench]]
 name = "storage_benchmark"

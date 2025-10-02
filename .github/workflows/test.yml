@@ -108,3 +108,6 @@ jobs:
     
     - name: Run performance regression tests
       run: cargo test --test performance_regression_tests --verbose
+    
+    - name: Run HTTP API tests
+      run: cargo test --test http_tests --verbose
