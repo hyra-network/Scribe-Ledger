@@ -89,21 +89,42 @@ fn benchmark_http_put_operations(c: &mut Criterion) {
             let port = 13000 + ops as u16; // Different port for each test
             let _ledger = rt.block_on(async { start_test_server(port).await });
 
-            let client = reqwest::Client::new();
+            // Create client with connection pooling configured
+            let client = reqwest::Client::builder()
+                .pool_max_idle_per_host(100)
+                .build()
+                .unwrap();
             let base_url = format!("http://127.0.0.1:{}/kv", port);
+
+            // Pre-allocate data to avoid allocations in hot path
+            let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i)).collect();
+            let payloads: Vec<PutRequest> = (0..ops)
+                .map(|i| PutRequest {
+                    value: format!("value{}", i),
+                })
+                .collect();
 
             b.iter(|| {
                 rt.block_on(async {
+                    // Launch all requests concurrently
+                    let mut handles = Vec::with_capacity(ops);
+
                     for i in 0..ops {
-                        let key = format!("key{}", i);
-                        let url = format!("{}/{}", base_url, key);
-                        let payload = PutRequest {
-                            value: format!("value{}", i),
-                        };
+                        let client = client.clone();
+                        let url = format!("{}/{}", base_url, keys[i]);
+                        let payload = payloads[i].clone();
 
-                        let response = client.put(&url).json(&payload).send().await.unwrap();
+                        let handle = tokio::spawn(async move {
+                            let response = client.put(&url).json(&payload).send().await.unwrap();
+                            black_box(response.status());
+                        });
 
-                        black_box(response.status());
+                        handles.push(handle);
+                    }
+
+                    // Wait for all requests to complete
+                    for handle in handles {
+                        handle.await.unwrap();
                     }
                 });
             });
@@ -136,19 +157,37 @@ fn benchmark_http_get_operations(c: &mut Criterion) {
                 ledger
             });
 
-            let client = reqwest::Client::new();
+            // Create client with connection pooling configured
+            let client = reqwest::Client::builder()
+                .pool_max_idle_per_host(100)
+                .build()
+                .unwrap();
             let base_url = format!("http://127.0.0.1:{}/kv", port);
+
+            // Pre-allocate URLs
+            let urls: Vec<String> = (0..ops).map(|i| format!("{}/key{}", base_url, i)).collect();
 
             b.iter(|| {
                 rt.block_on(async {
+                    // Launch all requests concurrently
+                    let mut handles = Vec::with_capacity(ops);
+
                     for i in 0..ops {
-                        let key = format!("key{}", i);
-                        let url = format!("{}/{}", base_url, key);
+                        let client = client.clone();
+                        let url = urls[i].clone();
 
-                        let response = client.get(&url).send().await.unwrap();
+                        let handle = tokio::spawn(async move {
+                            let response = client.get(&url).send().await.unwrap();
+                            let _data: GetResponse = response.json().await.unwrap();
+                            black_box(_data);
+                        });
 
-                        let _data: GetResponse = response.json().await.unwrap();
-                        black_box(_data);
+                        handles.push(handle);
+                    }
+
+                    // Wait for all requests to complete
+                    for handle in handles {
+                        handle.await.unwrap();
                     }
                 });
             });
@@ -170,27 +209,50 @@ fn benchmark_http_mixed_operations(c: &mut Criterion) {
             let port = 15000 + ops as u16; // Different port for each test
             let _ledger = rt.block_on(async { start_test_server(port).await });
 
-            let client = reqwest::Client::new();
+            // Create client with connection pooling configured
+            let client = reqwest::Client::builder()
+                .pool_max_idle_per_host(100)
+                .build()
+                .unwrap();
             let base_url = format!("http://127.0.0.1:{}/kv", port);
+
+            // Pre-allocate data for PUT operations
+            let keys: Vec<String> = (0..ops).map(|i| format!("key{}", i % 100)).collect();
+            let payloads: Vec<PutRequest> = (0..ops)
+                .map(|i| PutRequest {
+                    value: format!("value{}", i),
+                })
+                .collect();
 
             b.iter(|| {
                 rt.block_on(async {
-                    for i in 0..ops {
-                        let key = format!("key{}", i % 100);
-                        let url = format!("{}/{}", base_url, key);
+                    // Launch all requests concurrently
+                    let mut handles = Vec::with_capacity(ops);
 
-                        if i % 2 == 0 {
-                            // PUT operation
-                            let payload = PutRequest {
-                                value: format!("value{}", i),
-                            };
-                            let response = client.put(&url).json(&payload).send().await.unwrap();
-                            black_box(response.status());
+                    for i in 0..ops {
+                        let client = client.clone();
+                        let url = format!("{}/{}", base_url, keys[i]);
+
+                        let handle = if i % 2 == 0 {
+                            let payload = payloads[i].clone();
+                            tokio::spawn(async move {
+                                let response =
+                                    client.put(&url).json(&payload).send().await.unwrap();
+                                black_box(response.status());
+                            })
                         } else {
-                            // GET operation
-                            let response = client.get(&url).send().await.unwrap();
-                            black_box(response.status());
-                        }
+                            tokio::spawn(async move {
+                                let response = client.get(&url).send().await.unwrap();
+                                black_box(response.status());
+                            })
+                        };
+
+                        handles.push(handle);
+                    }
+
+                    // Wait for all requests to complete
+                    for handle in handles {
+                        handle.await.unwrap();
                     }
                 });
             });
