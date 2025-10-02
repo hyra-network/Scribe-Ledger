@@ -103,5 +103,8 @@ jobs:
     - name: Test manifest module
       run: cargo test --lib 'manifest::' --verbose
     
+    - name: Run manifest integration tests
+      run: cargo test --test manifest_tests --verbose
+    
     - name: Run performance regression tests
       run: cargo test --test performance_regression_tests --verbose
