@@ -2,12 +2,21 @@
 
 ## Project Overview
 
-This document outlines the development roadmap for migrating Simple Scribe Ledger from a basic key-value store to a distributed, consensus-based storage system inspired by [Scribe-Ledger](https://github.com/hyra-network/Scribe-Ledger), but using **OpenRaft** instead of raft-rs.
+This document outlines the development roadmap for Simple Scribe Ledger, a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). Our implementation uses **OpenRaft** for optimized consensus performance while maintaining the same architectural principles.
 
-### Key Differences from Original Scribe-Ledger
-- **Consensus Library**: Using `openraft` instead of `raft-rs` (etcd's raft)
-- **Simpler Architecture**: Focused on core distributed storage capabilities
-- **Modern Rust Patterns**: Leveraging latest async/await patterns with Tokio
+## 🚀 Vision
+
+Simple Scribe Ledger provides a durable data layer for distributed applications. The system is designed for:
+
+- **Durability:** Data, once committed, is considered permanent.
+- **Immutability:** Data cannot be altered or deleted, only appended.
+- **Verifiability:** Cryptographic proofs ensure data integrity.
+- **Performance:** Optimized throughput with OpenRaft consensus.
+
+### Key Implementation Differences
+- **Consensus Library**: Using `openraft` (modern, async-first) instead of `raft-rs` for better performance
+- **Optimized Architecture**: Focused on high-throughput distributed storage operations
+- **Modern Rust Patterns**: Leveraging async/await patterns with Tokio for maximum efficiency
 
 ---
 
