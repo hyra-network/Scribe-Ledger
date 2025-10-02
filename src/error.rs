@@ -27,6 +27,10 @@ pub enum ScribeError {
     #[error("Serialization error: {0}")]
     Serialization(String),
 
+    /// Manifest-related errors
+    #[error("Manifest error: {0}")]
+    Manifest(String),
+
     /// IO errors
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -108,5 +112,12 @@ mod tests {
         let toml_err = toml::from_str::<toml::Value>("invalid toml [[[").unwrap_err();
         let scribe_err: ScribeError = toml_err.into();
         assert!(matches!(scribe_err, ScribeError::Configuration(_)));
+    }
+
+    #[test]
+    fn test_manifest_error() {
+        let err = ScribeError::Manifest("test manifest error".to_string());
+        assert!(err.to_string().contains("Manifest error"));
+        assert!(err.to_string().contains("test manifest error"));
     }
 }

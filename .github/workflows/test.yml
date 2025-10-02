@@ -100,5 +100,8 @@ jobs:
     - name: Test consensus module
       run: cargo test --lib 'consensus::tests::' --verbose
     
+    - name: Test manifest module
+      run: cargo test --lib 'manifest::' --verbose
+    
     - name: Run performance regression tests
       run: cargo test --test performance_regression_tests --verbose
