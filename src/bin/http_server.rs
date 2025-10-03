@@ -8,9 +8,24 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use simple_scribe_ledger::SimpleScribeLedger;
-use std::sync::{atomic::AtomicU64, Arc};
+use std::sync::{atomic::AtomicU64, Arc, OnceLock};
 use tokio;
 use tower_http::cors::CorsLayer;
+
+// Pre-allocated static responses for common cases
+static OK_RESPONSE: OnceLock<String> = OnceLock::new();
+static HEALTH_RESPONSE: OnceLock<String> = OnceLock::new();
+
+fn get_ok_response() -> &'static str {
+    OK_RESPONSE
+        .get_or_init(|| r#"{"status":"ok","message":"Value stored successfully"}"#.to_string())
+}
+
+fn get_health_response() -> &'static str {
+    HEALTH_RESPONSE.get_or_init(|| {
+        r#"{"status":"healthy","service":"simple-scribe-ledger-server"}"#.to_string()
+    })
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PutRequest {
@@ -93,7 +108,7 @@ impl AppState {
     }
 }
 
-// PUT endpoint handler - supports both JSON and binary data
+// PUT endpoint handler - optimized for performance
 async fn put_handler(
     State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
@@ -111,41 +126,48 @@ async fn put_handler(
         .unwrap_or("application/json");
 
     let result = if content_type.contains("application/octet-stream") {
-        // Handle binary data directly
-        state.ledger.put(&key, body.as_ref())
+        // Handle binary data directly - zero-copy
+        state.ledger.put(key.as_bytes(), body.as_ref())
     } else {
-        // Handle JSON data
+        // Handle JSON data - optimized parsing
         match serde_json::from_slice::<PutRequest>(&body) {
-            Ok(payload) => state.ledger.put(&key, &payload.value),
+            Ok(payload) => state.ledger.put(key.as_bytes(), payload.value.as_bytes()),
             Err(e) => {
+                // Fast path for error response - pre-formatted string
+                let error_json = format!(r#"{{"error":"Invalid JSON payload: {}"}}"#, e);
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(ErrorResponse {
-                        error: format!("Invalid JSON payload: {}", e),
-                    }),
+                    [(header::CONTENT_TYPE, "application/json")],
+                    error_json,
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     };
 
     match result {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(serde_json::json!({"status": "ok", "message": "Value stored successfully"})),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to store value: {}", e),
-            }),
-        )
-            .into_response(),
+        Ok(()) => {
+            // Use pre-allocated response string
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "application/json")],
+                get_ok_response(),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            let error_json = format!(r#"{{"error":"Failed to store value: {}"}}"#, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "application/json")],
+                error_json,
+            )
+                .into_response()
+        }
     }
 }
 
-// GET endpoint handler - returns binary or JSON based on Accept header
+// GET endpoint handler - optimized for performance
 async fn get_handler(
     State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
@@ -160,10 +182,10 @@ async fn get_handler(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/json");
 
-    match state.ledger.get(&key) {
+    match state.ledger.get(key.as_bytes()) {
         Ok(Some(value_bytes)) => {
             if accept.contains("application/octet-stream") {
-                // Return binary data directly
+                // Return binary data directly - zero-copy
                 (
                     StatusCode::OK,
                     [(header::CONTENT_TYPE, "application/octet-stream")],
@@ -171,99 +193,108 @@ async fn get_handler(
                 )
                     .into_response()
             } else {
-                // Return JSON with string value
+                // Return JSON with string value - optimized path
                 match String::from_utf8(value_bytes) {
-                    Ok(value_str) => (
-                        StatusCode::OK,
-                        Json(GetResponse {
-                            value: Some(value_str),
-                        }),
-                    )
-                        .into_response(),
+                    Ok(value_str) => {
+                        // Fast path: directly construct JSON string
+                        let json_response =
+                            format!(r#"{{"value":"{}"}}"#, value_str.replace('"', "\\\""));
+                        (
+                            StatusCode::OK,
+                            [(header::CONTENT_TYPE, "application/json")],
+                            json_response,
+                        )
+                            .into_response()
+                    }
                     Err(_) => {
                         // If not valid UTF-8, return error
                         (
                             StatusCode::BAD_REQUEST,
-                            Json(ErrorResponse {
-                                error: "Value is binary data. Use Accept: application/octet-stream header".to_string(),
-                            }),
+                            [(header::CONTENT_TYPE, "application/json")],
+                            r#"{"error":"Value is binary data. Use Accept: application/octet-stream header"}"#,
                         )
                             .into_response()
                     }
                 }
             }
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(GetResponse { value: None })).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to retrieve value: {}", e),
-            }),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            [(header::CONTENT_TYPE, "application/json")],
+            r#"{"value":null}"#,
         )
             .into_response(),
+        Err(e) => {
+            let error_json = format!(r#"{{"error":"Failed to retrieve value: {}"}}"#, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "application/json")],
+                error_json,
+            )
+                .into_response()
+        }
     }
 }
 
-// DELETE endpoint handler
-// Note: In a production distributed ledger, data should be immutable and permanent.
-// This endpoint is provided for development/testing purposes. In a true distributed
-// setup with consensus, deletions would be handled as append-only log entries that
-// mark data as deleted without actually removing it.
+// DELETE endpoint handler - optimized
 async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<String>) -> Response {
     state
         .deletes
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     // Check if key exists first
-    match state.ledger.get(&key) {
+    match state.ledger.get(key.as_bytes()) {
         Ok(Some(_)) => {
-            // Key exists, perform deletion by setting to empty (sled doesn't have direct delete)
-            // We'll use remove via batch operation
+            // Key exists, perform deletion
             let mut batch = SimpleScribeLedger::new_batch();
             batch.remove(key.as_bytes());
             match state.ledger.apply_batch(batch) {
                 Ok(()) => (
                     StatusCode::OK,
-                    Json(
-                        serde_json::json!({"status": "ok", "message": "Key deleted successfully"}),
-                    ),
+                    [(header::CONTENT_TYPE, "application/json")],
+                    r#"{"status":"ok","message":"Key deleted successfully"}"#,
                 )
                     .into_response(),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: format!("Failed to delete key: {}", e),
-                    }),
-                )
-                    .into_response(),
+                Err(e) => {
+                    let error_json = format!(r#"{{"error":"Failed to delete key: {}"}}"#, e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        [(header::CONTENT_TYPE, "application/json")],
+                        error_json,
+                    )
+                        .into_response()
+                }
             }
         }
         Ok(None) => (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "Key not found".to_string(),
-            }),
+            [(header::CONTENT_TYPE, "application/json")],
+            r#"{"error":"Key not found"}"#,
         )
             .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to check key: {}", e),
-            }),
-        )
-            .into_response(),
+        Err(e) => {
+            let error_json = format!(r#"{{"error":"Failed to check key: {}"}}"#, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "application/json")],
+                error_json,
+            )
+                .into_response()
+        }
     }
 }
 
-// Health check endpoint
-async fn health_handler() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "status": "healthy",
-        "service": "simple-scribe-ledger-server"
-    }))
+// Health check endpoint - optimized with pre-allocated response
+async fn health_handler() -> Response {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/json")],
+        get_health_response(),
+    )
+        .into_response()
 }
 
-// Metrics endpoint
+// Metrics endpoint - optimized JSON building
 async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
     let total_keys = state.ledger.len();
     let is_empty = state.ledger.is_empty();
@@ -271,15 +302,16 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
     let total_puts = state.puts.load(std::sync::atomic::Ordering::Relaxed);
     let total_deletes = state.deletes.load(std::sync::atomic::Ordering::Relaxed);
 
+    // Build JSON string directly for better performance
+    let json_response = format!(
+        r#"{{"total_keys":{},"is_empty":{},"total_gets":{},"total_puts":{},"total_deletes":{}}}"#,
+        total_keys, is_empty, total_gets, total_puts, total_deletes
+    );
+
     (
         StatusCode::OK,
-        Json(MetricsResponse {
-            total_keys,
-            is_empty,
-            total_gets,
-            total_puts,
-            total_deletes,
-        }),
+        [(header::CONTENT_TYPE, "application/json")],
+        json_response,
     )
         .into_response()
 }
@@ -362,18 +394,21 @@ async fn main() -> anyhow::Result<()> {
     let ledger = SimpleScribeLedger::temp()?;
     let app_state = Arc::new(AppState::new(ledger));
 
-    // Build the router with all endpoints
+    // Build the router with all endpoints - optimized routing order
+    // Put most frequently used endpoints first for faster matching
     let app = Router::new()
+        // Most frequently used endpoints first
+        .route("/:key", get(get_handler))
+        .route("/:key", put(put_handler))
+        .route("/:key", delete(delete_handler))
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/join", axum::routing::post(cluster_join_handler))
-        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
+        // Cluster endpoints (less frequent)
         .route("/cluster/status", get(cluster_status_handler))
         .route("/cluster/members", get(cluster_members_handler))
         .route("/cluster/leader", get(cluster_leader_handler))
-        .route("/:key", put(put_handler))
-        .route("/:key", get(get_handler))
-        .route("/:key", delete(delete_handler))
+        .route("/cluster/join", axum::routing::post(cluster_join_handler))
+        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 
@@ -410,9 +445,20 @@ async fn main() -> anyhow::Result<()> {
     println!("  # Cluster status:");
     println!("  curl http://localhost:3000/cluster/status");
 
-    // Run the server
+    // Run the server with optimized settings
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    axum::serve(listener, app).await?;
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
+}
+
+// Graceful shutdown signal handler
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install CTRL+C signal handler");
+    println!("\nShutting down gracefully...");
 }
