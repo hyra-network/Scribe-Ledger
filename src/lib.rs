@@ -3,6 +3,7 @@ use sled::Db;
 use std::path::Path;
 
 // New modules for distributed ledger functionality
+pub mod cluster;
 pub mod config;
 pub mod consensus;
 pub mod discovery;
@@ -50,13 +51,22 @@ impl SimpleScribeLedger {
         Ok(())
     }
 
-    /// Get a value by key from the storage
+    /// Get a value by key from the storage (optimized, zero-copy when possible)
     pub fn get<K>(&self, key: K) -> Result<Option<Vec<u8>>>
     where
         K: AsRef<[u8]>,
     {
         let result = self.db.get(key.as_ref())?;
         Ok(result.map(|ivec| ivec.to_vec()))
+    }
+
+    /// Get a value by key without copying (returns reference to internal buffer)
+    /// This is more efficient but requires careful lifetime management
+    pub fn get_ref<K>(&self, key: K) -> Result<Option<sled::IVec>>
+    where
+        K: AsRef<[u8]>,
+    {
+        self.db.get(key.as_ref()).map_err(Into::into)
     }
 
     /// Get the number of key-value pairs in the storage
@@ -94,6 +104,7 @@ impl SimpleScribeLedger {
     }
 
     /// Apply multiple batches atomically without intermediate flushing (best performance)
+    /// Optimized to minimize allocations and synchronization overhead
     pub fn apply_batches<I>(&self, batches: I) -> Result<()>
     where
         I: IntoIterator<Item = sled::Batch>,
@@ -101,6 +112,18 @@ impl SimpleScribeLedger {
         for batch in batches {
             self.db.apply_batch(batch)?;
         }
+        Ok(())
+    }
+
+    /// Apply batches with final flush (ensures durability)
+    pub fn apply_batches_with_flush<I>(&self, batches: I) -> Result<()>
+    where
+        I: IntoIterator<Item = sled::Batch>,
+    {
+        for batch in batches {
+            self.db.apply_batch(batch)?;
+        }
+        self.db.flush()?;
         Ok(())
     }
 

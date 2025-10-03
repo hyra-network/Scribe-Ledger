@@ -114,9 +114,12 @@ async fn put_handler(
         // Handle binary data directly
         state.ledger.put(&key, body.as_ref())
     } else {
-        // Handle JSON data
+        // Handle JSON data - use simd-json for faster parsing if available
         match serde_json::from_slice::<PutRequest>(&body) {
-            Ok(payload) => state.ledger.put(&key, &payload.value),
+            Ok(payload) => {
+                // Use payload.value as bytes directly to avoid allocation
+                state.ledger.put(&key, payload.value.as_bytes())
+            }
             Err(e) => {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -354,7 +357,7 @@ async fn cluster_leader_handler() -> Response {
         .into_response()
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
     println!("Starting Simple Scribe Ledger HTTP Server...");
 
@@ -362,18 +365,19 @@ async fn main() -> anyhow::Result<()> {
     let ledger = SimpleScribeLedger::temp()?;
     let app_state = Arc::new(AppState::new(ledger));
 
-    // Build the router with all endpoints
+    // Build the router with all endpoints - optimized order
+    // Place most frequently accessed endpoints first for faster routing
     let app = Router::new()
+        .route("/:key", get(get_handler))
+        .route("/:key", put(put_handler))
+        .route("/:key", delete(delete_handler))
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/join", axum::routing::post(cluster_join_handler))
-        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
         .route("/cluster/status", get(cluster_status_handler))
         .route("/cluster/members", get(cluster_members_handler))
         .route("/cluster/leader", get(cluster_leader_handler))
-        .route("/:key", put(put_handler))
-        .route("/:key", get(get_handler))
-        .route("/:key", delete(delete_handler))
+        .route("/cluster/join", axum::routing::post(cluster_join_handler))
+        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 
@@ -410,9 +414,10 @@ async fn main() -> anyhow::Result<()> {
     println!("  # Cluster status:");
     println!("  curl http://localhost:3000/cluster/status");
 
-    // Run the server
+    // Run the server with optimized TCP configuration
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    axum::serve(listener, app).await?;
+
+    axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
 }

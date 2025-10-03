@@ -300,36 +300,36 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 **Goal**: Implement automatic cluster discovery and dynamic membership.
 
-### Task 6.1: Discovery Service
-- [ ] Create src/discovery.rs with DiscoveryService
-- [ ] Implement UDP broadcast for node discovery
-- [ ] Add peer list management
-- [ ] Implement heartbeat protocol
-- [ ] Add failure detection logic
-- [ ] Support configurable discovery endpoints
+### Task 6.1: Discovery Service ✅
+- [x] Create src/discovery.rs with DiscoveryService
+- [x] Implement UDP broadcast for node discovery
+- [x] Add peer list management
+- [x] Implement heartbeat protocol
+- [x] Add failure detection logic
+- [x] Support configurable discovery endpoints
 
 **Deliverables**: Node discovery service
 
 ---
 
-### Task 6.2: Cluster Initialization
-- [ ] Implement bootstrap logic for first node
-- [ ] Add automatic cluster joining for new nodes
-- [ ] Support manual cluster seeding via config
-- [ ] Implement leader discovery
-- [ ] Add join request/response handling
-- [ ] Handle network partitions gracefully
+### Task 6.2: Cluster Initialization ✅
+- [x] Implement bootstrap logic for first node
+- [x] Add automatic cluster joining for new nodes
+- [x] Support manual cluster seeding via config
+- [x] Implement leader discovery
+- [x] Add join request/response handling
+- [x] Handle network partitions gracefully
 
 **Deliverables**: Automatic cluster formation
 
 ---
 
-### Task 6.3: Discovery Tests
-- [ ] Test single node bootstrap
-- [ ] Test 3-node cluster auto-discovery
-- [ ] Test node joining running cluster
-- [ ] Test failure detection
-- [ ] Test network partition scenarios
+### Task 6.3: Discovery Tests ✅
+- [x] Test single node bootstrap
+- [x] Test 3-node cluster auto-discovery
+- [x] Test node joining running cluster
+- [x] Test failure detection
+- [x] Test network partition scenarios
 
 **Deliverables**: Discovery and cluster formation tests
 

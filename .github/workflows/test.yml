@@ -117,3 +117,9 @@ jobs:
     
     - name: Test discovery module
       run: cargo test --lib 'discovery::' --verbose
+    
+    - name: Run cluster initialization tests
+      run: cargo test --test cluster_tests --verbose
+    
+    - name: Test cluster module
+      run: cargo test --lib 'cluster::' --verbose
