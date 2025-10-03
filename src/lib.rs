@@ -3,6 +3,7 @@ use sled::Db;
 use std::path::Path;
 
 // New modules for distributed ledger functionality
+pub mod cluster;
 pub mod config;
 pub mod consensus;
 pub mod discovery;

@@ -35,6 +35,10 @@ pub enum ScribeError {
     #[error("Manifest error: {0}")]
     Manifest(String),
 
+    /// Cluster initialization and management errors
+    #[error("Cluster error: {0}")]
+    Cluster(String),
+
     /// IO errors
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -123,5 +127,12 @@ mod tests {
         let err = ScribeError::Manifest("test manifest error".to_string());
         assert!(err.to_string().contains("Manifest error"));
         assert!(err.to_string().contains("test manifest error"));
+    }
+
+    #[test]
+    fn test_cluster_error() {
+        let err = ScribeError::Cluster("test cluster error".to_string());
+        assert!(err.to_string().contains("Cluster error"));
+        assert!(err.to_string().contains("test cluster error"));
     }
 }
