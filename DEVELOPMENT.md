@@ -250,7 +250,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 - [x] Support binary data (Content-Type: application/octet-stream)
 
 **Deliverables**: Functional HTTP API server  
-**Status**: ✅ Complete (see TASK_5.1_SUMMARY.md)
+**Status**: ✅ Complete
 
 ---
 
