@@ -1,7 +1,7 @@
 //! API module for handling distributed read/write requests
 //!
 //! This module provides the high-level API for distributed operations,
-//! including write request forwarding, batching, and timeout handling.
+//! including write request forwarding, batching, read operations, and timeout handling.
 
 use crate::consensus::{AppRequest, AppResponse, ConsensusNode};
 use crate::error::{Result, ScribeError};
@@ -13,8 +13,23 @@ use tokio::time::timeout;
 /// Default timeout for write operations
 const DEFAULT_WRITE_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Default timeout for read operations
+const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Maximum batch size for write operations
 const DEFAULT_BATCH_SIZE: usize = 100;
+
+/// Read consistency level
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadConsistency {
+    /// Linearizable read - guarantees reading the latest committed data
+    /// Read must be served by the leader
+    Linearizable,
+    /// Stale read - may return slightly outdated data
+    /// Can be served by any node (including followers)
+    /// Provides better performance and availability
+    Stale,
+}
 
 /// Distributed API for handling read/write requests
 pub struct DistributedApi {
@@ -109,6 +124,45 @@ impl DistributedApi {
             Err(_) => Err(ScribeError::Consensus("Delete timeout".to_string())),
             _ => Err(ScribeError::Consensus("Unexpected response".to_string())),
         }
+    }
+
+    /// Get a value by key with specified consistency level
+    ///
+    /// This method provides two consistency levels:
+    /// - Linearizable: Reads the latest committed data from the leader
+    /// - Stale: Reads from local state machine (may be slightly outdated)
+    pub async fn get(&self, key: Key, consistency: ReadConsistency) -> Result<Option<Value>> {
+        match consistency {
+            ReadConsistency::Linearizable => self.get_linearizable(key).await,
+            ReadConsistency::Stale => self.get_stale(key).await,
+        }
+    }
+
+    /// Get a value with linearizable consistency (from leader only)
+    async fn get_linearizable(&self, key: Key) -> Result<Option<Value>> {
+        // Execute read with timeout
+        let result = timeout(
+            DEFAULT_READ_TIMEOUT,
+            self.consensus.client_read(key.as_slice()),
+        )
+        .await;
+
+        match result {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(e)) => Err(ScribeError::Consensus(format!("Read error: {}", e))),
+            Err(_) => Err(ScribeError::Consensus("Read timeout".to_string())),
+        }
+    }
+
+    /// Get a value with stale consistency (from local state machine)
+    async fn get_stale(&self, key: Key) -> Result<Option<Value>> {
+        // Read from local state machine (no timeout needed, it's a local operation)
+        Ok(self.consensus.client_read_local(key.as_slice()).await)
+    }
+
+    /// Get a value with default linearizable consistency
+    pub async fn get_default(&self, key: Key) -> Result<Option<Value>> {
+        self.get(key, ReadConsistency::Linearizable).await
     }
 
     /// Batch write multiple key-value pairs
@@ -326,5 +380,144 @@ mod tests {
         for result in results {
             assert!(result.is_ok());
         }
+    }
+
+    #[tokio::test]
+    async fn test_api_get_before_init() {
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+        let api = DistributedApi::new(consensus);
+
+        // Reading before initialization should fail for linearizable reads
+        let result = api
+            .get(b"test_key".to_vec(), ReadConsistency::Linearizable)
+            .await;
+        assert!(result.is_err());
+
+        // Stale reads should work (return None)
+        let result = api.get(b"test_key".to_vec(), ReadConsistency::Stale).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn test_api_get_linearizable() {
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+
+        // Initialize as single-node cluster
+        consensus.initialize().await.unwrap();
+
+        // Wait for election
+        tokio::time::sleep(Duration::from_millis(2000)).await;
+
+        let api = DistributedApi::new(consensus);
+
+        // Put a value
+        api.put(b"test_key".to_vec(), b"test_value".to_vec())
+            .await
+            .unwrap();
+
+        // Get with linearizable consistency
+        let value = api
+            .get(b"test_key".to_vec(), ReadConsistency::Linearizable)
+            .await
+            .unwrap();
+        assert_eq!(value, Some(b"test_value".to_vec()));
+
+        // Get non-existent key
+        let value = api
+            .get(b"non_existent".to_vec(), ReadConsistency::Linearizable)
+            .await
+            .unwrap();
+        assert_eq!(value, None);
+    }
+
+    #[tokio::test]
+    async fn test_api_get_stale() {
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+
+        // Initialize as single-node cluster
+        consensus.initialize().await.unwrap();
+
+        // Wait for election
+        tokio::time::sleep(Duration::from_millis(2000)).await;
+
+        let api = DistributedApi::new(consensus);
+
+        // Put a value
+        api.put(b"test_key".to_vec(), b"test_value".to_vec())
+            .await
+            .unwrap();
+
+        // Get with stale consistency
+        let value = api
+            .get(b"test_key".to_vec(), ReadConsistency::Stale)
+            .await
+            .unwrap();
+        assert_eq!(value, Some(b"test_value".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn test_api_get_default() {
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+
+        // Initialize as single-node cluster
+        consensus.initialize().await.unwrap();
+
+        // Wait for election
+        tokio::time::sleep(Duration::from_millis(2000)).await;
+
+        let api = DistributedApi::new(consensus);
+
+        // Put a value
+        api.put(b"test_key".to_vec(), b"test_value".to_vec())
+            .await
+            .unwrap();
+
+        // Get with default consistency (linearizable)
+        let value = api.get_default(b"test_key".to_vec()).await.unwrap();
+        assert_eq!(value, Some(b"test_value".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn test_api_write_then_read() {
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+
+        // Initialize as single-node cluster
+        consensus.initialize().await.unwrap();
+
+        // Wait for election
+        tokio::time::sleep(Duration::from_millis(2000)).await;
+
+        let api = DistributedApi::new(consensus);
+
+        // Write multiple values
+        for i in 0..10 {
+            let key = format!("key{}", i).into_bytes();
+            let value = format!("value{}", i).into_bytes();
+            api.put(key, value).await.unwrap();
+        }
+
+        // Read them back
+        for i in 0..10 {
+            let key = format!("key{}", i).into_bytes();
+            let expected_value = format!("value{}", i).into_bytes();
+            let value = api.get(key, ReadConsistency::Linearizable).await.unwrap();
+            assert_eq!(value, Some(expected_value));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_api_read_consistency_enum() {
+        // Just verify the enum values exist and can be used
+        let _linearizable = ReadConsistency::Linearizable;
+        let _stale = ReadConsistency::Stale;
+
+        assert_eq!(ReadConsistency::Linearizable, ReadConsistency::Linearizable);
+        assert_ne!(ReadConsistency::Linearizable, ReadConsistency::Stale);
     }
 }

@@ -129,3 +129,9 @@ jobs:
 
     - name: Test api module (Task 7.1)
       run: cargo test --lib 'api::' --verbose
+
+    - name: Run read request tests (Task 7.2)
+      run: cargo test --test read_request_tests --verbose
+
+    - name: Run consistency tests (Task 7.3)
+      run: cargo test --test consistency_tests --verbose

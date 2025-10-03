@@ -123,6 +123,7 @@ impl RaftSnapshotBuilder<TypeConfig> for SnapshotBuilder {
 }
 
 /// Thread-safe wrapper for state machine
+#[derive(Clone)]
 pub struct StateMachineStore {
     inner: Arc<RwLock<StateMachine>>,
 }
@@ -198,6 +199,14 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                     AppRequest::Delete { key } => {
                         sm.data.remove(key);
                         AppResponse::DeleteOk
+                    }
+                    AppRequest::Get { .. } => {
+                        // Get requests should not go through Raft log
+                        // They should use client_read instead
+                        AppResponse::Error {
+                            message: "Get requests should not go through Raft consensus"
+                                .to_string(),
+                        }
                     }
                 },
                 openraft::EntryPayload::Membership(_) => AppResponse::PutOk,

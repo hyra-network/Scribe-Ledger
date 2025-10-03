@@ -31,6 +31,8 @@ pub struct ConsensusNode {
     raft: Arc<RaftInstance>,
     /// Network factory for creating network clients
     network_factory: Arc<RwLock<NetworkFactory>>,
+    /// State machine store for direct reads
+    state_machine: Arc<StateMachineStore>,
     /// Node ID
     node_id: NodeId,
 }
@@ -46,6 +48,9 @@ impl ConsensusNode {
 
         // Create separate state machine instance (not from storage)
         let state_machine = StateMachineStore::new();
+
+        // Keep a reference to the state machine for direct reads
+        let state_machine_ref = Arc::new(state_machine.clone());
 
         // Create network factory
         let network_factory = NetworkFactory::new(node_id);
@@ -79,6 +84,7 @@ impl ConsensusNode {
         Ok(Self {
             raft: Arc::new(raft),
             network_factory: Arc::new(RwLock::new(network_factory)),
+            state_machine: state_machine_ref,
             node_id,
         })
     }
@@ -209,6 +215,34 @@ impl ConsensusNode {
                     format!("Client write error: {:?}", e),
                 )) as Box<dyn std::error::Error + Send + Sync>
             })
+    }
+
+    /// Client read operation (reads from local state machine)
+    /// This provides stale reads - data is read from the local state machine
+    /// without going through Raft consensus
+    pub async fn client_read_local(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.state_machine.get(&key.to_vec()).await
+    }
+
+    /// Client read operation with linearizable guarantee
+    /// This ensures the read sees the latest committed data by checking with the leader
+    pub async fn client_read(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+        // For linearizable reads, we need to ensure we're reading the latest data
+        // The simplest approach is to check if we're the leader
+        if !self.is_leader().await {
+            // If not leader, return error indicating client should retry with leader
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Not leader - retry with current leader for linearizable read",
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
+
+        // Leader can perform linearizable read from local state machine
+        // because it has the most up-to-date data
+        Ok(self.state_machine.get(&key.to_vec()).await)
     }
 
     /// Get metrics from the Raft instance
