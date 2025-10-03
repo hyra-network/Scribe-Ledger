@@ -123,3 +123,9 @@ jobs:
     
     - name: Test cluster module
       run: cargo test --lib 'cluster::' --verbose
+
+    - name: Run write request tests (Task 7.1)
+      run: cargo test --test write_request_tests --verbose
+
+    - name: Test api module (Task 7.1)
+      run: cargo test --lib 'api::' --verbose
