@@ -19,6 +19,10 @@ pub enum ScribeError {
     #[error("Network error: {0}")]
     Network(String),
 
+    /// Discovery service errors
+    #[error("Discovery error: {0}")]
+    Discovery(String),
+
     /// Configuration errors (parsing, validation)
     #[error("Configuration error: {0}")]
     Configuration(String),
