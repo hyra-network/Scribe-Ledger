@@ -885,3 +885,32 @@ async fn test_cluster_endpoints_integration() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_batched_http_operations() -> Result<()> {
+    use simple_scribe_ledger::http_client::{batched_put_operations, batched_get_operations, PutRequest};
+    
+    let (base_url, _handle) = create_test_server().await;
+    let client = reqwest::Client::new();
+
+    // Test batched PUT operations
+    let keys: Vec<String> = (0..50).map(|i| format!("batch_key_{}", i)).collect();
+    let payloads: Vec<PutRequest> = (0..50)
+        .map(|i| PutRequest {
+            value: format!("batch_value_{}", i),
+        })
+        .collect();
+
+    let ops_count = batched_put_operations(&client, &base_url, &keys, &payloads).await;
+    assert_eq!(ops_count, 50);
+
+    // Test batched GET operations
+    let urls: Vec<String> = (0..50)
+        .map(|i| format!("{}/batch_key_{}", base_url, i))
+        .collect();
+
+    let get_count = batched_get_operations(&client, &urls).await;
+    assert_eq!(get_count, 50);
+
+    Ok(())
+}
