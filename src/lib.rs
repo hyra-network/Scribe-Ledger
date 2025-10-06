@@ -9,6 +9,7 @@ pub mod config;
 pub mod consensus;
 pub mod discovery;
 pub mod error;
+pub mod http_client;
 pub mod manifest;
 pub mod network;
 pub mod storage;
