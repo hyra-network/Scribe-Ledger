@@ -80,7 +80,8 @@ fn test_node_config_files_exist() {
         );
 
         // Verify it's a valid TOML file by trying to read it
-        let content = fs::read_to_string(config_path).expect(&format!("Failed to read {}", config));
+        let content =
+            fs::read_to_string(config_path).unwrap_or_else(|_| panic!("Failed to read {}", config));
 
         // Basic validation - should contain required sections
         assert!(
@@ -124,8 +125,8 @@ fn test_systemd_service_files_exist() {
         );
 
         // Verify it's a valid systemd file
-        let content =
-            fs::read_to_string(service_path).expect(&format!("Failed to read {}", service));
+        let content = fs::read_to_string(service_path)
+            .unwrap_or_else(|_| panic!("Failed to read {}", service));
 
         assert!(
             content.contains("[Unit]"),
@@ -338,7 +339,8 @@ fn test_scripts_have_bash_shebang() {
     ];
 
     for script in &scripts {
-        let content = fs::read_to_string(script).expect(&format!("Failed to read {}", script));
+        let content =
+            fs::read_to_string(script).unwrap_or_else(|_| panic!("Failed to read {}", script));
 
         assert!(
             content.starts_with("#!/bin/bash"),
@@ -403,8 +405,8 @@ fn test_node_configs_have_unique_ids_and_ports() {
     ];
 
     for (config_file, expected_id, expected_http, expected_raft) in &configs {
-        let content =
-            fs::read_to_string(config_file).expect(&format!("Failed to read {}", config_file));
+        let content = fs::read_to_string(config_file)
+            .unwrap_or_else(|_| panic!("Failed to read {}", config_file));
 
         // Check node ID
         assert!(
