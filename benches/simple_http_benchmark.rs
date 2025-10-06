@@ -81,6 +81,9 @@ fn benchmark_http_put_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("http_put_operations");
     group.measurement_time(Duration::from_secs(10));
 
+    // Maximum concurrent requests to prevent resource exhaustion and ensure linear scaling
+    const MAX_CONCURRENCY: usize = 20;
+
     for ops in [10, 100, 500, 1000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
             let rt = Runtime::new().unwrap();
@@ -106,25 +109,32 @@ fn benchmark_http_put_operations(c: &mut Criterion) {
 
             b.iter(|| {
                 rt.block_on(async {
-                    // Launch all requests concurrently
-                    let mut handles = Vec::with_capacity(ops);
+                    // Process requests in batches with controlled concurrency for linear scaling
+                    let mut i = 0;
+                    while i < ops {
+                        let batch_size = std::cmp::min(MAX_CONCURRENCY, ops - i);
+                        let mut handles = Vec::with_capacity(batch_size);
 
-                    for i in 0..ops {
-                        let client = client.clone();
-                        let url = format!("{}/{}", base_url, keys[i]);
-                        let payload = payloads[i].clone();
+                        for j in i..(i + batch_size) {
+                            let client = client.clone();
+                            let url = format!("{}/{}", base_url, keys[j]);
+                            let payload = payloads[j].clone();
 
-                        let handle = tokio::spawn(async move {
-                            let response = client.put(&url).json(&payload).send().await.unwrap();
-                            black_box(response.status());
-                        });
+                            let handle = tokio::spawn(async move {
+                                let response =
+                                    client.put(&url).json(&payload).send().await.unwrap();
+                                black_box(response.status());
+                            });
 
-                        handles.push(handle);
-                    }
+                            handles.push(handle);
+                        }
 
-                    // Wait for all requests to complete
-                    for handle in handles {
-                        handle.await.unwrap();
+                        // Wait for current batch to complete before starting next batch
+                        for handle in handles {
+                            handle.await.unwrap();
+                        }
+
+                        i += batch_size;
                     }
                 });
             });
@@ -137,6 +147,9 @@ fn benchmark_http_put_operations(c: &mut Criterion) {
 fn benchmark_http_get_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("http_get_operations");
     group.measurement_time(Duration::from_secs(10));
+
+    // Maximum concurrent requests to prevent resource exhaustion and ensure linear scaling
+    const MAX_CONCURRENCY: usize = 20;
 
     for ops in [10, 100, 500, 1000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
@@ -169,25 +182,31 @@ fn benchmark_http_get_operations(c: &mut Criterion) {
 
             b.iter(|| {
                 rt.block_on(async {
-                    // Launch all requests concurrently
-                    let mut handles = Vec::with_capacity(ops);
+                    // Process requests in batches with controlled concurrency for linear scaling
+                    let mut i = 0;
+                    while i < ops {
+                        let batch_size = std::cmp::min(MAX_CONCURRENCY, ops - i);
+                        let mut handles = Vec::with_capacity(batch_size);
 
-                    for i in 0..ops {
-                        let client = client.clone();
-                        let url = urls[i].clone();
+                        for j in i..(i + batch_size) {
+                            let client = client.clone();
+                            let url = urls[j].clone();
 
-                        let handle = tokio::spawn(async move {
-                            let response = client.get(&url).send().await.unwrap();
-                            let _data: GetResponse = response.json().await.unwrap();
-                            black_box(_data);
-                        });
+                            let handle = tokio::spawn(async move {
+                                let response = client.get(&url).send().await.unwrap();
+                                let _data: GetResponse = response.json().await.unwrap();
+                                black_box(_data);
+                            });
 
-                        handles.push(handle);
-                    }
+                            handles.push(handle);
+                        }
 
-                    // Wait for all requests to complete
-                    for handle in handles {
-                        handle.await.unwrap();
+                        // Wait for current batch to complete before starting next batch
+                        for handle in handles {
+                            handle.await.unwrap();
+                        }
+
+                        i += batch_size;
                     }
                 });
             });
@@ -200,6 +219,9 @@ fn benchmark_http_get_operations(c: &mut Criterion) {
 fn benchmark_http_mixed_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("http_mixed_operations");
     group.measurement_time(Duration::from_secs(10));
+
+    // Maximum concurrent requests to prevent resource exhaustion and ensure linear scaling
+    const MAX_CONCURRENCY: usize = 20;
 
     for ops in [10, 100, 500, 1000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(ops), ops, |b, &ops| {
@@ -226,33 +248,39 @@ fn benchmark_http_mixed_operations(c: &mut Criterion) {
 
             b.iter(|| {
                 rt.block_on(async {
-                    // Launch all requests concurrently
-                    let mut handles = Vec::with_capacity(ops);
+                    // Process requests in batches with controlled concurrency for linear scaling
+                    let mut i = 0;
+                    while i < ops {
+                        let batch_size = std::cmp::min(MAX_CONCURRENCY, ops - i);
+                        let mut handles = Vec::with_capacity(batch_size);
 
-                    for i in 0..ops {
-                        let client = client.clone();
-                        let url = format!("{}/{}", base_url, keys[i]);
+                        for j in i..(i + batch_size) {
+                            let client = client.clone();
+                            let url = format!("{}/{}", base_url, keys[j]);
 
-                        let handle = if i % 2 == 0 {
-                            let payload = payloads[i].clone();
-                            tokio::spawn(async move {
-                                let response =
-                                    client.put(&url).json(&payload).send().await.unwrap();
-                                black_box(response.status());
-                            })
-                        } else {
-                            tokio::spawn(async move {
-                                let response = client.get(&url).send().await.unwrap();
-                                black_box(response.status());
-                            })
-                        };
+                            let handle = if j % 2 == 0 {
+                                let payload = payloads[j].clone();
+                                tokio::spawn(async move {
+                                    let response =
+                                        client.put(&url).json(&payload).send().await.unwrap();
+                                    black_box(response.status());
+                                })
+                            } else {
+                                tokio::spawn(async move {
+                                    let response = client.get(&url).send().await.unwrap();
+                                    black_box(response.status());
+                                })
+                            };
 
-                        handles.push(handle);
-                    }
+                            handles.push(handle);
+                        }
 
-                    // Wait for all requests to complete
-                    for handle in handles {
-                        handle.await.unwrap();
+                        // Wait for current batch to complete before starting next batch
+                        for handle in handles {
+                            handle.await.unwrap();
+                        }
+
+                        i += batch_size;
                     }
                 });
             });

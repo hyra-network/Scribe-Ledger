@@ -14,6 +14,8 @@ use crate::types::{Key, NodeId, Value};
 pub enum AppRequest {
     /// Put a key-value pair
     Put { key: Key, value: Value },
+    /// Get a value by key (used for read operations)
+    Get { key: Key },
     /// Delete a key
     Delete { key: Key },
 }
@@ -23,6 +25,8 @@ pub enum AppRequest {
 pub enum AppResponse {
     /// Successful put operation
     PutOk,
+    /// Successful get operation with optional value
+    GetOk { value: Option<Value> },
     /// Successful delete operation
     DeleteOk,
     /// Error response
@@ -100,6 +104,23 @@ mod tests {
     }
 
     #[test]
+    fn test_app_request_get() {
+        let request = AppRequest::Get {
+            key: b"key".to_vec(),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        let deserialized: AppRequest = serde_json::from_str(&json).unwrap();
+
+        match deserialized {
+            AppRequest::Get { key } => {
+                assert_eq!(key, b"key".to_vec());
+            }
+            _ => panic!("Expected Get request"),
+        }
+    }
+
+    #[test]
     fn test_app_response_serialization() {
         let response = AppResponse::PutOk;
 
@@ -126,6 +147,38 @@ mod tests {
                 assert_eq!(message, "Test error");
             }
             _ => panic!("Expected Error response"),
+        }
+    }
+
+    #[test]
+    fn test_app_response_get_ok() {
+        let response = AppResponse::GetOk {
+            value: Some(b"test_value".to_vec()),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: AppResponse = serde_json::from_str(&json).unwrap();
+
+        match deserialized {
+            AppResponse::GetOk { value } => {
+                assert_eq!(value, Some(b"test_value".to_vec()));
+            }
+            _ => panic!("Expected GetOk response"),
+        }
+    }
+
+    #[test]
+    fn test_app_response_get_ok_none() {
+        let response = AppResponse::GetOk { value: None };
+
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: AppResponse = serde_json::from_str(&json).unwrap();
+
+        match deserialized {
+            AppResponse::GetOk { value } => {
+                assert_eq!(value, None);
+            }
+            _ => panic!("Expected GetOk response"),
         }
     }
 }
