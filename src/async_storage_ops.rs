@@ -19,26 +19,16 @@ pub async fn batched_async_put_operations(
     values: &[Vec<u8>],
 ) -> Result<()> {
     let ops = keys.len();
-    
-    // For small batches, do them sequentially
-    if ops <= OPTIMAL_BATCH_SIZE {
-        for i in 0..ops {
-            storage.put(keys[i].clone(), values[i].clone()).await?;
-        }
-    } else {
-        // For larger batches, process in chunks
-        let mut i = 0;
-        while i < ops {
-            let end = std::cmp::min(i + OPTIMAL_BATCH_SIZE, ops);
-            
-            for j in i..end {
-                storage.put(keys[j].clone(), values[j].clone()).await?;
-            }
-            
-            i = end;
+
+    // Process in optimally-sized chunks
+    for chunk_start in (0..ops).step_by(OPTIMAL_BATCH_SIZE) {
+        let chunk_end = std::cmp::min(chunk_start + OPTIMAL_BATCH_SIZE, ops);
+
+        for j in chunk_start..chunk_end {
+            storage.put(keys[j].clone(), values[j].clone()).await?;
         }
     }
-    
+
     storage.flush().await?;
     Ok(())
 }
@@ -51,10 +41,7 @@ pub async fn batched_async_put_operations(
 ///
 /// # Returns
 /// Result indicating success or failure
-pub async fn batched_async_get_operations(
-    storage: &SledStorage,
-    keys: &[Vec<u8>],
-) -> Result<()> {
+pub async fn batched_async_get_operations(storage: &SledStorage, keys: &[Vec<u8>]) -> Result<()> {
     for key in keys {
         let _ = storage.get(key).await?;
     }
@@ -83,8 +70,8 @@ pub async fn batched_async_mixed_operations(
     }
 
     // GET operations
-    for i in 0..put_ops {
-        let _ = storage.get(&keys[i]).await?;
+    for key in keys.iter().take(put_ops) {
+        let _ = storage.get(key).await?;
     }
 
     storage.flush().await?;
@@ -106,11 +93,11 @@ pub async fn populate_async_storage(
     values: &[Vec<u8>],
 ) -> Result<()> {
     let ops = keys.len();
-    
-    for i in 0..ops {
-        storage.put(keys[i].clone(), values[i].clone()).await?;
+
+    for (key, value) in keys.iter().zip(values.iter()).take(ops) {
+        storage.put(key.clone(), value.clone()).await?;
     }
-    
+
     storage.flush().await?;
     Ok(())
 }

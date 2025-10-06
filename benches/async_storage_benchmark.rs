@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use simple_scribe_ledger::async_storage_ops::{
-    batched_async_put_operations, batched_async_get_operations,
-    batched_async_mixed_operations, populate_async_storage, concurrent_async_operations,
+    batched_async_get_operations, batched_async_mixed_operations, batched_async_put_operations,
+    concurrent_async_operations, populate_async_storage,
 };
 use simple_scribe_ledger::storage::{SledStorage, StorageBackend};
 use std::time::Duration;
@@ -17,12 +17,16 @@ fn benchmark_async_put_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", ops), ops, |b, &ops| {
             // Pre-allocate keys and values
             let keys: Vec<Vec<u8>> = (0..ops).map(|i| format!("key{}", i).into_bytes()).collect();
-            let values: Vec<Vec<u8>> = (0..ops).map(|i| format!("value{}", i).into_bytes()).collect();
+            let values: Vec<Vec<u8>> = (0..ops)
+                .map(|i| format!("value{}", i).into_bytes())
+                .collect();
 
             b.iter(|| {
                 rt.block_on(async {
                     let storage = SledStorage::temp().unwrap();
-                    batched_async_put_operations(&storage, &keys, &values).await.unwrap();
+                    batched_async_put_operations(&storage, &keys, &values)
+                        .await
+                        .unwrap();
                     black_box(&storage);
                 });
             });
@@ -42,11 +46,15 @@ fn benchmark_async_get_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("get", ops), ops, |b, &ops| {
             // Pre-allocate and populate data
             let keys: Vec<Vec<u8>> = (0..ops).map(|i| format!("key{}", i).into_bytes()).collect();
-            let values: Vec<Vec<u8>> = (0..ops).map(|i| format!("value{}", i).into_bytes()).collect();
-            
+            let values: Vec<Vec<u8>> = (0..ops)
+                .map(|i| format!("value{}", i).into_bytes())
+                .collect();
+
             let storage = rt.block_on(async {
                 let storage = SledStorage::temp().unwrap();
-                populate_async_storage(&storage, &keys, &values).await.unwrap();
+                populate_async_storage(&storage, &keys, &values)
+                    .await
+                    .unwrap();
                 storage
             });
 
@@ -71,12 +79,16 @@ fn benchmark_async_mixed_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("mixed", ops), ops, |b, &ops| {
             // Pre-allocate keys and values
             let keys: Vec<Vec<u8>> = (0..ops).map(|i| format!("key{}", i).into_bytes()).collect();
-            let values: Vec<Vec<u8>> = (0..ops).map(|i| format!("value{}", i).into_bytes()).collect();
+            let values: Vec<Vec<u8>> = (0..ops)
+                .map(|i| format!("value{}", i).into_bytes())
+                .collect();
 
             b.iter(|| {
                 rt.block_on(async {
                     let storage = SledStorage::temp().unwrap();
-                    batched_async_mixed_operations(&storage, &keys, &values).await.unwrap();
+                    batched_async_mixed_operations(&storage, &keys, &values)
+                        .await
+                        .unwrap();
                     black_box(&storage);
                 });
             });
@@ -137,7 +149,9 @@ fn benchmark_async_concurrent_operations(c: &mut Criterion) {
                 b.iter(|| {
                     rt.block_on(async {
                         let storage = std::sync::Arc::new(SledStorage::temp().unwrap());
-                        concurrent_async_operations(storage, concurrent).await.unwrap();
+                        concurrent_async_operations(storage, concurrent)
+                            .await
+                            .unwrap();
                     });
                 });
             },

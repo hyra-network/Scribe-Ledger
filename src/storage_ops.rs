@@ -28,23 +28,22 @@ pub fn batched_put_operations(
 
     if ops <= 10 {
         // For small operations, use individual puts
-        for i in 0..ops {
-            ledger.put(&keys[i], &values[i])?;
+        for (key, value) in keys.iter().zip(values.iter()).take(ops) {
+            ledger.put(key, value)?;
         }
     } else {
-        // Use batching for better performance
-        let batch_size = std::cmp::min(OPTIMAL_BATCH_SIZE, ops / 4);
-        let mut i = 0;
-        while i < ops {
-            let mut batch = SimpleScribeLedger::new_batch();
-            let end = std::cmp::min(i + batch_size, ops);
+        // Use batching for better performance with optimal batch size
+        let batch_size = (ops / 4).clamp(10, OPTIMAL_BATCH_SIZE);
 
-            for j in i..end {
+        for chunk_start in (0..ops).step_by(batch_size) {
+            let chunk_end = std::cmp::min(chunk_start + batch_size, ops);
+            let mut batch = SimpleScribeLedger::new_batch();
+
+            for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
             }
 
             ledger.apply_batch(batch)?;
-            i = end;
         }
     }
 
@@ -90,28 +89,27 @@ pub fn batched_mixed_operations(
 
     // PUT operations
     if put_ops <= 10 {
-        for i in 0..put_ops {
-            ledger.put(&keys[i], &values[i])?;
+        for (key, value) in keys.iter().zip(values.iter()).take(put_ops) {
+            ledger.put(key, value)?;
         }
     } else {
-        let batch_size = std::cmp::min(50, put_ops / 4);
-        let mut i = 0;
-        while i < put_ops {
-            let mut batch = SimpleScribeLedger::new_batch();
-            let end = std::cmp::min(i + batch_size, put_ops);
+        let batch_size = (put_ops / 4).clamp(10, 50);
 
-            for j in i..end {
+        for chunk_start in (0..put_ops).step_by(batch_size) {
+            let chunk_end = std::cmp::min(chunk_start + batch_size, put_ops);
+            let mut batch = SimpleScribeLedger::new_batch();
+
+            for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
             }
 
             ledger.apply_batch(batch)?;
-            i = end;
         }
     }
 
     // GET operations
-    for i in 0..put_ops {
-        let _ = ledger.get(&keys[i])?;
+    for key in keys.iter().take(put_ops) {
+        let _ = ledger.get(key)?;
     }
 
     Ok(())
@@ -134,19 +132,16 @@ pub fn throughput_put_10k(
     // Warmup
     ledger.put("warmup", "value")?;
 
-    // Use optimal batching
-    let batch_size = OPTIMAL_BATCH_SIZE;
-    let mut i = 0;
-    while i < 10000 {
+    // Use optimal batching with step_by for cleaner code
+    for chunk_start in (0..10000).step_by(OPTIMAL_BATCH_SIZE) {
+        let chunk_end = std::cmp::min(chunk_start + OPTIMAL_BATCH_SIZE, 10000);
         let mut batch = SimpleScribeLedger::new_batch();
-        let end = std::cmp::min(i + batch_size, 10000);
 
-        for j in i..end {
+        for j in chunk_start..chunk_end {
             batch.insert(keys[j].as_bytes(), values[j].as_bytes());
         }
 
         ledger.apply_batch(batch)?;
-        i = end;
     }
 
     ledger.flush()?;
@@ -191,22 +186,21 @@ pub fn populate_ledger(
     let ops = keys.len();
 
     if ops <= 10 {
-        for i in 0..ops {
-            ledger.put(&keys[i], &values[i])?;
+        for (key, value) in keys.iter().zip(values.iter()).take(ops) {
+            ledger.put(key, value)?;
         }
     } else {
-        let batch_size = std::cmp::min(OPTIMAL_BATCH_SIZE, ops / 4);
-        let mut i = 0;
-        while i < ops {
-            let mut batch = SimpleScribeLedger::new_batch();
-            let end = std::cmp::min(i + batch_size, ops);
+        let batch_size = (ops / 4).clamp(10, OPTIMAL_BATCH_SIZE);
 
-            for j in i..end {
+        for chunk_start in (0..ops).step_by(batch_size) {
+            let chunk_end = std::cmp::min(chunk_start + batch_size, ops);
+            let mut batch = SimpleScribeLedger::new_batch();
+
+            for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
             }
 
             ledger.apply_batch(batch)?;
-            i = end;
         }
     }
 

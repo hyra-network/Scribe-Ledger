@@ -888,8 +888,10 @@ async fn test_cluster_endpoints_integration() -> Result<()> {
 
 #[tokio::test]
 async fn test_batched_http_operations() -> Result<()> {
-    use simple_scribe_ledger::http_client::{batched_put_operations, batched_get_operations, PutRequest};
-    
+    use simple_scribe_ledger::http_client::{
+        batched_get_operations, batched_put_operations, PutRequest,
+    };
+
     let (base_url, _handle) = create_test_server().await;
     let client = reqwest::Client::new();
 

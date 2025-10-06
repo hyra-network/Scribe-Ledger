@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use simple_scribe_ledger::storage_ops::{
-    batched_put_operations, batched_get_operations, batched_mixed_operations,
-    throughput_put_10k, throughput_get_10k, populate_ledger,
+    batched_get_operations, batched_mixed_operations, batched_put_operations, populate_ledger,
+    throughput_get_10k, throughput_put_10k,
 };
 use simple_scribe_ledger::SimpleScribeLedger;
 use std::time::Duration;

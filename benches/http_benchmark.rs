@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use simple_scribe_ledger::json_ops::{
-    batched_json_put_serialization, batched_json_get_deserialization,
-    large_scale_json_serialization, combined_json_operations,
+    batched_json_get_deserialization, batched_json_put_serialization, combined_json_operations,
+    large_scale_json_serialization,
 };
 use std::time::Duration;
 use tokio::runtime::Runtime;
