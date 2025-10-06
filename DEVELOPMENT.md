@@ -383,17 +383,21 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 **Goal**: Create runnable node binary and deployment scripts.
 
-### Task 8.1: Node Binary
-- [ ] Create src/bin/scribe-node.rs
-- [ ] Implement CLI argument parsing with clap:
+### Task 8.1: Node Binary ✅
+- [x] Create src/bin/scribe-node.rs
+- [x] Implement CLI argument parsing with clap:
   - --config <path> - Config file path
   - --node-id <id> - Override node ID
   - --bootstrap - Bootstrap new cluster
-- [ ] Add graceful shutdown handling (SIGTERM, SIGINT)
-- [ ] Implement logging with tracing/tracing-subscriber
-- [ ] Add startup banner and version info
+  - --log-level <level> - Log level (trace, debug, info, warn, error)
+- [x] Add graceful shutdown handling (SIGTERM, SIGINT)
+- [x] Implement logging with tracing/tracing-subscriber
+- [x] Add startup banner and version info
+- [x] Create comprehensive test suite (12 tests in tests/node_binary_tests.rs)
+- [x] Add tests to GitHub workflow
 
-**Deliverables**: Runnable node binary
+**Deliverables**: Runnable node binary  
+**Status**: ✅ Complete
 
 ---
 
