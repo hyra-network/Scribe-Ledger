@@ -135,3 +135,6 @@ jobs:
 
     - name: Run consistency tests (Task 7.3)
       run: cargo test --test consistency_tests --verbose
+
+    - name: Run node binary tests (Task 8.1)
+      run: cargo test --test node_binary_tests --verbose
