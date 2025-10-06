@@ -4,14 +4,18 @@ use std::path::Path;
 
 // New modules for distributed ledger functionality
 pub mod api;
+pub mod async_storage_ops;
 pub mod cluster;
 pub mod config;
 pub mod consensus;
 pub mod discovery;
 pub mod error;
+pub mod http_client;
+pub mod json_ops;
 pub mod manifest;
 pub mod network;
 pub mod storage;
+pub mod storage_ops;
 pub mod types;
 
 /// Simple Scribe Ledger - A minimal key-value storage engine using sled

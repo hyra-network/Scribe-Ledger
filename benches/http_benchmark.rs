@@ -1,4 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use simple_scribe_ledger::json_ops::{
+    batched_json_get_deserialization, batched_json_put_serialization, combined_json_operations,
+    large_scale_json_serialization,
+};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
@@ -13,7 +17,6 @@ fn benchmark_json_serialization_overhead(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     // Measures JSON serialization CPU overhead for PUT operations
-    // This represents the minimum CPU cost to prepare an HTTP PUT request body
     for ops in [10, 100, 500, 10000].iter() {
         group.bench_with_input(
             BenchmarkId::new("put_json_serialization", ops),
@@ -27,17 +30,8 @@ fn benchmark_json_serialization_overhead(c: &mut Criterion) {
 
                 b.iter(|| {
                     rt.block_on(async {
-                        // JSON serialization overhead only (no network, no server)
-                        for i in 0..ops {
-                            let key = &keys[i];
-                            let value = &values[i];
-
-                            let _json_payload = serde_json::json!({"value": value});
-
-                            black_box(key);
-                            black_box(value);
-                            black_box(_json_payload);
-                        }
+                        let result = batched_json_put_serialization(&keys, &values);
+                        black_box(result);
                     });
                 });
             },
@@ -52,7 +46,6 @@ fn benchmark_json_deserialization_overhead(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     // Measures JSON deserialization CPU overhead for GET operations
-    // This represents the minimum CPU cost to parse an HTTP GET response
     for ops in [10, 100, 500, 10000].iter() {
         group.bench_with_input(
             BenchmarkId::new("get_json_deserialization", ops),
@@ -65,12 +58,8 @@ fn benchmark_json_deserialization_overhead(c: &mut Criterion) {
 
                 b.iter(|| {
                     rt.block_on(async {
-                        // JSON response parsing overhead only (no network, no server)
-                        for key in &keys {
-                            let _json_response = serde_json::json!({"value": "some_value"});
-                            black_box(key);
-                            black_box(_json_response);
-                        }
+                        let result = batched_json_get_deserialization(&keys);
+                        black_box(result);
                     });
                 });
             },
@@ -87,6 +76,7 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
 
     // Direct library access (actual database operations)
     group.bench_function("direct_library_100_ops", |b| {
+        use simple_scribe_ledger::storage_ops::batched_put_operations;
         use simple_scribe_ledger::SimpleScribeLedger;
 
         // Pre-allocate test data for better performance
@@ -95,25 +85,14 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
 
         b.iter(|| {
             let ledger = SimpleScribeLedger::temp().unwrap();
+            batched_put_operations(&ledger, &keys, &values, true).unwrap();
 
-            // Warm-up phase
-            let warmup_key = "warmup";
-            let warmup_value = "warmup_value";
-            ledger.put(warmup_key, warmup_value).unwrap();
-
-            // Batch operations for optimal performance using pre-allocated data
-            let mut batch = SimpleScribeLedger::new_batch();
-            for i in 0..100 {
-                batch.insert(keys[i].as_bytes(), values[i].as_bytes());
-            }
-            ledger.apply_batch(batch).unwrap();
-
-            // Read them back using pre-allocated keys
+            // Read them back
             for key in &keys {
                 let _result = ledger.get(black_box(key)).unwrap();
             }
 
-            black_box(ledger);
+            black_box(&ledger);
         });
     });
 
@@ -127,24 +106,8 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
 
         b.iter(|| {
             rt.block_on(async {
-                // JSON serialization/deserialization overhead (no database or network)
-                for i in 0..100 {
-                    let key = &keys[i];
-                    let value = &values[i];
-
-                    // Simulate JSON serialization overhead
-                    let _json_payload = serde_json::json!({"value": value});
-
-                    black_box(key);
-                    black_box(_json_payload);
-                }
-
-                // Simulate GET operations with JSON response parsing
-                for key in &keys {
-                    let _json_response = serde_json::json!({"value": "some_value"});
-                    black_box(key);
-                    black_box(_json_response);
-                }
+                let result = combined_json_operations(&keys, &values);
+                black_box(result);
             });
         });
     });
@@ -153,10 +116,9 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
 }
 
 // Benchmark measuring JSON serialization for large batch operations
-// This shows the CPU overhead of preparing 10,000 operations for HTTP transmission
 fn benchmark_json_serialization_10k_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("json_serialization_10k");
-    group.measurement_time(Duration::from_secs(15)); // Longer measurement time for large tests
+    group.measurement_time(Duration::from_secs(15));
 
     group.bench_function("json_serialization_10000_ops", |b| {
         let rt = Runtime::new().unwrap();
@@ -167,38 +129,8 @@ fn benchmark_json_serialization_10k_operations(c: &mut Criterion) {
 
         b.iter(|| {
             rt.block_on(async {
-                // Batch JSON serialization for PUT operations (no network or database)
-                let batch_size = 100;
-                let mut i = 0;
-                while i < 10000 {
-                    let end = std::cmp::min(i + batch_size, 10000);
-
-                    // JSON serialization only (no HTTP or database operations)
-                    for j in i..end {
-                        let key = &keys[j];
-                        let value = &values[j];
-
-                        // JSON serialization
-                        let _json_payload = serde_json::json!({
-                            "key": key,
-                            "value": value
-                        });
-
-                        black_box(key);
-                        black_box(value);
-                        black_box(_json_payload);
-                    }
-
-                    i = end;
-                }
-
-                // Sample GET operations with JSON deserialization (no network or database)
-                for i in (0..10000).step_by(10) {
-                    let key = &keys[i];
-                    let _json_response = serde_json::json!({"value": "some_value"});
-                    black_box(key);
-                    black_box(_json_response);
-                }
+                let result = large_scale_json_serialization(&keys, &values);
+                black_box(result);
             });
         });
     });
