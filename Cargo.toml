@@ -56,6 +56,10 @@ harness = false
 name = "s3_storage_benchmark"
 harness = false
 
+[[bench]]
+name = "archival_benchmark"
+harness = false
+
 [[example]]
 name = "basic_usage"
 path = "examples/basic_usage.rs"
