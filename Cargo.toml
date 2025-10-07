@@ -23,6 +23,10 @@ async-trait = "0.1"
 socket2 = "0.5"
 reqwest = { version = "0.11", features = ["json"] }
 clap = { version = "4.5", features = ["derive"] }
+aws-config = "1.1"
+aws-sdk-s3 = "1.18"
+bytes = "1.5"
+futures = "0.3"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -45,6 +49,10 @@ harness = false
 
 [[bench]]
 name = "simple_http_benchmark"
+harness = false
+
+[[bench]]
+name = "s3_storage_benchmark"
 harness = false
 
 [[example]]

@@ -141,3 +141,6 @@ jobs:
 
     - name: Run E2E infrastructure tests (Task 8.2 & 8.3)
       run: cargo test --test e2e_infrastructure_tests --verbose
+
+    - name: Run S3 storage tests (Task 6.1)
+      run: cargo test --test s3_storage_tests --verbose

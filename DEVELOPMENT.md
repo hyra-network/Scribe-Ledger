@@ -300,14 +300,29 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 **Goal**: Implement S3-compatible object storage for cold data and segment archival. This phase prepares the foundation for production-ready multi-tier storage architecture.
 
-### Task 6.1: S3 Storage Backend
-- [ ] Integrate S3 storage backend (AWS SDK or rusoto)
-- [ ] Add S3 configuration (bucket, region, credentials)
-- [ ] Support MinIO for local development and testing
-- [ ] Implement S3 connection pooling and retry logic
-- [ ] Add proper error handling for S3 operations
+### Task 6.1: S3 Storage Backend ✅
+- [x] Integrate S3 storage backend (AWS SDK or rusoto)
+- [x] Add S3 configuration (bucket, region, credentials)
+- [x] Support MinIO for local development and testing
+- [x] Implement S3 connection pooling and retry logic
+- [x] Add proper error handling for S3 operations
 
-**Deliverables**: S3 storage backend with configuration support
+**Deliverables**: S3 storage backend with configuration support  
+**Status**: ✅ Complete
+
+**Implementation Details**:
+- Added AWS SDK S3 dependencies (aws-sdk-s3, aws-config)
+- Created S3StorageConfig in config module with support for MinIO
+- Implemented S3Storage backend in src/storage/s3.rs with:
+  - Async operations for put/get/delete segments
+  - Automatic retry logic with exponential backoff
+  - Connection pooling via AWS SDK
+  - Path-style addressing for MinIO compatibility
+  - Comprehensive error handling
+- Added unit tests for S3 operations
+- Added integration tests (marked as ignored, require MinIO/S3)
+- Added S3 storage benchmark
+- Updated GitHub workflow to include S3 tests
 
 ---
 

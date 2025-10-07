@@ -2,6 +2,7 @@
 //!
 //! This module contains the storage abstraction layer and Sled implementation.
 
+pub mod s3;
 pub mod segment;
 
 use crate::error::{Result, ScribeError};

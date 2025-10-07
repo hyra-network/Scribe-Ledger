@@ -51,6 +51,48 @@ pub struct StorageConfig {
     pub segment_size: usize,
     /// Maximum cache size in bytes
     pub max_cache_size: usize,
+    /// S3 storage configuration (optional)
+    #[serde(default)]
+    pub s3: Option<S3Config>,
+}
+
+/// S3 storage configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct S3Config {
+    /// S3 bucket name
+    pub bucket: String,
+    /// S3 region
+    pub region: String,
+    /// S3 endpoint URL (for MinIO compatibility)
+    pub endpoint: Option<String>,
+    /// Access key ID
+    pub access_key_id: Option<String>,
+    /// Secret access key
+    pub secret_access_key: Option<String>,
+    /// Enable path-style addressing (required for MinIO)
+    #[serde(default)]
+    pub path_style: bool,
+    /// Connection pool size
+    #[serde(default = "default_pool_size")]
+    pub pool_size: usize,
+    /// Request timeout in seconds
+    #[serde(default = "default_timeout")]
+    pub timeout_secs: u64,
+    /// Maximum retry attempts
+    #[serde(default = "default_max_retries")]
+    pub max_retries: u32,
+}
+
+fn default_pool_size() -> usize {
+    10
+}
+
+fn default_timeout() -> u64 {
+    30
+}
+
+fn default_max_retries() -> u32 {
+    3
 }
 
 /// Consensus configuration
@@ -98,6 +140,7 @@ impl Config {
             storage: StorageConfig {
                 segment_size: 64 * 1024 * 1024,    // 64MB
                 max_cache_size: 256 * 1024 * 1024, // 256MB
+                s3: None,                          // No S3 by default
             },
             consensus: ConsensusConfig {
                 election_timeout_ms: 1000,

@@ -9,7 +9,15 @@ use thiserror::Error;
 pub enum ScribeError {
     /// Storage-related errors (e.g., sled database errors)
     #[error("Storage error: {0}")]
-    Storage(#[from] sled::Error),
+    Storage(String),
+
+    /// Sled database errors
+    #[error("Sled error: {0}")]
+    Sled(#[from] sled::Error),
+
+    /// Not found errors
+    #[error("Not found: {0}")]
+    NotFound(String),
 
     /// Consensus/Raft-related errors
     #[error("Consensus error: {0}")]
@@ -78,7 +86,10 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = ScribeError::Storage(sled::Error::Unsupported("test".to_string()));
+        let err = ScribeError::Sled(sled::Error::Unsupported("test".to_string()));
+        assert!(err.to_string().contains("Sled error"));
+
+        let err = ScribeError::Storage("test storage error".to_string());
         assert!(err.to_string().contains("Storage error"));
 
         let err = ScribeError::Consensus("test consensus error".to_string());
@@ -98,7 +109,7 @@ mod tests {
     fn test_error_from_sled() {
         let sled_err = sled::Error::Unsupported("test".to_string());
         let scribe_err: ScribeError = sled_err.into();
-        assert!(matches!(scribe_err, ScribeError::Storage(_)));
+        assert!(matches!(scribe_err, ScribeError::Sled(_)));
     }
 
     #[test]
