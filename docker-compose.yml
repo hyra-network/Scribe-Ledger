@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scribe-node-1
+    hostname: node1
+    ports:
+      - "8001:8001"
+      - "9001:9001"
+    volumes:
+      - ./config-node1.toml:/etc/scribe-ledger/config.toml:ro
+      - node1-data:/var/lib/scribe-ledger
+    environment:
+      - RUST_LOG=info
+    networks:
+      - scribe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scribe-node-2
+    hostname: node2
+    ports:
+      - "8002:8001"
+      - "9002:9001"
+    volumes:
+      - ./config-node2.toml:/etc/scribe-ledger/config.toml:ro
+      - node2-data:/var/lib/scribe-ledger
+    environment:
+      - RUST_LOG=info
+    networks:
+      - scribe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      - node1
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scribe-node-3
+    hostname: node3
+    ports:
+      - "8003:8001"
+      - "9003:9001"
+    volumes:
+      - ./config-node3.toml:/etc/scribe-ledger/config.toml:ro
+      - node3-data:/var/lib/scribe-ledger
+    environment:
+      - RUST_LOG=info
+    networks:
+      - scribe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      - node1
+      - node2
+
+networks:
+  scribe-network:
+    driver: bridge
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:

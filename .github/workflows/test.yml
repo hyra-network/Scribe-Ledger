@@ -138,3 +138,6 @@ jobs:
 
     - name: Run node binary tests (Task 8.1)
       run: cargo test --test node_binary_tests --verbose
+
+    - name: Run E2E infrastructure tests (Task 8.2 & 8.3)
+      run: cargo test --test e2e_infrastructure_tests --verbose

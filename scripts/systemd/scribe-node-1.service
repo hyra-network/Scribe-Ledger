@@ -1,0 +1,30 @@
+[Unit]
+Description=Simple Scribe Ledger Node 1
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scribe
+Group=scribe
+WorkingDirectory=/opt/simple-scribe-ledger
+ExecStart=/opt/simple-scribe-ledger/scribe-node --config /etc/simple-scribe-ledger/node1.toml --log-level info
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scribe-node-1
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/simple-scribe-ledger/node-1
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

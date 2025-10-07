@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+target/
+*.log
+
+# Data directories
+node-1/
+node-2/
+node-3/
+*.db
+data/
+example_data/
+tutorial_data/
+logs/
+pids/
+
+# Documentation
+*.md
+!README.md
+OPTIMIZATION_*.md
+TASK_*.md
+CODE_REVIEW_SUMMARY.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+tests/
+benches/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
