@@ -326,26 +326,46 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 6.2: Segment Archival to S3
-- [ ] Implement segment flushing to S3
-- [ ] Add read-through from S3 for cold data
-- [ ] Support segment metadata storage in S3
-- [ ] Implement segment lifecycle management
-- [ ] Add compression for S3-stored segments
+### Task 6.2: Segment Archival to S3 ✅
+- [x] Implement segment flushing to S3
+- [x] Add read-through from S3 for cold data
+- [x] Support segment metadata storage in S3
+- [x] Implement segment lifecycle management
+- [x] Add compression for S3-stored segments
 
-**Deliverables**: Segment archival and retrieval from S3
+**Deliverables**: Segment archival and retrieval from S3  
+**Status**: ✅ Complete
+
+**Implementation Details**:
+- Created ArchivalManager in src/storage/archival.rs
+- Implemented automatic segment archival with gzip compression
+- Added read-through caching for frequently accessed segments
+- Segment metadata stored alongside data in S3
+- Full lifecycle management: archive, retrieve, delete
+- Configurable compression levels (0-9)
+- Added 10 comprehensive integration tests
 
 ---
 
-### Task 6.3: Data Tiering and S3 Tests
-- [ ] Implement automatic data tiering based on age/access patterns
-- [ ] Add tiering policy configuration
-- [ ] Create comprehensive S3 integration tests
-- [ ] Test MinIO compatibility
-- [ ] Add performance benchmarks for S3 operations
-- [ ] Test error recovery and retry scenarios
+### Task 6.3: Data Tiering and S3 Tests ✅
+- [x] Implement automatic data tiering based on age/access patterns
+- [x] Add tiering policy configuration
+- [x] Create comprehensive S3 integration tests
+- [x] Test MinIO compatibility
+- [x] Add performance benchmarks for S3 operations
+- [x] Test error recovery and retry scenarios
 
-**Deliverables**: Data tiering system with complete test coverage
+**Deliverables**: Data tiering system with complete test coverage  
+**Status**: ✅ Complete
+
+**Implementation Details**:
+- Implemented TieringPolicy with age-based archival thresholds
+- Automatic background archival task with configurable intervals
+- Cache invalidation and segment lifecycle management
+- 12 comprehensive integration tests for data tiering
+- MinIO compatibility testing with path-style addressing
+- Error recovery and concurrent archival testing
+- Metadata caching for performance optimization
 
 ---
 

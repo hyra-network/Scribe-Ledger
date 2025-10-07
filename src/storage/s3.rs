@@ -138,6 +138,20 @@ impl S3Storage {
         self.put_with_retry(&key, data).await
     }
 
+    /// Put an object to S3 with a custom key
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The S3 object key
+    /// * `data` - The data to upload
+    ///
+    /// # Returns
+    ///
+    /// Ok(()) on success, or an error if the upload fails
+    pub async fn put_object(&self, key: &str, data: Vec<u8>) -> Result<()> {
+        self.put_with_retry(key, data).await
+    }
+
     /// Download a segment from S3
     ///
     /// # Arguments
@@ -160,6 +174,23 @@ impl S3Storage {
         }
     }
 
+    /// Get an object from S3 with a custom key
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The S3 object key
+    ///
+    /// # Returns
+    ///
+    /// The data if found, None if not found, or an error
+    pub async fn get_object(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        match self.get_with_retry(key).await {
+            Ok(data) => Ok(Some(data)),
+            Err(ScribeError::NotFound(_)) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
     /// Delete a segment from S3
     ///
     /// # Arguments
@@ -173,6 +204,19 @@ impl S3Storage {
         let key = Self::segment_key(segment_id);
 
         self.delete_with_retry(&key).await
+    }
+
+    /// Delete an object from S3 with a custom key
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The S3 object key
+    ///
+    /// # Returns
+    ///
+    /// Ok(()) on success, or an error if the deletion fails
+    pub async fn delete_object(&self, key: &str) -> Result<()> {
+        self.delete_with_retry(key).await
     }
 
     /// List all segment IDs in S3

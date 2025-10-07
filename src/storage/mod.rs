@@ -2,6 +2,7 @@
 //!
 //! This module contains the storage abstraction layer and Sled implementation.
 
+pub mod archival;
 pub mod s3;
 pub mod segment;
 

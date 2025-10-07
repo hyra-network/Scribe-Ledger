@@ -144,3 +144,9 @@ jobs:
 
     - name: Run S3 storage tests (Task 6.1)
       run: cargo test --test s3_storage_tests --verbose
+
+    - name: Run segment archival tests (Task 6.2)
+      run: cargo test --test segment_archival_tests --verbose
+
+    - name: Run data tiering tests (Task 6.3)
+      run: cargo test --test data_tiering_tests --verbose
