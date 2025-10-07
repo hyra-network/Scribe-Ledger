@@ -151,5 +151,8 @@ jobs:
     - name: Run data tiering tests (Task 6.3)
       run: cargo test --test data_tiering_tests --verbose
 
-    - name: Run benchmarks (Task 6.1, 6.2 & 6.3)
-      run: cargo bench --verbose
+    - name: Run S3 storage benchmark (Task 6.1)
+      run: cargo bench --bench s3_storage_benchmark --verbose
+
+    - name: Run archival benchmark (Task 6.2 & 6.3)
+      run: cargo bench --bench archival_benchmark --verbose
