@@ -78,7 +78,7 @@ fn bench_s3_get_segment(c: &mut Criterion) {
 
     for size_kb in [1, 10, 100, 1024].iter() {
         // Pre-populate segments
-        let segment_id = 2000 + size_kb;
+        let segment_id = 2000 + (*size_kb as u64);
         rt.block_on(async {
             let segment = create_segment(segment_id, *size_kb);
             storage.put_segment(&segment).await.unwrap();
@@ -90,7 +90,7 @@ fn bench_s3_get_segment(c: &mut Criterion) {
             |b, &size_kb| {
                 b.iter(|| {
                     rt.block_on(async {
-                        let segment_id = 2000 + size_kb;
+                        let segment_id = 2000 + (size_kb as u64);
                         storage.get_segment(black_box(segment_id)).await.unwrap();
                     });
                 });

@@ -326,10 +326,12 @@ fn test_scribe_node_binary_size() {
     let binary_path = "./target/debug/scribe-node";
     let metadata = std::fs::metadata(binary_path).expect("Failed to get binary metadata");
 
-    // Binary should be reasonable size (less than 200MB for debug build with all dependencies)
+    // Binary should be reasonable size
+    // Note: With AWS SDK S3 support (Task 6.1), binary size increased from ~180MB to ~220MB
+    // This is expected due to AWS SDK dependencies
     let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
     assert!(
-        size_mb < 200.0,
+        size_mb < 250.0,
         "Binary size should be reasonable: {:.2} MB",
         size_mb
     );
