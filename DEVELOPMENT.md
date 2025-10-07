@@ -119,7 +119,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 - [ ] Create segment manager for tracking active/flushed segments
 - [ ] Add segment size threshold logic
 
-**Deliverables**: Segment data structures ready for future S3 integration
+**Deliverables**: Segment data structures ready for S3 integration (Phase 6)
 
 ---
 
@@ -268,7 +268,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 **Deliverables**: Cluster management API  
 **Status**: ✅ Complete - Stub implementations ready for full distributed mode
 
-**Notes**: Current implementation provides stub endpoints that work in standalone mode. When full distributed consensus is integrated (Tasks 6.x and 7.x), these endpoints will be connected to the actual OpenRaft consensus layer.
+**Notes**: Current implementation provides stub endpoints that work in standalone mode. When full distributed consensus is integrated (Tasks 7.x and 8.x), these endpoints will be connected to the actual OpenRaft consensus layer.
 
 ---
 
@@ -296,11 +296,49 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 6: Node Discovery & Cluster Formation (2-3 tasks)
+## Phase 6: S3 Cold Storage Integration (2-3 tasks)
+
+**Goal**: Implement S3-compatible object storage for cold data and segment archival. This phase prepares the foundation for production-ready multi-tier storage architecture.
+
+### Task 6.1: S3 Storage Backend
+- [ ] Integrate S3 storage backend (AWS SDK or rusoto)
+- [ ] Add S3 configuration (bucket, region, credentials)
+- [ ] Support MinIO for local development and testing
+- [ ] Implement S3 connection pooling and retry logic
+- [ ] Add proper error handling for S3 operations
+
+**Deliverables**: S3 storage backend with configuration support
+
+---
+
+### Task 6.2: Segment Archival to S3
+- [ ] Implement segment flushing to S3
+- [ ] Add read-through from S3 for cold data
+- [ ] Support segment metadata storage in S3
+- [ ] Implement segment lifecycle management
+- [ ] Add compression for S3-stored segments
+
+**Deliverables**: Segment archival and retrieval from S3
+
+---
+
+### Task 6.3: Data Tiering and S3 Tests
+- [ ] Implement automatic data tiering based on age/access patterns
+- [ ] Add tiering policy configuration
+- [ ] Create comprehensive S3 integration tests
+- [ ] Test MinIO compatibility
+- [ ] Add performance benchmarks for S3 operations
+- [ ] Test error recovery and retry scenarios
+
+**Deliverables**: Data tiering system with complete test coverage
+
+---
+
+## Phase 7: Node Discovery & Cluster Formation (2-3 tasks)
 
 **Goal**: Implement automatic cluster discovery and dynamic membership.
 
-### Task 6.1: Discovery Service ✅
+### Task 7.1: Discovery Service ✅
 - [x] Create src/discovery.rs with DiscoveryService
 - [x] Implement UDP broadcast for node discovery
 - [x] Add peer list management
@@ -312,7 +350,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 6.2: Cluster Initialization ✅
+### Task 7.2: Cluster Initialization ✅
 - [x] Implement bootstrap logic for first node
 - [x] Add automatic cluster joining for new nodes
 - [x] Support manual cluster seeding via config
@@ -324,7 +362,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 6.3: Discovery Tests ✅
+### Task 7.3: Discovery Tests ✅
 - [x] Test single node bootstrap
 - [x] Test 3-node cluster auto-discovery
 - [x] Test node joining running cluster
@@ -335,11 +373,11 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 7: Write Path & Data Replication (3-4 tasks)
+## Phase 8: Write Path & Data Replication (3-4 tasks)
 
 **Goal**: Implement distributed write path with consensus.
 
-### Task 7.1: Write Request Handling
+### Task 8.1: Write Request Handling
 - [ ] Create write request flow:
   - Client sends PUT request to any node
   - Node forwards to leader if not leader
@@ -355,7 +393,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 7.2: Read Request Handling
+### Task 8.2: Read Request Handling
 - [ ] Implement read flow:
   - Check local storage first
   - Support linearizable reads (query leader)
@@ -368,7 +406,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 7.3: Data Consistency Tests
+### Task 8.3: Data Consistency Tests
 - [ ] Test write-then-read consistency
 - [ ] Test replication across all nodes
 - [ ] Test read-your-writes consistency
@@ -379,11 +417,11 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 8: Binary & Node Implementation (2-3 tasks)
+## Phase 9: Binary & Node Implementation (2-3 tasks)
 
 **Goal**: Create runnable node binary and deployment scripts.
 
-### Task 8.1: Node Binary ✅
+### Task 9.1: Node Binary ✅
 - [x] Create src/bin/scribe-node.rs
 - [x] Implement CLI argument parsing with clap:
   - --config <path> - Config file path
@@ -401,7 +439,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 8.2: Multi-Node Testing Scripts ✅
+### Task 9.2: Multi-Node Testing Scripts ✅
 - [x] Create scripts/start-cluster.sh for starting 3-node cluster
 - [x] Create scripts/stop-cluster.sh for clean shutdown
 - [x] Add scripts/test-cluster.sh for basic cluster testing
@@ -413,7 +451,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 8.3: End-to-End Tests ✅
+### Task 9.3: End-to-End Tests ✅
 - [x] Create tests/e2e/ directory
 - [x] Write Python E2E test script:
   - Start 3-node cluster
@@ -430,11 +468,11 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 9: Cryptographic Verification (2-3 tasks)
+## Phase 10: Cryptographic Verification (2-3 tasks)
 
 **Goal**: Add Merkle tree support for data verification.
 
-### Task 9.1: Merkle Tree Implementation
+### Task 10.1: Merkle Tree Implementation
 - [ ] Create src/crypto/mod.rs with MerkleTree struct
 - [ ] Implement tree construction from key-value pairs
 - [ ] Add proof generation (get_proof for specific key)
@@ -446,7 +484,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 9.2: Manifest Merkle Root Integration
+### Task 10.2: Manifest Merkle Root Integration
 - [ ] Add merkle_root field to ManifestEntry
 - [ ] Compute Merkle root during segment creation
 - [ ] Store Merkle root in manifest
@@ -457,7 +495,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 9.3: Crypto Tests
+### Task 10.3: Crypto Tests
 - [ ] Test Merkle tree construction
 - [ ] Test proof generation and verification
 - [ ] Test with various data sizes
@@ -468,11 +506,11 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 10: Advanced Features & Optimization (4-5 tasks)
+## Phase 11: Advanced Features & Optimization (4-5 tasks)
 
 **Goal**: Add production-ready features and optimizations.
 
-### Task 10.1: Monitoring & Metrics
+### Task 11.1: Monitoring & Metrics
 - [ ] Add Prometheus metrics collection
 - [ ] Track key metrics:
   - Request latency (p50, p95, p99)
@@ -487,7 +525,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 10.2: Advanced Logging
+### Task 11.2: Advanced Logging
 - [ ] Implement structured logging with tracing
 - [ ] Add log levels (debug, info, warn, error)
 - [ ] Support log rotation
@@ -498,7 +536,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 10.3: Performance Optimization
+### Task 11.3: Performance Optimization
 - [ ] Implement batching for Raft proposals
 - [ ] Add connection pooling optimization
 - [ ] Optimize serialization (use bincode for internal)
@@ -510,7 +548,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 10.4: Security Hardening
+### Task 11.4: Security Hardening
 - [ ] Add TLS support for node-to-node communication
 - [ ] Implement basic authentication for HTTP API
 - [ ] Add request rate limiting
@@ -521,7 +559,7 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 10.5: Documentation
+### Task 11.5: Documentation
 - [ ] Update README.md with new architecture
 - [ ] Add API documentation
 - [ ] Create deployment guide
@@ -534,40 +572,78 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-## Phase 11: Storage Backend Enhancements
+## Phase 12: Snapshot & Compaction (2-3 tasks)
 
-**Goal**: Advanced storage features including S3 integration for production deployments.
+**Goal**: Implement log compaction and snapshot mechanisms for storage efficiency and faster recovery.
 
-### Task 11.1: S3 Cold Storage Integration
-- [ ] Integrate S3 storage backend (AWS SDK or rusoto)
-- [ ] Implement segment flushing to S3
-- [ ] Add read-through from S3 for cold data
-- [ ] Support MinIO for local development and testing
-- [ ] Add S3 configuration (bucket, region, credentials)
-- [ ] Implement automatic data tiering based on age/access patterns
-
-**Deliverables**: S3 storage backend integration
-
----
-
-### Task 11.2: Snapshot & Compaction
+### Task 12.1: Log Compaction
 - [ ] Implement log compaction to reduce storage overhead
-- [ ] Add snapshot creation for faster recovery
-- [ ] Optimize snapshot transfer between nodes
 - [ ] Add automatic compaction triggers based on log size
-- [ ] Implement snapshot-based node recovery
+- [ ] Create compaction policies (time-based, size-based)
+- [ ] Optimize compaction performance
+- [ ] Add compaction metrics and monitoring
 
-**Deliverables**: Snapshot and compaction system
+**Deliverables**: Log compaction system
 
 ---
 
-### Task 11.3: Multi-Region Support
+### Task 12.2: Snapshot Creation & Management
+- [ ] Add snapshot creation for faster recovery
+- [ ] Implement snapshot-based node recovery
+- [ ] Add snapshot versioning and metadata
+- [ ] Support incremental snapshots
+- [ ] Add snapshot cleanup policies
+
+**Deliverables**: Snapshot creation and management
+
+---
+
+### Task 12.3: Snapshot Transfer & Tests
+- [ ] Optimize snapshot transfer between nodes
+- [ ] Implement snapshot streaming for large datasets
+- [ ] Add compression for snapshot transfer
+- [ ] Create comprehensive snapshot tests
+- [ ] Test snapshot-based recovery scenarios
+- [ ] Benchmark snapshot performance
+
+**Deliverables**: Snapshot transfer optimization with test coverage
+
+---
+
+## Phase 13: Multi-Region Support (2-3 tasks)
+
+**Goal**: Enable multi-region deployments for disaster recovery and geo-distributed applications.
+
+### Task 13.1: Cross-Region Replication
 - [ ] Add cross-region replication for disaster recovery
+- [ ] Implement region-aware data placement strategies
+- [ ] Add replication lag monitoring
+- [ ] Support configurable replication policies
+- [ ] Implement conflict resolution for multi-region writes
+
+**Deliverables**: Cross-region replication system
+
+---
+
+### Task 13.2: Geo-Aware Routing
 - [ ] Implement geo-aware routing for read replicas
 - [ ] Support read-only replicas for scaling reads
-- [ ] Add region-aware data placement strategies
+- [ ] Add regional failover capabilities
+- [ ] Implement latency-based routing
+- [ ] Add region health monitoring
 
-**Deliverables**: Multi-region capabilities
+**Deliverables**: Geo-aware routing and read replicas
+
+---
+
+### Task 13.3: Multi-Region Tests
+- [ ] Test cross-region replication
+- [ ] Test regional failover scenarios
+- [ ] Test geo-routing behavior
+- [ ] Benchmark cross-region latency
+- [ ] Test multi-region consistency guarantees
+
+**Deliverables**: Complete multi-region test coverage
 
 ---
 
