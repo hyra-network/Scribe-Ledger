@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully implemented Task 6.1: S3 Storage Backend for Simple Scribe Ledger, providing S3-compatible object storage for cold data and segment archival.
+Successfully implemented Task 6.1: S3 Storage Backend for Hyra Scribe Ledger, providing S3-compatible object storage for cold data and segment archival.
 
 ## Implementation Date
 

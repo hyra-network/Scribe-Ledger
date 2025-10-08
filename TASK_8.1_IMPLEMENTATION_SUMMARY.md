@@ -1,7 +1,7 @@
 # Task 8.1 Implementation Summary
 
 ## Overview
-Successfully implemented Task 8.1: Node Binary for the Simple Scribe Ledger distributed key-value store.
+Successfully implemented Task 8.1: Node Binary for the Hyra Scribe Ledger distributed key-value store.
 
 ## Deliverables Completed
 
@@ -135,7 +135,7 @@ scribe-node 0.1.0
 # Successful startup (bootstrap mode)
 $ ./target/debug/scribe-node --bootstrap --node-id 1
 ╔═══════════════════════════════════════════════════════╗
-║           Simple Scribe Ledger Node                  ║
+║           Hyra Scribe Ledger Node                  ║
 ╚═══════════════════════════════════════════════════════╝
 ...Successfully bootstrapped cluster with node 1
 ...Node 1 is ready

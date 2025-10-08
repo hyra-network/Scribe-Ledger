@@ -361,4 +361,4 @@ The cluster can now be:
 - ✅ Tested end-to-end with Python
 - ✅ Validated in CI/CD pipeline
 
-This completes Phase 8 of the development roadmap, providing comprehensive deployment and testing infrastructure for the Simple Scribe Ledger distributed system.
+This completes Phase 8 of the development roadmap, providing comprehensive deployment and testing infrastructure for the Hyra Scribe Ledger distributed system.

@@ -1,11 +1,11 @@
 # End-to-End Tests
 
-This directory contains end-to-end tests for the Simple Scribe Ledger cluster.
+This directory contains end-to-end tests for the Hyra Scribe Ledger cluster.
 
 ## Prerequisites
 
 - Python 3.7 or later
-- Simple Scribe Ledger binary built (`cargo build --bin scribe-node`)
+- Hyra Scribe Ledger binary built (`cargo build --bin scribe-node`)
 - Node configuration files (config-node1.toml, config-node2.toml, config-node3.toml)
 
 ## Installation

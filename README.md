@@ -4,11 +4,11 @@
 
 ---
 
-Simple Scribe Ledger is a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). This implementation leverages **OpenRaft** for modern consensus with optimized performance for high-throughput distributed storage.
+Hyra Scribe Ledger is a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). This implementation leverages **OpenRaft** for modern consensus with optimized performance for high-throughput distributed storage.
 
 ## 🏛️ Core Tenets
 
-Simple Scribe Ledger is built on foundational principles:
+Hyra Scribe Ledger is built on foundational principles:
 
 1. **Immutability:** Write-once, read-forever. Data is stored in append-only logs, creating a permanent and auditable history.
 2. **Durability:** Data, once committed, is considered permanent with robust replication across the cluster.
@@ -26,8 +26,8 @@ Simple Scribe Ledger is built on foundational principles:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/amogusdrip285/simple-scribe-ledger
-   cd simple-scribe-ledger
+   git clone https://github.com/amogusdrip285/hyra-scribe-ledger
+   cd hyra-scribe-ledger
    ```
 
 2. **Build the project:**
@@ -331,7 +331,7 @@ Press `Ctrl+C` in each terminal running a node.
 Let's start with a simple example that demonstrates the core functionality:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -367,7 +367,7 @@ cargo run --example basic_usage
 The storage engine works with any data that can be converted to bytes:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
@@ -417,7 +417,7 @@ cargo run --example data_types
 Let's build a simple command-line application that demonstrates practical usage:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 use std::io::{self, Write};
 
@@ -492,7 +492,7 @@ cargo bench
 #### Working with Binary Data
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -514,7 +514,7 @@ fn main() -> Result<()> {
 #### Database Management
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {
