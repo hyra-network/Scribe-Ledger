@@ -346,8 +346,14 @@ async fn create_test_server() -> (String, tokio::task::JoinHandle<()>) {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/nodes/add", axum::routing::post(cluster_join_handler))
-        .route("/cluster/nodes/remove", axum::routing::post(cluster_leave_handler))
+        .route(
+            "/cluster/nodes/add",
+            axum::routing::post(cluster_join_handler),
+        )
+        .route(
+            "/cluster/nodes/remove",
+            axum::routing::post(cluster_leave_handler),
+        )
         .route("/cluster/info", get(cluster_status_handler))
         .route("/cluster/nodes", get(cluster_members_handler))
         .route("/cluster/leader/info", get(cluster_leader_handler))

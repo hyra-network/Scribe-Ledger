@@ -3,7 +3,7 @@ use hyra_scribe_ledger::error::ScribeError;
 use hyra_scribe_ledger::types::{Request, Response};
 
 fn main() -> Result<(), ScribeError> {
-    println!("=== Simple Scribe Ledger - Tasks 1.2 & 1.3 Demo ===\n");
+    println!("=== Hyra Scribe Ledger - Tasks 1.2 & 1.3 Demo ===\n");
 
     // Task 1.2: Configuration System
     println!("1. Configuration System Demo");

@@ -376,8 +376,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/cluster/info", get(cluster_status_handler))
         .route("/cluster/nodes", get(cluster_members_handler))
         .route("/cluster/leader/info", get(cluster_leader_handler))
-        .route("/cluster/nodes/add", axum::routing::post(cluster_join_handler))
-        .route("/cluster/nodes/remove", axum::routing::post(cluster_leave_handler))
+        .route(
+            "/cluster/nodes/add",
+            axum::routing::post(cluster_join_handler),
+        )
+        .route(
+            "/cluster/nodes/remove",
+            axum::routing::post(cluster_leave_handler),
+        )
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 

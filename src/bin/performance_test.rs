@@ -3,7 +3,7 @@ use hyra_scribe_ledger::SimpleScribeLedger;
 use std::time::Instant;
 
 fn main() -> Result<()> {
-    println!("Simple Scribe Ledger Performance Test - Optimized");
+    println!("Hyra Scribe Ledger Performance Test - Optimized");
     println!("================================================");
 
     // Test different operation counts
