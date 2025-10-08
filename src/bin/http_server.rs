@@ -262,7 +262,7 @@ async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "healthy",
-        "service": "simple-scribe-ledger-server"
+        "service": "hyra-scribe-ledger-server"
     }))
 }
 
@@ -359,7 +359,7 @@ async fn cluster_leader_handler() -> Response {
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
-    println!("Starting Simple Scribe Ledger HTTP Server...");
+    println!("Starting Hyra Scribe Ledger HTTP Server...");
 
     // Initialize the ledger with optimized configuration
     let ledger = SimpleScribeLedger::temp()?;
@@ -373,11 +373,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/:key", delete(delete_handler))
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/status", get(cluster_status_handler))
-        .route("/cluster/members", get(cluster_members_handler))
-        .route("/cluster/leader", get(cluster_leader_handler))
-        .route("/cluster/join", axum::routing::post(cluster_join_handler))
-        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
+        .route("/cluster/info", get(cluster_status_handler))
+        .route("/cluster/nodes", get(cluster_members_handler))
+        .route("/cluster/leader/info", get(cluster_leader_handler))
+        .route("/cluster/nodes/add", axum::routing::post(cluster_join_handler))
+        .route("/cluster/nodes/remove", axum::routing::post(cluster_leave_handler))
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 
@@ -390,11 +390,11 @@ async fn main() -> anyhow::Result<()> {
     println!("  DELETE /:key               - Delete a key");
     println!();
     println!("Cluster management endpoints:");
-    println!("  POST   /cluster/join       - Join a node to the cluster");
-    println!("  POST   /cluster/leave      - Remove a node from the cluster");
-    println!("  GET    /cluster/status     - Get cluster status");
-    println!("  GET    /cluster/members    - List cluster members");
-    println!("  GET    /cluster/leader     - Get current leader");
+    println!("  POST   /cluster/nodes/add     - Add a node to the cluster");
+    println!("  POST   /cluster/nodes/remove  - Remove a node from the cluster");
+    println!("  GET    /cluster/info          - Get cluster status information");
+    println!("  GET    /cluster/nodes         - List all cluster nodes");
+    println!("  GET    /cluster/leader/info   - Get current cluster leader information");
     println!();
     println!("Example usage:");
     println!("  # JSON data:");
@@ -411,8 +411,8 @@ async fn main() -> anyhow::Result<()> {
     println!("  # Metrics:");
     println!("  curl http://localhost:3000/metrics");
     println!();
-    println!("  # Cluster status:");
-    println!("  curl http://localhost:3000/cluster/status");
+    println!("  # Cluster information:");
+    println!("  curl http://localhost:3000/cluster/info");
 
     // Run the server with optimized TCP configuration
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;

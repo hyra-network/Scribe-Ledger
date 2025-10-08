@@ -251,7 +251,7 @@ async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 async fn health_handler() -> Json<serde_json::Value> {
     Json(json!({
         "status": "healthy",
-        "service": "simple-scribe-ledger-server"
+        "service": "hyra-scribe-ledger-server"
     }))
 }
 
@@ -346,11 +346,11 @@ async fn create_test_server() -> (String, tokio::task::JoinHandle<()>) {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/join", axum::routing::post(cluster_join_handler))
-        .route("/cluster/leave", axum::routing::post(cluster_leave_handler))
-        .route("/cluster/status", get(cluster_status_handler))
-        .route("/cluster/members", get(cluster_members_handler))
-        .route("/cluster/leader", get(cluster_leader_handler))
+        .route("/cluster/nodes/add", axum::routing::post(cluster_join_handler))
+        .route("/cluster/nodes/remove", axum::routing::post(cluster_leave_handler))
+        .route("/cluster/info", get(cluster_status_handler))
+        .route("/cluster/nodes", get(cluster_members_handler))
+        .route("/cluster/leader/info", get(cluster_leader_handler))
         .route("/:key", put(put_handler))
         .route("/:key", get(get_handler))
         .route("/:key", delete(delete_handler))
@@ -384,7 +384,7 @@ async fn test_health_endpoint() -> Result<()> {
 
     let body: serde_json::Value = response.json().await?;
     assert_eq!(body["status"], "healthy");
-    assert_eq!(body["service"], "simple-scribe-ledger-server");
+    assert_eq!(body["service"], "hyra-scribe-ledger-server");
 
     Ok(())
 }
@@ -757,7 +757,7 @@ async fn test_cluster_status_endpoint() -> Result<()> {
 
     let client = reqwest::Client::new();
     let response = client
-        .get(format!("{}/cluster/status", base_url))
+        .get(format!("{}/cluster/info", base_url))
         .send()
         .await?;
 
@@ -778,7 +778,7 @@ async fn test_cluster_members_endpoint() -> Result<()> {
 
     let client = reqwest::Client::new();
     let response = client
-        .get(format!("{}/cluster/members", base_url))
+        .get(format!("{}/cluster/nodes", base_url))
         .send()
         .await?;
 
@@ -797,7 +797,7 @@ async fn test_cluster_leader_endpoint() -> Result<()> {
 
     let client = reqwest::Client::new();
     let response = client
-        .get(format!("{}/cluster/leader", base_url))
+        .get(format!("{}/cluster/leader/info", base_url))
         .send()
         .await?;
 
@@ -820,7 +820,7 @@ async fn test_cluster_join_endpoint() -> Result<()> {
     };
 
     let response = client
-        .post(format!("{}/cluster/join", base_url))
+        .post(format!("{}/cluster/nodes/add", base_url))
         .json(&request)
         .send()
         .await?;
@@ -842,7 +842,7 @@ async fn test_cluster_leave_endpoint() -> Result<()> {
     let request = ClusterLeaveRequest { node_id: 2 };
 
     let response = client
-        .post(format!("{}/cluster/leave", base_url))
+        .post(format!("{}/cluster/nodes/remove", base_url))
         .json(&request)
         .send()
         .await?;
@@ -864,21 +864,21 @@ async fn test_cluster_endpoints_integration() -> Result<()> {
 
     // Check initial status
     let status_response = client
-        .get(format!("{}/cluster/status", base_url))
+        .get(format!("{}/cluster/info", base_url))
         .send()
         .await?;
     assert_eq!(status_response.status().as_u16(), 200);
 
     // Check members
     let members_response = client
-        .get(format!("{}/cluster/members", base_url))
+        .get(format!("{}/cluster/nodes", base_url))
         .send()
         .await?;
     assert_eq!(members_response.status().as_u16(), 200);
 
     // Check leader
     let leader_response = client
-        .get(format!("{}/cluster/leader", base_url))
+        .get(format!("{}/cluster/leader/info", base_url))
         .send()
         .await?;
     assert_eq!(leader_response.status().as_u16(), 200);
