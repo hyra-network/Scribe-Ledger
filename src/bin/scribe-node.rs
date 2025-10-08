@@ -1,6 +1,6 @@
 //! Scribe Node - Distributed ledger node binary
 //!
-//! This is the main executable for running a distributed Simple Scribe Ledger node.
+//! This is the main executable for running a distributed Hyra Scribe Ledger node.
 //! It provides CLI interface for node configuration, cluster initialization, and
 //! graceful shutdown handling.
 
@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-/// Simple Scribe Ledger - Distributed Node
+/// Hyra Scribe Ledger - Distributed Node
 #[derive(Parser, Debug)]
 #[command(name = "scribe-node")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
@@ -182,7 +182,7 @@ fn print_banner() {
         r#"
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
-║           Simple Scribe Ledger Node                  ║
+║           Hyra Scribe Ledger Node                    ║
 ║           Distributed Key-Value Store                ║
 ║                                                       ║
 ║           Version: {}                         ║

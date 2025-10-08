@@ -3,7 +3,7 @@ use hyra_scribe_ledger::SimpleScribeLedger;
 use std::time::Instant;
 
 fn main() -> Result<()> {
-    println!("Optimized Simple Scribe Ledger Performance Test");
+    println!("Optimized Hyra Scribe Ledger Performance Test");
     println!("===============================================");
 
     // Test different operation counts
@@ -223,7 +223,7 @@ fn main() -> Result<()> {
     );
 
     println!("\n--- Performance Comparison Summary ---");
-    println!("✓ Optimized simple scribe ledger with high-throughput sled configuration");
+    println!("✓ Optimized Hyra Scribe Ledger with high-throughput sled configuration");
     println!("✓ Pre-allocated keys/values eliminate runtime string allocation overhead");
     println!("✓ Optimized batch operations significantly improve write throughput");
     println!("✓ Reduced flush frequency improves overall performance");

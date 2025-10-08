@@ -11,24 +11,24 @@ This directory contains systemd service files for running Hyra Scribe Ledger nod
 
 2. **Create necessary directories:**
    ```bash
-   sudo mkdir -p /opt/simple-scribe-ledger
-   sudo mkdir -p /etc/simple-scribe-ledger
-   sudo mkdir -p /var/lib/simple-scribe-ledger/node-{1,2,3}
-   sudo chown -R scribe:scribe /var/lib/simple-scribe-ledger
+   sudo mkdir -p /opt/hyra-scribe-ledger
+   sudo mkdir -p /etc/hyra-scribe-ledger
+   sudo mkdir -p /var/lib/hyra-scribe-ledger/node-{1,2,3}
+   sudo chown -R scribe:scribe /var/lib/hyra-scribe-ledger
    ```
 
 3. **Copy the binary and configuration files:**
    ```bash
-   sudo cp target/release/scribe-node /opt/simple-scribe-ledger/
-   sudo cp config-node1.toml /etc/simple-scribe-ledger/node1.toml
-   sudo cp config-node2.toml /etc/simple-scribe-ledger/node2.toml
-   sudo cp config-node3.toml /etc/simple-scribe-ledger/node3.toml
+   sudo cp target/release/scribe-node /opt/hyra-scribe-ledger/
+   sudo cp config-node1.toml /etc/hyra-scribe-ledger/node1.toml
+   sudo cp config-node2.toml /etc/hyra-scribe-ledger/node2.toml
+   sudo cp config-node3.toml /etc/hyra-scribe-ledger/node3.toml
    ```
 
 4. **Update configuration files** to use the correct data directories:
    ```bash
-   # Edit /etc/simple-scribe-ledger/node1.toml and set:
-   data_dir = "/var/lib/simple-scribe-ledger/node-1"
+   # Edit /etc/hyra-scribe-ledger/node1.toml and set:
+   data_dir = "/var/lib/hyra-scribe-ledger/node-1"
    
    # Repeat for node2.toml and node3.toml
    ```
