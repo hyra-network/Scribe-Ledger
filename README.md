@@ -106,22 +106,6 @@ This project is built on the shoulders of giants in the Rust ecosystem:
    cargo run --bin scribe-node -- --config config-node3.toml
    ```
 
-5. **Run E2E tests:**
-   ```bash
-   # Run comprehensive E2E tests
-   cd tests/e2e
-   python3 e2e_test.py
-   
-   # Run performance benchmarks
-   python3 benchmark.py
-   
-   # Run quick performance tests
-   python3 quick_perf.py
-   
-   # Run stress tests
-   python3 stress_test.py
-   ```
-
 The HTTP server will start on `http://localhost:8080` by default.
 
 ### HTTP API Usage
