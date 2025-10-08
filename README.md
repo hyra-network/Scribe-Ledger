@@ -17,33 +17,133 @@ Hyra Scribe Ledger is built on foundational principles:
 
 ## 🚀 Quick Start
 
-### Prerequisites
+**Clone the repository:**
+```bash
+git clone https://github.com/hyra-network/Scribe-Ledger.git
+cd Scribe-Ledger
+```
 
-- [Rust](https://rustup.rs/) (1.70 or later)
-- Git
+**Build the project:**
+```bash
+cargo build --release
+```
 
-### Installation
+**Run a single node:**
+```bash
+cargo run --bin scribe-node
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/amogusdrip285/hyra-scribe-ledger
-   cd hyra-scribe-ledger
-   ```
+**Run a 3-node cluster:**
+```bash
+# Terminal 1 - Node 1 (Leader)
+cargo run --bin scribe-node -- --config config-node1.toml
 
-2. **Build the project:**
-   ```bash
-   cargo build
-   ```
+# Terminal 2 - Node 2 (Follower)
+cargo run --bin scribe-node -- --config config-node2.toml
 
-3. **Run the demo:**
-   ```bash
-   cargo run
-   ```
+# Terminal 3 - Node 3 (Follower) 
+cargo run --bin scribe-node -- --config config-node3.toml
+```
 
-4. **Run tests:**
-   ```bash
-   cargo test
-   ```
+**Run E2E tests:**
+```bash
+# Run comprehensive E2E tests
+cd tests/e2e
+python3 e2e_test.py
+
+# Run performance benchmarks
+python3 benchmark.py
+
+# Run quick performance tests
+python3 quick_perf.py
+
+# Run stress tests
+python3 stress_test.py
+```
+
+The HTTP server will start on http://localhost:8080 by default.
+
+## 📡 HTTP API Usage
+
+Scribe Ledger provides a simple HTTP API for storing and retrieving data:
+
+**Store Data (PUT)**
+```bash
+# Store a value
+curl -X PUT http://localhost:8080/my-key \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "my value data"
+```
+
+**Retrieve Data (GET)**
+```bash
+# Get a value
+curl http://localhost:8080/my-key
+```
+
+## ⚙️ Configuration
+
+### Single Node Configuration
+
+Create a `config.toml` file to customize settings:
+
+```toml
+[node]
+id = 1
+address = "127.0.0.1:8001"
+data_dir = "./data"
+
+[storage]
+segment_size = 1048576  # 1MB
+max_cache_size = 268435456  # 256MB
+s3_bucket = "scribe-ledger"
+s3_region = "us-east-1"
+s3_endpoint = "http://localhost:9000"  # MinIO for development
+
+[consensus]
+election_timeout = 10
+heartbeat_timeout = 3
+max_log_entries = 1000
+
+[network]
+listen_addr = "127.0.0.1"
+client_port = 8080          # HTTP API port for client requests
+raft_tcp_port = 8081        # Dedicated TCP port for Raft consensus
+```
+
+### Multi-Node Cluster Configuration
+
+For production deployments, use the provided cluster configuration files:
+
+- `config-node1.toml` - Primary leader node (HTTP: 8080, Raft TCP: 8081)
+- `config-node2.toml` - Follower node (HTTP: 8090, Raft TCP: 8082)
+- `config-node3.toml` - Follower node (HTTP: 8100, Raft TCP: 8083)
+
+Each node configuration includes:
+
+- **Separate ports**: HTTP API port for client communication and dedicated TCP port for Raft consensus
+- **Cluster membership**: Peer discovery and automatic leader election
+- **S3 integration**: Shared MinIO/S3 storage for distributed persistence
+- **Health monitoring**: Heartbeat and failure detection mechanisms
+
+## 🛠️ Development
+
+For development, use the provided development and testing scripts:
+
+```bash
+# Development commands
+./dev.sh build    # Build the project
+./dev.sh test     # Run tests
+./dev.sh fmt      # Format code
+./dev.sh clippy   # Run lints
+
+# Comprehensive testing
+./test_runner.sh unit           # Run unit tests only
+./test_runner.sh performance    # Run performance tests
+./test_runner.sh stress         # Run stress tests
+./test_runner.sh server         # Start server and run all performance tests
+./test_runner.sh all           # Run all tests (requires running server)
+```
 
 ## 🌐 3-Node Cluster Tutorial
 

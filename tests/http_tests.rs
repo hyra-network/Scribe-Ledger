@@ -1,7 +1,7 @@
 use anyhow::Result;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use reqwest;
 use serde_json::json;
-use hyra_scribe_ledger::SimpleScribeLedger;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio;

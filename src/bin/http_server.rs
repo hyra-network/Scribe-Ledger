@@ -6,8 +6,8 @@ use axum::{
     routing::{delete, get, put},
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
 use hyra_scribe_ledger::SimpleScribeLedger;
+use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Arc};
 use tokio;
 use tower_http::cors::CorsLayer;
