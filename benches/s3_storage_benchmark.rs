@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use simple_scribe_ledger::storage::s3::{S3Storage, S3StorageConfig};
-use simple_scribe_ledger::storage::segment::Segment;
+use hyra_scribe_ledger::storage::s3::{S3Storage, S3StorageConfig};
+use hyra_scribe_ledger::storage::segment::Segment;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 

@@ -1,14 +1,14 @@
-# Simple Scribe Ledger
+# Hyra Scribe Ledger
 
 > **Verifiable, Durable Off-Chain Storage System**
 
 ---
 
-Simple Scribe Ledger is a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). This implementation leverages **OpenRaft** for modern consensus with optimized performance for high-throughput distributed storage.
+Hyra Scribe Ledger is a distributed, immutable, append-only key-value storage system inspired by [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger). This implementation leverages **OpenRaft** for modern consensus with optimized performance for high-throughput distributed storage.
 
 ## 🏛️ Core Tenets
 
-Simple Scribe Ledger is built on foundational principles:
+Hyra Scribe Ledger is built on foundational principles:
 
 1. **Immutability:** Write-once, read-forever. Data is stored in append-only logs, creating a permanent and auditable history.
 2. **Durability:** Data, once committed, is considered permanent with robust replication across the cluster.
@@ -17,33 +17,412 @@ Simple Scribe Ledger is built on foundational principles:
 
 ## 🚀 Quick Start
 
+**Clone the repository:**
+```bash
+git clone https://github.com/hyra-network/Scribe-Ledger.git
+cd Scribe-Ledger
+```
+
+**Build the project:**
+```bash
+cargo build --release
+```
+
+**Run a single node:**
+```bash
+cargo run --bin scribe-node
+```
+
+**Run a 3-node cluster:**
+```bash
+# Terminal 1 - Node 1 (Leader)
+cargo run --bin scribe-node -- --config config-node1.toml
+
+# Terminal 2 - Node 2 (Follower)
+cargo run --bin scribe-node -- --config config-node2.toml
+
+# Terminal 3 - Node 3 (Follower) 
+cargo run --bin scribe-node -- --config config-node3.toml
+```
+
+**Run E2E tests:**
+```bash
+# Run comprehensive E2E tests
+cd tests/e2e
+python3 e2e_test.py
+
+# Run performance benchmarks
+python3 benchmark.py
+
+# Run quick performance tests
+python3 quick_perf.py
+
+# Run stress tests
+python3 stress_test.py
+```
+
+The HTTP server will start on http://localhost:8080 by default.
+
+## 📡 HTTP API Usage
+
+Scribe Ledger provides a simple HTTP API for storing and retrieving data:
+
+**Store Data (PUT)**
+```bash
+# Store a value
+curl -X PUT http://localhost:8080/my-key \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "my value data"
+```
+
+**Retrieve Data (GET)**
+```bash
+# Get a value
+curl http://localhost:8080/my-key
+```
+
+## ⚙️ Configuration
+
+### Single Node Configuration
+
+Create a `config.toml` file to customize settings:
+
+```toml
+[node]
+id = 1
+address = "127.0.0.1:8001"
+data_dir = "./data"
+
+[storage]
+segment_size = 1048576  # 1MB
+max_cache_size = 268435456  # 256MB
+s3_bucket = "scribe-ledger"
+s3_region = "us-east-1"
+s3_endpoint = "http://localhost:9000"  # MinIO for development
+
+[consensus]
+election_timeout = 10
+heartbeat_timeout = 3
+max_log_entries = 1000
+
+[network]
+listen_addr = "127.0.0.1"
+client_port = 8080          # HTTP API port for client requests
+raft_tcp_port = 8081        # Dedicated TCP port for Raft consensus
+```
+
+### Multi-Node Cluster Configuration
+
+For production deployments, use the provided cluster configuration files:
+
+- `config-node1.toml` - Primary leader node (HTTP: 8080, Raft TCP: 8081)
+- `config-node2.toml` - Follower node (HTTP: 8090, Raft TCP: 8082)
+- `config-node3.toml` - Follower node (HTTP: 8100, Raft TCP: 8083)
+
+Each node configuration includes:
+
+- **Separate ports**: HTTP API port for client communication and dedicated TCP port for Raft consensus
+- **Cluster membership**: Peer discovery and automatic leader election
+- **S3 integration**: Shared MinIO/S3 storage for distributed persistence
+- **Health monitoring**: Heartbeat and failure detection mechanisms
+
+## 🛠️ Development
+
+For development, use the provided development and testing scripts:
+
+```bash
+# Development commands
+./dev.sh build    # Build the project
+./dev.sh test     # Run tests
+./dev.sh fmt      # Format code
+./dev.sh clippy   # Run lints
+
+# Comprehensive testing
+./test_runner.sh unit           # Run unit tests only
+./test_runner.sh performance    # Run performance tests
+./test_runner.sh stress         # Run stress tests
+./test_runner.sh server         # Start server and run all performance tests
+./test_runner.sh all           # Run all tests (requires running server)
+```
+
+## 🌐 3-Node Cluster Tutorial
+
+This comprehensive tutorial shows you how to set up a 3-node distributed cluster of Hyra Scribe Ledger nodes and communicate between them.
+
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) (1.70 or later)
-- Git
+Before starting, ensure you have:
+- Rust 1.70 or later installed
+- The project built in release mode: `cargo build --release`
+- Three terminal windows/tabs ready
 
-### Installation
+### Architecture Overview
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/amogusdrip285/simple-scribe-ledger
-   cd simple-scribe-ledger
-   ```
+The cluster consists of:
+- **Node 1**: HTTP on port 8001, Raft on port 9001
+- **Node 2**: HTTP on port 8002, Raft on port 9002
+- **Node 3**: HTTP on port 8003, Raft on port 9003
 
-2. **Build the project:**
-   ```bash
-   cargo build
-   ```
+All nodes will automatically discover each other, elect a leader, and replicate data through the Raft consensus protocol.
 
-3. **Run the demo:**
-   ```bash
-   cargo run
-   ```
+### Step 1: Start the Cluster
 
-4. **Run tests:**
-   ```bash
-   cargo test
-   ```
+You can start the cluster in two ways:
+
+#### Option A: Using the automated script (Recommended)
+
+```bash
+# Make sure the script is executable
+chmod +x scripts/start-cluster.sh
+
+# Start all 3 nodes
+./scripts/start-cluster.sh
+```
+
+The script will:
+- Start all three nodes in the background
+- Wait for initialization
+- Check node health
+- Display cluster information
+
+#### Option B: Start nodes manually
+
+**Terminal 1 - Node 1:**
+```bash
+cargo run --release --bin scribe-node -- --config config-node1.toml --node-id 1
+```
+
+**Terminal 2 - Node 2:**
+```bash
+cargo run --release --bin scribe-node -- --config config-node2.toml --node-id 2
+```
+
+**Terminal 3 - Node 3:**
+```bash
+cargo run --release --bin scribe-node -- --config config-node3.toml --node-id 3
+```
+
+Wait 5-10 seconds for the nodes to discover each other and elect a leader.
+
+### Step 2: Check Cluster Health
+
+Verify all nodes are running:
+
+```bash
+# Check Node 1
+curl http://127.0.0.1:8001/health
+
+# Check Node 2
+curl http://127.0.0.1:8002/health
+
+# Check Node 3
+curl http://127.0.0.1:8003/health
+```
+
+Expected response from each:
+```json
+{"status":"ok"}
+```
+
+Check cluster status:
+
+```bash
+# Check cluster members (from any node)
+curl http://127.0.0.1:8001/cluster/members
+
+# Check current leader
+curl http://127.0.0.1:8001/cluster/leader
+```
+
+### Step 3: Write Data to the Cluster
+
+You can write data to **any node** - it will automatically be replicated to all nodes:
+
+```bash
+# Write to Node 1
+curl -X PUT http://127.0.0.1:8001/put \
+  -H "Content-Type: application/json" \
+  -d '{"key": "user:alice", "value": "Alice Smith"}'
+
+# Write to Node 2
+curl -X PUT http://127.0.0.1:8002/put \
+  -H "Content-Type: application/json" \
+  -d '{"key": "user:bob", "value": "Bob Johnson"}'
+
+# Write to Node 3
+curl -X PUT http://127.0.0.1:8003/put \
+  -H "Content-Type: application/json" \
+  -d '{"key": "balance", "value": "1000.50"}'
+```
+
+### Step 4: Read Data from Any Node
+
+Data is automatically replicated, so you can read from **any node**:
+
+```bash
+# Read from Node 1 (data written to Node 2)
+curl http://127.0.0.1:8001/get/user:bob
+
+# Read from Node 2 (data written to Node 3)
+curl http://127.0.0.1:8002/get/balance
+
+# Read from Node 3 (data written to Node 1)
+curl http://127.0.0.1:8003/get/user:alice
+```
+
+Expected responses:
+```
+Bob Johnson
+1000.50
+Alice Smith
+```
+
+### Step 5: Test Data Replication
+
+Let's verify that data is truly replicated across all nodes:
+
+```bash
+# Write a unique key to Node 1
+curl -X PUT http://127.0.0.1:8001/put \
+  -H "Content-Type: application/json" \
+  -d '{"key": "test:replication", "value": "distributed data"}'
+
+# Read from all three nodes (should return same value)
+echo "Node 1:" && curl http://127.0.0.1:8001/get/test:replication
+echo "Node 2:" && curl http://127.0.0.1:8002/get/test:replication
+echo "Node 3:" && curl http://127.0.0.1:8003/get/test:replication
+```
+
+All three nodes should return: `distributed data`
+
+### Step 6: Test Concurrent Operations
+
+Send multiple write operations simultaneously:
+
+```bash
+# Batch write test
+for i in {1..10}; do
+  curl -X PUT http://127.0.0.1:8001/put \
+    -H "Content-Type: application/json" \
+    -d "{\"key\": \"item:$i\", \"value\": \"value$i\"}" &
+done
+wait
+
+# Verify all writes succeeded (read from different nodes)
+curl http://127.0.0.1:8002/get/item:5
+curl http://127.0.0.1:8003/get/item:10
+```
+
+### Step 7: Test Node Failure and Recovery
+
+**Simulate a node failure:**
+
+If using the automated script:
+```bash
+# Stop Node 2
+kill $(cat pids/node2.pid)
+```
+
+If running manually, press `Ctrl+C` in Terminal 2.
+
+**Verify cluster continues to work:**
+```bash
+# Write to Node 1 (cluster still has majority: 2/3 nodes)
+curl -X PUT http://127.0.0.1:8001/put \
+  -H "Content-Type: application/json" \
+  -d '{"key": "after:failure", "value": "still working"}'
+
+# Read from Node 3
+curl http://127.0.0.1:8003/get/after:failure
+```
+
+**Restart Node 2:**
+```bash
+cargo run --release --bin scribe-node -- --config config-node2.toml --node-id 2
+```
+
+After a few seconds, Node 2 will rejoin and sync the data:
+```bash
+# Verify Node 2 has the data written while it was down
+curl http://127.0.0.1:8002/get/after:failure
+```
+
+### Step 8: Performance Testing
+
+Test cluster throughput:
+
+```bash
+# Run the cluster test script
+python3 tests/e2e/cluster_e2e_test.py
+```
+
+Or benchmark manually:
+```bash
+# Write 100 items
+for i in {1..100}; do
+  curl -s -X PUT http://127.0.0.1:8001/put \
+    -H "Content-Type: application/json" \
+    -d "{\"key\": \"perf:$i\", \"value\": \"value$i\"}" > /dev/null
+done
+
+# Read them back
+for i in {1..100}; do
+  curl -s http://127.0.0.1:8002/get/perf:$i > /dev/null
+done
+```
+
+### Step 9: Monitor Cluster Metrics
+
+Check cluster metrics:
+
+```bash
+# Get metrics from each node
+curl http://127.0.0.1:8001/metrics
+curl http://127.0.0.1:8002/metrics
+curl http://127.0.0.1:8003/metrics
+```
+
+### Step 10: Shutdown
+
+**Using the automated script:**
+```bash
+./scripts/stop-cluster.sh
+```
+
+**Manual shutdown:**
+Press `Ctrl+C` in each terminal running a node.
+
+### Key Concepts Demonstrated
+
+1. **Automatic Discovery**: Nodes discover each other via UDP broadcast
+2. **Leader Election**: Cluster automatically elects a leader using Raft
+3. **Data Replication**: All writes are replicated to all nodes
+4. **Fault Tolerance**: Cluster continues operating with majority of nodes (2/3)
+5. **Consistency**: All nodes serve the same data after replication
+6. **Load Distribution**: Read from any node, writes forwarded to leader
+
+### Troubleshooting
+
+**Nodes won't start:**
+- Check if ports 8001-8003 and 9001-9003 are available
+- Verify config files exist: `config-node1.toml`, `config-node2.toml`, `config-node3.toml`
+
+**Cluster won't form:**
+- Wait 10-15 seconds for UDP discovery
+- Check firewall allows UDP broadcast
+- Verify all nodes are on the same network
+
+**Data not replicating:**
+- Ensure majority of nodes (2/3) are running
+- Check leader exists: `curl http://127.0.0.1:8001/cluster/leader`
+- Review node logs for errors
+
+**Performance issues:**
+- Use `--release` flag for production performance
+- Ensure SSD storage for best I/O performance
+- Consider network latency between nodes
+
+---
 
 ## 📚 Get Started Tutorial
 
@@ -52,7 +431,7 @@ Simple Scribe Ledger is built on foundational principles:
 Let's start with a simple example that demonstrates the core functionality:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -88,7 +467,7 @@ cargo run --example basic_usage
 The storage engine works with any data that can be converted to bytes:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
@@ -138,7 +517,7 @@ cargo run --example data_types
 Let's build a simple command-line application that demonstrates practical usage:
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 use std::io::{self, Write};
 
@@ -213,7 +592,7 @@ cargo bench
 #### Working with Binary Data
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -235,7 +614,7 @@ fn main() -> Result<()> {
 #### Database Management
 
 ```rust
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use anyhow::Result;
 
 fn main() -> Result<()> {

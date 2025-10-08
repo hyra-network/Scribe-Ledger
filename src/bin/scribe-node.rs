@@ -6,11 +6,11 @@
 
 use anyhow::Result;
 use clap::Parser;
-use simple_scribe_ledger::api::DistributedApi;
-use simple_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
-use simple_scribe_ledger::config::Config;
-use simple_scribe_ledger::consensus::ConsensusNode;
-use simple_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use hyra_scribe_ledger::api::DistributedApi;
+use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
+use hyra_scribe_ledger::config::Config;
+use hyra_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
@@ -163,7 +163,7 @@ async fn main() -> Result<()> {
 fn setup_logging(log_level: &str) -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new(format!(
-            "scribe_node={},simple_scribe_ledger={}",
+            "scribe_node={},hyra_scribe_ledger={}",
             log_level, log_level
         ))
     });

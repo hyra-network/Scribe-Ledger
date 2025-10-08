@@ -7,8 +7,8 @@
 //! - Data durability after crashes/restarts
 //! - Consistency under various scenarios
 
-use simple_scribe_ledger::api::{DistributedApi, ReadConsistency};
-use simple_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
+use hyra_scribe_ledger::consensus::ConsensusNode;
 use std::sync::Arc;
 use std::time::Duration;
 

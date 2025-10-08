@@ -31,3 +31,6 @@ test_*_db/
 
 # Test databases
 test_*_db_*/
+
+# Example data files
+example_data/

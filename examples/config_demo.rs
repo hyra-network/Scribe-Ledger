@@ -1,6 +1,6 @@
-use simple_scribe_ledger::config::Config;
-use simple_scribe_ledger::error::ScribeError;
-use simple_scribe_ledger::types::{Request, Response};
+use hyra_scribe_ledger::config::Config;
+use hyra_scribe_ledger::error::ScribeError;
+use hyra_scribe_ledger::types::{Request, Response};
 
 fn main() -> Result<(), ScribeError> {
     println!("=== Simple Scribe Ledger - Tasks 1.2 & 1.3 Demo ===\n");

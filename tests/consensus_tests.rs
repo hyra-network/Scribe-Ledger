@@ -8,7 +8,7 @@
 //! - Membership changes
 //! - State machine consistency
 
-use simple_scribe_ledger::consensus::{AppRequest, AppResponse, ConsensusNode};
+use hyra_scribe_ledger::consensus::{AppRequest, AppResponse, ConsensusNode};
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 

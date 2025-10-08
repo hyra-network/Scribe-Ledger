@@ -1,7 +1,7 @@
 use anyhow::Result;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use reqwest;
 use serde_json::json;
-use simple_scribe_ledger::SimpleScribeLedger;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio;
@@ -888,7 +888,7 @@ async fn test_cluster_endpoints_integration() -> Result<()> {
 
 #[tokio::test]
 async fn test_batched_http_operations() -> Result<()> {
-    use simple_scribe_ledger::http_client::{
+    use hyra_scribe_ledger::http_client::{
         batched_get_operations, batched_put_operations, PutRequest,
     };
 

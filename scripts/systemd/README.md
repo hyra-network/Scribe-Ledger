@@ -1,6 +1,6 @@
 # Systemd Service Files
 
-This directory contains systemd service files for running Simple Scribe Ledger nodes as system services.
+This directory contains systemd service files for running Hyra Scribe Ledger nodes as system services.
 
 ## Installation
 

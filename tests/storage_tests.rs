@@ -8,7 +8,7 @@
 //! - Error cases and edge cases
 //! - Async behavior verification
 
-use simple_scribe_ledger::storage::{SledStorage, StorageBackend};
+use hyra_scribe_ledger::storage::{SledStorage, StorageBackend};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;

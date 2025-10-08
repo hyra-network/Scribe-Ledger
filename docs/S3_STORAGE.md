@@ -1,6 +1,6 @@
 # S3 Storage Backend
 
-This document describes the S3 storage backend implementation for Simple Scribe Ledger (Task 6.1).
+This document describes the S3 storage backend implementation for Hyra Scribe Ledger (Task 6.1).
 
 ## Overview
 

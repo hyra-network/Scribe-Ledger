@@ -1,6 +1,6 @@
 use anyhow::Result;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use serde::{Deserialize, Serialize};
-use simple_scribe_ledger::SimpleScribeLedger;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct User {

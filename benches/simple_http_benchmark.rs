@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use simple_scribe_ledger::http_client::{
+use hyra_scribe_ledger::http_client::{
     batched_get_operations, batched_mixed_operations, batched_put_operations, GetResponse,
     PutRequest,
 };
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;

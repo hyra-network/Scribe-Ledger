@@ -2,7 +2,7 @@
 //!
 //! These tests verify node discovery, heartbeat, and failure detection functionality.
 
-use simple_scribe_ledger::discovery::{
+use hyra_scribe_ledger::discovery::{
     DiscoveryConfig, DiscoveryService, DEFAULT_HEARTBEAT_INTERVAL_MS,
 };
 use std::time::Duration;

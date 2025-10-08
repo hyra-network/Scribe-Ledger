@@ -1,5 +1,5 @@
 use anyhow::Result;
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};

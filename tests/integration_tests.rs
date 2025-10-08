@@ -1,5 +1,5 @@
 use anyhow::Result;
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
