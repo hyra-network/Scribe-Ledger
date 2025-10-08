@@ -7,8 +7,8 @@
 //! - Batching of writes
 //! - End-to-end distributed write path
 
-use simple_scribe_ledger::api::DistributedApi;
-use simple_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::api::DistributedApi;
+use hyra_scribe_ledger::consensus::ConsensusNode;
 use std::sync::Arc;
 use std::time::Duration;
 

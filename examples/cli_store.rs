@@ -1,5 +1,5 @@
 use anyhow::Result;
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::io::{self, Write};
 
 fn main() -> Result<()> {

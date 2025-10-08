@@ -3,9 +3,9 @@
 //! These tests verify the segment archival functionality with compression,
 //! read-through, and lifecycle management.
 
-use simple_scribe_ledger::storage::archival::{ArchivalManager, SegmentMetadata, TieringPolicy};
-use simple_scribe_ledger::storage::s3::S3StorageConfig;
-use simple_scribe_ledger::storage::segment::{Segment, SegmentManager};
+use hyra_scribe_ledger::storage::archival::{ArchivalManager, SegmentMetadata, TieringPolicy};
+use hyra_scribe_ledger::storage::s3::S3StorageConfig;
+use hyra_scribe_ledger::storage::segment::{Segment, SegmentManager};
 use std::collections::HashMap;
 use std::sync::Arc;
 

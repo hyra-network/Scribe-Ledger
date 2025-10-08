@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use simple_scribe_ledger::async_storage_ops::{
+use hyra_scribe_ledger::async_storage_ops::{
     batched_async_get_operations, batched_async_mixed_operations, batched_async_put_operations,
     concurrent_async_operations, populate_async_storage,
 };
-use simple_scribe_ledger::storage::{SledStorage, StorageBackend};
+use hyra_scribe_ledger::storage::{SledStorage, StorageBackend};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 

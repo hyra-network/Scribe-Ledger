@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop the Simple Scribe Ledger cluster
+# Stop the Hyra Scribe Ledger cluster
 # This script gracefully shuts down all running nodes
 
 set -e
@@ -57,7 +57,7 @@ stop_node() {
 
 # Main execution
 echo "=========================================="
-echo "Simple Scribe Ledger - Cluster Shutdown"
+echo "Hyra Scribe Ledger - Cluster Shutdown"
 echo "=========================================="
 echo
 

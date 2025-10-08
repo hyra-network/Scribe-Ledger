@@ -7,7 +7,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::sync::{atomic::AtomicU64, Arc};
 use tokio;
 use tower_http::cors::CorsLayer;

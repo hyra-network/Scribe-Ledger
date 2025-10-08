@@ -7,8 +7,8 @@
 //! - Write-then-read consistency
 //! - Read-your-writes consistency
 
-use simple_scribe_ledger::api::{DistributedApi, ReadConsistency};
-use simple_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
+use hyra_scribe_ledger::consensus::ConsensusNode;
 use std::sync::Arc;
 use std::time::Duration;
 

@@ -8,8 +8,8 @@
 //! - Manifest synchronization across nodes
 //! - Recovery scenarios
 
-use simple_scribe_ledger::consensus::ConsensusNode;
-use simple_scribe_ledger::manifest::{
+use hyra_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::manifest::{
     compute_diff, merge_manifests, ClusterManifest, ManifestEntry, ManifestManager,
 };
 use std::sync::Arc;

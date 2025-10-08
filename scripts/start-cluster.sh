@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start a 3-node Simple Scribe Ledger cluster
+# Start a 3-node Hyra Scribe Ledger cluster
 # This script starts three nodes with different configurations
 
 set -e
@@ -92,7 +92,7 @@ check_node() {
 
 # Main execution
 echo "=========================================="
-echo "Simple Scribe Ledger - Cluster Startup"
+echo "Hyra Scribe Ledger - Cluster Startup"
 echo "=========================================="
 echo
 

@@ -1,8 +1,8 @@
 [package]
-name = "simple-scribe-ledger"
+name = "hyra-scribe-ledger"
 version = "0.1.0"
 edition = "2021"
-default-run = "simple-scribe-ledger"
+default-run = "hyra-scribe-ledger"
 
 [dependencies]
 sled = "0.34"

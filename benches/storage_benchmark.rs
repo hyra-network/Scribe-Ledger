@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use simple_scribe_ledger::storage_ops::{
+use hyra_scribe_ledger::storage_ops::{
     batched_get_operations, batched_mixed_operations, batched_put_operations, populate_ledger,
     throughput_get_10k, throughput_put_10k,
 };
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::time::Duration;
 
 fn benchmark_put_operations(c: &mut Criterion) {

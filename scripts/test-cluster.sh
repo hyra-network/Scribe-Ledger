@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test the Simple Scribe Ledger cluster
+# Test the Hyra Scribe Ledger cluster
 # This script performs basic functionality tests on the cluster
 
 set -e
@@ -136,7 +136,7 @@ test_metrics() {
 
 # Main execution
 echo "=========================================="
-echo "Simple Scribe Ledger - Cluster Test"
+echo "Hyra Scribe Ledger - Cluster Test"
 echo "=========================================="
 echo
 

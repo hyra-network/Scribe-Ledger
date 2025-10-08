@@ -1,10 +1,10 @@
 use anyhow::Result;
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::sync::Arc;
 
 fn main() -> Result<()> {
-    println!("Optimized Simple Scribe Ledger Demo");
-    println!("===================================");
+    println!("Optimized Hyra Scribe Ledger Demo");
+    println!("==================================");
 
     // Keep database handle alive and reuse it - don't reopen for each operation
     let ledger = Arc::new(SimpleScribeLedger::new("./optimized_demo_db")?);
@@ -82,7 +82,7 @@ fn perform_system_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
 
 fn perform_app_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
     // Mix of individual and batch operations
-    ledger.put("app:name", "Simple Scribe Ledger")?;
+    ledger.put("app:name", "Hyra Scribe Ledger")?;
     ledger.put("app:language", "Rust")?;
 
     let mut batch = SimpleScribeLedger::new_batch();

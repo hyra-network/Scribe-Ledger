@@ -3,9 +3,9 @@
 //! These tests verify cluster bootstrapping, auto-joining, and coordination
 //! between discovery and consensus layers.
 
-use simple_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
-use simple_scribe_ledger::consensus::ConsensusNode;
-use simple_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
+use hyra_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;

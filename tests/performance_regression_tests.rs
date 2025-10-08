@@ -3,7 +3,7 @@
 //! These tests ensure that performance doesn't degrade below acceptable thresholds.
 //! If any of these tests fail, it indicates a performance regression in the code.
 
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::time::Instant;
 
 /// Performance thresholds - if operations take longer than these, tests fail
@@ -236,7 +236,7 @@ fn test_mixed_performance_1000_ops() {
 
 #[test]
 fn test_segment_manager_performance() {
-    use simple_scribe_ledger::storage::segment::SegmentManager;
+    use hyra_scribe_ledger::storage::segment::SegmentManager;
 
     let manager = SegmentManager::with_threshold(1024 * 1024); // 1MB threshold
 
@@ -272,8 +272,8 @@ fn test_segment_manager_performance() {
 
 #[test]
 fn test_storage_backend_performance() {
-    use simple_scribe_ledger::storage::SledStorage;
-    use simple_scribe_ledger::storage::StorageBackend;
+    use hyra_scribe_ledger::storage::SledStorage;
+    use hyra_scribe_ledger::storage::StorageBackend;
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
 

@@ -1,11 +1,11 @@
 use anyhow::Result;
-use simple_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::SimpleScribeLedger;
 use std::time::Instant;
 
 fn main() -> Result<()> {
-    println!("=== COMPREHENSIVE PERFORMANCE COMPARISON ===");
-    println!("Before vs After Optimization Analysis");
-    println!("============================================\n");
+    println!("=== HYRA SCRIBE LEDGER PERFORMANCE BENCHMARK ===");
+    println!("Comprehensive Performance Analysis");
+    println!("================================================\n");
 
     run_comprehensive_benchmark()?;
 

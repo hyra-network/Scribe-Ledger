@@ -3,9 +3,9 @@
 //! These tests verify automatic data tiering, tiering policies,
 //! MinIO compatibility, and error recovery scenarios.
 
-use simple_scribe_ledger::storage::archival::{ArchivalManager, TieringPolicy};
-use simple_scribe_ledger::storage::s3::S3StorageConfig;
-use simple_scribe_ledger::storage::segment::{Segment, SegmentManager};
+use hyra_scribe_ledger::storage::archival::{ArchivalManager, TieringPolicy};
+use hyra_scribe_ledger::storage::s3::S3StorageConfig;
+use hyra_scribe_ledger::storage::segment::{Segment, SegmentManager};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

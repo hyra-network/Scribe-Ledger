@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use simple_scribe_ledger::json_ops::{
+use hyra_scribe_ledger::json_ops::{
     batched_json_get_deserialization, batched_json_put_serialization, combined_json_operations,
     large_scale_json_serialization,
 };
@@ -76,8 +76,8 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
 
     // Direct library access (actual database operations)
     group.bench_function("direct_library_100_ops", |b| {
-        use simple_scribe_ledger::storage_ops::batched_put_operations;
-        use simple_scribe_ledger::SimpleScribeLedger;
+        use hyra_scribe_ledger::storage_ops::batched_put_operations;
+        use hyra_scribe_ledger::SimpleScribeLedger;
 
         // Pre-allocate test data for better performance
         let keys: Vec<String> = (0..100).map(|i| format!("key{}", i)).collect();
