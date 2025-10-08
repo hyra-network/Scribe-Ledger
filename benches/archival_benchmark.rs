@@ -50,19 +50,21 @@ fn create_compressible_segment(segment_id: u64, size_kb: usize) -> Segment {
 
 /// Check if S3 is available
 fn is_s3_available(rt: &Runtime) -> bool {
+    let config = get_test_config();
+    if config.bucket.is_empty() {
+        return false;
+    }
+
     rt.block_on(async {
-        match S3StorageConfig::default().bucket.is_empty() {
-            true => false,
-            false => match ArchivalManager::new(
-                get_test_config(),
-                Arc::new(SegmentManager::new()),
-                TieringPolicy::default(),
-            )
-            .await
-            {
-                Ok(_) => true,
-                Err(_) => false,
-            },
+        match ArchivalManager::new(
+            config,
+            Arc::new(SegmentManager::new()),
+            TieringPolicy::default(),
+        )
+        .await
+        {
+            Ok(_) => true,
+            Err(_) => false,
         }
     })
 }
