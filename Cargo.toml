@@ -28,6 +28,7 @@ aws-sdk-s3 = "1.18"
 bytes = "1.5"
 futures = "0.3"
 flate2 = "1.0"
+sha2 = "0.10"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -58,6 +59,10 @@ harness = false
 
 [[bench]]
 name = "archival_benchmark"
+harness = false
+
+[[bench]]
+name = "crypto_benchmark"
 harness = false
 
 [[example]]

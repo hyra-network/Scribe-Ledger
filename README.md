@@ -365,6 +365,68 @@ cargo test segment_archival -- --ignored
 cargo test data_tiering -- --ignored
 ```
 
+## Cryptographic Verification
+
+### Merkle Tree Implementation
+
+The ledger includes cryptographic verification through Merkle trees, providing tamper-proof data integrity guarantees.
+
+**Features:**
+- SHA-256 based Merkle tree construction
+- Cryptographic proof generation for any key-value pair
+- Proof verification against root hash
+- Deterministic tree construction (consistent across nodes)
+- Efficient proof size (logarithmic in tree size)
+
+**Usage Example:**
+
+```rust
+use hyra_scribe_ledger::crypto::MerkleTree;
+
+// Build Merkle tree from key-value pairs
+let pairs = vec![
+    (b"key1".to_vec(), b"value1".to_vec()),
+    (b"key2".to_vec(), b"value2".to_vec()),
+    (b"key3".to_vec(), b"value3".to_vec()),
+];
+
+let tree = MerkleTree::from_pairs(pairs);
+
+// Get the root hash for verification
+let root_hash = tree.root_hash().unwrap();
+
+// Generate proof for a specific key
+let proof = tree.get_proof(b"key2").unwrap();
+
+// Verify the proof
+assert!(MerkleTree::verify_proof(&proof, &root_hash));
+```
+
+**Integration with Manifest:**
+
+Each segment's Merkle root is stored in the manifest for verification:
+
+```rust
+use hyra_scribe_ledger::manifest::ManifestEntry;
+
+// Create manifest entry with Merkle root
+let entry = ManifestEntry::new(
+    segment_id,
+    timestamp,
+    root_hash,  // Merkle root from tree.root_hash()
+    size
+);
+```
+
+**Test coverage:**
+```bash
+# Crypto module tests
+cargo test --lib crypto::
+
+# Comprehensive crypto tests
+cargo test crypto_tests
+```
+
 ## Distributed Consensus
 
 ### OpenRaft Integration
