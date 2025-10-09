@@ -150,3 +150,9 @@ jobs:
 
     - name: Run data tiering tests (Task 6.3)
       run: cargo test --test data_tiering_tests --verbose
+
+    - name: Test crypto module (Task 10.1)
+      run: cargo test --lib 'crypto::' --verbose
+
+    - name: Run crypto tests (Task 10.1)
+      run: cargo test --test crypto_tests --verbose

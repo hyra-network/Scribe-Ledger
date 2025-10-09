@@ -8,6 +8,7 @@ pub mod async_storage_ops;
 pub mod cluster;
 pub mod config;
 pub mod consensus;
+pub mod crypto;
 pub mod discovery;
 pub mod error;
 pub mod http_client;

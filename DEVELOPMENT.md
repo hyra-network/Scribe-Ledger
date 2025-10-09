@@ -535,15 +535,16 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 **Goal**: Add Merkle tree support for data verification.
 
-### Task 10.1: Merkle Tree Implementation
-- [ ] Create src/crypto/mod.rs with MerkleTree struct
-- [ ] Implement tree construction from key-value pairs
-- [ ] Add proof generation (get_proof for specific key)
-- [ ] Implement proof verification
-- [ ] Use SHA-256 for hashing
-- [ ] Handle edge cases (empty tree, single element)
+### Task 10.1: Merkle Tree Implementation ✅
+- [x] Create src/crypto/mod.rs with MerkleTree struct
+- [x] Implement tree construction from key-value pairs
+- [x] Add proof generation (get_proof for specific key)
+- [x] Implement proof verification
+- [x] Use SHA-256 for hashing
+- [x] Handle edge cases (empty tree, single element)
 
-**Deliverables**: Merkle tree implementation
+**Deliverables**: Merkle tree implementation  
+**Status**: ✅ Complete
 
 ---
 
