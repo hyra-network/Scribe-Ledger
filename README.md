@@ -1,135 +1,138 @@
 # Hyra Scribe Ledger
 
-> **Verifiable, Durable Off-Chain Storage for the Hyra AI Ecosystem**
+> **A distributed, immutable, append-only key-value storage system**
 
----
+Hyra Scribe Ledger is a production-ready distributed storage system built with Rust, designed for durability, consistency, and high performance. It combines local storage with S3-compatible object storage to provide a robust multi-tier architecture for persistent data management.
 
-Hyra Scribe Ledger is a distributed, immutable, append-only key-value storage system designed to serve as the durable data layer for Hyra AI. It solves the critical challenge of handling large data payloads (AI model inputs and outputs) that are infeasible to store directly on-chain.
+## Overview
 
-## 🚀 Vision: AI On-Chain, Data Off-Chain
+Hyra Scribe Ledger provides a complete distributed storage solution with:
 
-> The core mission of Hyra AI is to execute AI inference tasks transparently and verifiably on-chain. However, this vision faces a fundamental obstacle: the on-chain data dilemma. Storing gigabytes, or even megabytes, of data on a blockchain is prohibitively expensive, slow, and detrimental to scalability.
+- **Immutability:** Write-once, read-forever append-only storage
+- **Durability:** Multi-tier architecture with local caching and S3 persistence
+- **Distribution:** OpenRaft-based consensus for cluster coordination
+- **Performance:** Async I/O with Tokio for high-throughput operations
+- **Verifiability:** Cryptographic proofs for data integrity
 
-**Hyra Scribe Ledger is the solution.** Instead of placing raw data on-chain, Hyra smart contracts store a lightweight, immutable cryptographic proof (e.g., a Merkle root or a key hash). The actual data resides in Scribe Ledger, an off-chain system engineered from the ground up for:
+## Architecture
 
-- **Durability:** Data, once committed, should be considered permanent.
-- **Immutability:** Data cannot be altered or deleted, only appended.
-- **Verifiability:** On-chain smart contracts can efficiently verify the integrity of off-chain data.
+The system uses a multi-tiered architecture combining local and cloud storage:
 
----
+### Storage Tiers
 
-## 🏛️ Core Tenets
+**Local Tier (Hot Data)**
+- Sled embedded database for fast local access
+- Optimized for high-throughput writes and low-latency reads
+- Configurable cache size (default: 256MB)
 
-Scribe Ledger is built on four foundational principles:
+**S3 Tier (Cold Data)**
+- S3-compatible object storage for long-term persistence
+- Automatic segment archival with compression
+- Age-based tiering policies
+- MinIO support for local development
 
-1. **Immutability:** Write-once, read-forever. Data is stored in append-only logs, creating a permanent and auditable history, much like a traditional ledger.
-2. **Extreme Durability:** By using S3-compatible object storage as the ultimate source of truth, we inherit its design for 11 nines (99.999999999%) of durability, ensuring data survival against nearly all failure scenarios.
-3. **Verifiability:** Every data segment stored can be cryptographically verified. The system's global state (the "Manifest") links data segments to their Merkle roots, allowing any participant—including on-chain smart contracts—to confirm data integrity without needing to trust the storage layer.
-4. **High Performance:** The architecture is decoupled to optimize for high-throughput ingestion. Writes are handled by a "hot" local tier for low latency, while the asynchronous flush to the durable "cold" tier happens in the background.
+### Distributed Consensus
 
----
+**OpenRaft Cluster**
+- Modern async-first Raft implementation
+- Automatic leader election and failover
+- Strong consistency guarantees
+- Dynamic membership management
 
-## 🏗️ System Architecture
+**Node Discovery**
+- Automatic cluster formation
+- Health monitoring and failure detection
+- Peer-to-peer discovery protocol
 
-Scribe Ledger employs a multi-tiered, log-structured architecture inspired by high-performance databases and distributed consensus systems.
+### Data Flow
 
-### **Components**
+**Write Path:**
+1. Client sends data to any cluster node via HTTP API
+2. Request forwarded to leader if necessary
+3. Leader proposes write via Raft consensus
+4. Data replicated to quorum of nodes
+5. Applied to local storage on all nodes
+6. Success returned to client
 
-- **Write Nodes (Ingestion Tier):** Entry point for all data. Each node runs a local instance of the Sled embedded database to buffer incoming writes in a crash-safe Write-Ahead Log (WAL) for immediate, low-latency acknowledgements.
-- **S3-Compatible Storage (Durable Tier):** Permanent, cold storage layer. Data is flushed from Write Nodes to S3 in the form of sorted, immutable files called Segments.
-- **Advanced Raft Consensus Cluster (Coordination Tier):** Fault-tolerant distributed cluster with sophisticated membership management, auto-discovery, and dual-transport architecture (HTTP + TCP) for optimal performance.
-- **Cluster Discovery Service:** Dynamic node discovery and health monitoring system enabling automatic cluster formation and membership management.
-- **Distributed Consensus Layer:** Production-ready multi-node Raft implementation with leader election, log replication, join/leave operations, and comprehensive failure handling.
+**Read Path:**
+1. Request served from local storage (fast path)
+2. Falls back to S3 if not in local cache
+3. Transparent read-through caching
+4. Consistent reads across the cluster
 
-### **Write Path**
-1. **Ingest & Local Commit:** Client sends a `put(key, value)` request to a Write Node, which commits it to its local Sled WAL and acknowledges the client.
-2. **Asynchronous Flush to S3:** When the local buffer reaches a threshold, the Write Node sorts its contents and streams them as a new, immutable Segment file to S3.
-3. **Manifest Update:** After S3 upload, the Write Node proposes a metadata update to the Raft cluster: "Add Segment XYZ to the Manifest."
-4. **Global Commit:** The Raft cluster reaches consensus on the new Manifest state. Data is now globally committed and visible across the system.
+## Technology Stack
 
-### **Read Path**
-1. **Local Cache Check:** Request first checks the local Sled instance for "hot" data.
-2. **Manifest Consultation:** On a local miss, the node consults its Manifest copy to identify which S3 Segments might contain the key.
-3. **Segment Search:** Node fetches and searches relevant Segments from S3 in reverse chronological order (newest to oldest).
-4. **Return Value:** The first value found is guaranteed to be the most recent version and is returned to the client.
-
----
-
-## 🛠️ Technology Stack
-
-This project is built on the shoulders of giants in the Rust ecosystem:
-
-| Technology      | Role                                                                 |
+| Technology      | Purpose                                                              |
 |-----------------|----------------------------------------------------------------------|
-| **Rust**        | Core programming language, providing memory safety and performance   |
-| **Tokio**       | Asynchronous runtime for high-concurrency I/O operations            |
-| **Sled**        | Modern, embedded B-tree database for high-performance local tier     |
-| **raft-rs**     | Port of etcd's battle-tested Raft implementation for consensus      |
-| **aws-sdk-rust**| Official AWS SDK for non-blocking interaction with S3               |
-| **Serde**       | Standard for efficient serialization and deserialization            |
+| **Rust**        | Core language for memory safety and performance                     |
+| **Tokio**       | Async runtime for high-concurrency I/O                              |
+| **Sled**        | Embedded database for local storage tier                            |
+| **OpenRaft**    | Modern async Raft consensus implementation                          |
+| **AWS SDK**     | S3-compatible object storage integration                            |
+| **Axum**        | High-performance HTTP framework                                     |
+| **Serde**       | Serialization and deserialization                                   |
 
----
-
-## 🏁 Getting Started
+## Quick Start
 
 ### Prerequisites
-- **Rust 1.70+** - For building from source
+
+- **Rust 1.70+** - Install from [rustup.rs](https://rustup.rs/)
 - **Git** - For cloning the repository
 
-### Quick Start
+### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/hyra-network/Scribe-Ledger.git
-   cd Scribe-Ledger
-   ```
-
-2. **Build the project:**
-   ```bash
-   cargo build --release
-   ```
-
-3. **Run a single node:**
-   ```bash
-   cargo run --bin scribe-node
-   ```
-
-4. **Run a 3-node cluster:**
-   ```bash
-   # Terminal 1 - Node 1 (Leader)
-   cargo run --bin scribe-node -- --config config-node1.toml
-   
-   # Terminal 2 - Node 2 (Follower)
-   cargo run --bin scribe-node -- --config config-node2.toml
-   
-   # Terminal 3 - Node 3 (Follower) 
-   cargo run --bin scribe-node -- --config config-node3.toml
-   ```
-
-The HTTP server will start on `http://localhost:8080` by default.
-
-### HTTP API Usage
-
-Scribe Ledger provides a simple HTTP API for storing and retrieving data:
-
-#### Store Data (PUT)
 ```bash
-# Store a value
-curl -X PUT http://localhost:8080/my-key \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary "my value data"
+# Clone the repository
+git clone https://github.com/amogusdrip285/simple-scribe-ledger.git
+cd simple-scribe-ledger
+
+# Build the project
+cargo build --release
+
+# Run tests
+cargo test
 ```
 
-#### Retrieve Data (GET)
+### Running a Single Node
+
 ```bash
-# Get a value
-curl http://localhost:8080/my-key
+# Start a node with default configuration
+cargo run --bin scribe-node
+
+# Or use a custom configuration file
+cargo run --bin scribe-node -- --config config.toml
 ```
 
-### Configuration
+The HTTP API will be available at `http://localhost:8080`.
 
-#### Single Node Configuration
-Create a `config.toml` file to customize settings:
+### Running a Multi-Node Cluster
+
+Start a 3-node cluster by running each node in a separate terminal:
+
+```bash
+# Terminal 1 - Node 1 (Leader)
+cargo run --bin scribe-node -- --config config-node1.toml
+
+# Terminal 2 - Node 2 (Follower)
+cargo run --bin scribe-node -- --config config-node2.toml
+
+# Terminal 3 - Node 3 (Follower)
+cargo run --bin scribe-node -- --config config-node3.toml
+```
+
+Alternatively, use the provided cluster management scripts:
+
+```bash
+./scripts/start-cluster.sh   # Start 3-node cluster
+./scripts/test-cluster.sh    # Run cluster tests
+./scripts/stop-cluster.sh    # Stop the cluster
+```
+
+## Configuration
+
+### Basic Configuration
+
+Create a `config.toml` file:
 
 ```toml
 [node]
@@ -137,171 +140,638 @@ id = 1
 address = "127.0.0.1:8001"
 data_dir = "./data"
 
+[network]
+listen_addr = "127.0.0.1"
+client_port = 8080          # HTTP API port
+raft_tcp_port = 8081        # Raft consensus port
+
 [storage]
-segment_size = 1048576  # 1MB
-max_cache_size = 268435456  # 256MB
-s3_bucket = "scribe-ledger"
-s3_region = "us-east-1"
-s3_endpoint = "http://localhost:9000"  # MinIO for development
+segment_size = 1048576      # 1MB segments
+max_cache_size = 268435456  # 256MB cache
 
 [consensus]
 election_timeout = 10
 heartbeat_timeout = 3
-max_log_entries = 1000
-
-[network]
-listen_addr = "127.0.0.1"
-client_port = 8080          # HTTP API port for client requests
-raft_tcp_port = 8081        # Dedicated TCP port for Raft consensus
 ```
 
-#### Multi-Node Cluster Configuration
-For production deployments, use the provided cluster configuration files:
-- `config-node1.toml` - Primary leader node (HTTP: 8080, Raft TCP: 8081)
-- `config-node2.toml` - Follower node (HTTP: 8090, Raft TCP: 8082)
-- `config-node3.toml` - Follower node (HTTP: 8100, Raft TCP: 8083)
+### Environment Variables
 
-Each node configuration includes:
-- **Separate ports**: HTTP API port for client communication and dedicated TCP port for Raft consensus
-- **Cluster membership**: Peer discovery and automatic leader election
-- **S3 integration**: Shared MinIO/S3 storage for distributed persistence
-- **Health monitoring**: Heartbeat and failure detection mechanisms
-
-### Development
-
-For development, use standard Cargo commands:
+Override configuration using environment variables with the `SCRIBE_` prefix:
 
 ```bash
-# Build the project
-cargo build
+export SCRIBE_NODE_ID=2
+export SCRIBE_NETWORK_CLIENT_PORT=8090
+export SCRIBE_NETWORK_RAFT_TCP_PORT=8082
 
-# Build in release mode
-cargo build --release
-
-# Run tests
-cargo test
-
-# Format code
-cargo fmt
-
-# Run lints
-cargo clippy
+cargo run --bin scribe-node
 ```
 
----
+**Configuration Demo:**
+```bash
+cargo run --example config_demo
+```
 
-## 📋 Current Features
+This demonstrates:
+- Loading TOML configuration files
+- Environment variable overrides
+- Configuration validation
+- Error handling
 
-### ✅ Implemented
-- **HTTP API Server** - RESTful API for data storage and retrieval
-- **Local Storage** - Sled embedded database for persistent key-value storage (hot tier)
-- **S3 Cold Storage** - Complete S3-compatible storage with automatic flush and recovery
-- **Hybrid Architecture** - Multi-tier storage with local cache + durable S3 backend
-- **Advanced Distributed Consensus** - Production-ready Raft cluster with TCP + HTTP dual transport
-- **Dynamic Cluster Management** - Join/leave operations with leadership transfer and auto-discovery
-- **Cluster Discovery Service** - Automatic node discovery and health monitoring
-- **Fault Tolerance** - Comprehensive failure handling with graceful node recovery
-- **Manifest Synchronization** - Distributed metadata management with strong consistency
-- **Async Operations** - High-performance asynchronous I/O with Tokio
-- **Error Handling** - Comprehensive error types and handling
-- **Configuration System** - Flexible TOML + environment variable configuration
-- **Environment Variable Support** - Complete runtime configuration via env vars
-- **MinIO Integration** - Full S3-compatible development environment
-- **E2E Testing Framework** - Python-based multi-node cluster testing
-- **Comprehensive Testing** - Unit, integration, and S3 workflow tests
-- **Merkle Trees** - Complete cryptographic proof generation and verification
+### Multi-Node Configuration
 
-### ✅ Phase 2 Complete: S3 Integration
-- **S3 Cold Storage** - Complete S3-compatible storage integration with MinIO support
-- **Data Recovery** - Automatic data recovery from S3 on startup
-- **Read-through Cache** - Seamless data retrieval from S3 when not in local cache
-- **Background Flush** - Automatic periodic flushing of data to S3
-- **Immutable Segments** - Readonly S3 objects ensuring data immutability
-- **Comprehensive Testing** - Full test suite for S3 integration workflows
+For cluster deployments, configure each node with unique ports and IDs:
 
-### 🎯 Advanced Features
-- **Merkle Tree Verification** - Complete cryptographic proof system for data integrity
-- **Production-Ready Consensus** - Advanced Raft implementation with TCP server and connection pooling
-- **Sophisticated Cluster Management** - Join/leave operations, leadership transfer, and graceful node handling
-- **Dual Transport Architecture** - HTTP API + dedicated TCP server for optimal Raft performance
-- **Auto-Discovery System** - Dynamic cluster formation with health monitoring and failure detection
-- **Connection Management** - Connection pooling, retry logic, and comprehensive error handling
-- **State Machine Replication** - Consistent manifest updates with distributed consensus guarantees
+- **Node 1**: `config-node1.toml` - HTTP: 8080, Raft: 8081
+- **Node 2**: `config-node2.toml` - HTTP: 8090, Raft: 8082  
+- **Node 3**: `config-node3.toml` - HTTP: 8100, Raft: 8083
 
-### 🚧 Future Enhancements
-- **Multi-Region Support** - Cross-region data replication and disaster recovery
-- **Advanced Monitoring** - Metrics, alerts, and observability dashboards
-- **Security Hardening** - Authentication, authorization, and encryption at rest
-- **Performance Optimization** - Log compaction, batch operations, and caching improvements
+## HTTP API
 
----
+### Data Operations
 
-## 🧪 Testing
+**Store Data (PUT)**
+```bash
+curl -X PUT http://localhost:8080/my-key \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "my value data"
+```
+
+**Retrieve Data (GET)**
+```bash
+curl http://localhost:8080/my-key
+```
+
+**Delete Data (DELETE)**
+```bash
+curl -X DELETE http://localhost:8080/my-key
+```
+
+### Cluster Management
+
+**Check Health**
+```bash
+curl http://localhost:8080/health
+```
+
+**View Metrics**
+```bash
+curl http://localhost:8080/metrics
+```
+
+**Cluster Status**
+```bash
+curl http://localhost:8080/cluster/status
+```
+
+**List Members**
+```bash
+curl http://localhost:8080/cluster/members
+```
+
+**Get Leader**
+```bash
+curl http://localhost:8080/cluster/leader
+```
+
+## Storage Backend
+
+### Local Storage with Sled
+
+The embedded Sled database provides high-performance local storage:
+
+```rust
+use hyra_scribe_ledger::SimpleScribeLedger;
+
+fn main() -> anyhow::Result<()> {
+    // Create a new storage instance
+    let ledger = SimpleScribeLedger::new("./my_data")?;
+    
+    // Store data
+    ledger.put("user:alice", "Alice Smith")?;
+    ledger.put("user:bob", "Bob Johnson")?;
+    
+    // Retrieve data
+    if let Some(value) = ledger.get("user:alice")? {
+        println!("Found: {}", String::from_utf8_lossy(&value));
+    }
+    
+    // Flush to disk
+    ledger.flush()?;
+    
+    Ok(())
+}
+```
+
+**Run the basic example:**
+```bash
+cargo run --example basic_usage
+```
+
+**Interactive CLI:**
+```bash
+cargo run --example cli_store
+```
+
+The CLI provides an interactive shell with commands:
+- `put <key> <value>` - Store a key-value pair
+- `get <key>` - Retrieve a value
+- `list` - Show number of stored keys
+- `clear` - Remove all data
+- `quit` - Exit
+
+### Segment-Based Storage
+
+Data is organized into segments for efficient management:
+
+- Segments group related key-value pairs
+- Automatic segment creation based on size thresholds
+- Serialization support for persistence
+- Foundation for S3 archival
+
+**Test coverage:**
+```bash
+# Storage layer tests
+cargo test storage_tests
+
+# Sled engine tests
+cargo test sled_engine_tests
+
+# Segment tests
+cargo test segment
+```
+
+## S3 Cold Storage
+
+### Setup with MinIO (Local Development)
+
+```bash
+# Start MinIO
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+
+# Create bucket
+aws --endpoint-url http://localhost:9000 s3 mb s3://my-bucket
+```
+
+### S3 Configuration
+
+Add S3 settings to your `config.toml`:
+
+```toml
+[storage.s3]
+bucket = "my-bucket"
+region = "us-east-1"
+endpoint = "http://localhost:9000"    # MinIO
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+path_style = true                      # Required for MinIO
+```
+
+### Data Tiering
+
+Configure automatic archival to S3:
+
+```toml
+[storage.tiering]
+age_threshold_secs = 3600              # Archive after 1 hour
+enable_compression = true
+compression_level = 6                  # 0-9 (balanced)
+enable_auto_archival = true
+archival_check_interval_secs = 300    # Check every 5 minutes
+```
+
+**Features:**
+- Automatic age-based archival
+- Gzip compression (configurable levels)
+- Read-through caching
+- Metadata storage in S3
+- Full lifecycle management
+
+**Documentation:**
+- [S3 Storage Guide](docs/S3_STORAGE.md)
+- [Archival & Tiering Guide](docs/ARCHIVAL_TIERING.md)
+
+**Test coverage:**
+```bash
+# S3 integration tests (requires MinIO)
+cargo test s3_storage_tests -- --ignored
+
+# Archival tests
+cargo test segment_archival -- --ignored
+
+# Tiering tests
+cargo test data_tiering -- --ignored
+```
+
+## Distributed Consensus
+
+### OpenRaft Integration
+
+The cluster uses OpenRaft for distributed coordination:
+
+- **Leader Election:** Automatic leader selection
+- **Log Replication:** Strong consistency across nodes
+- **Membership Changes:** Dynamic join/leave operations
+- **Failure Recovery:** Automatic failover on node failures
+
+**Test coverage:**
+```bash
+# Consensus layer tests
+cargo test consensus
+
+# Multi-node cluster tests
+cargo test cluster
+```
+
+### Node Discovery
+
+Automatic cluster formation with discovery service:
+
+- UDP broadcast for peer discovery
+- Heartbeat protocol for health monitoring
+- Failure detection and recovery
+- Dynamic peer list management
+
+```bash
+# Discovery service tests
+cargo test discovery
+```
+
+### Data Replication
+
+**Write Replication:**
+1. Client writes to any node
+2. Leader receives request (forwarded if needed)
+3. Leader proposes via Raft
+4. Data replicated to quorum
+5. Applied on all nodes
+6. Success returned to client
+
+**Read Consistency:**
+- Reads served from local storage (low latency)
+- Eventual consistency across cluster
+- Fallback to S3 for cold data
+- Transparent data recovery
+
+**Example across cluster:**
+```bash
+# Start cluster
+./scripts/start-cluster.sh
+
+# Write to different nodes (all forwarded to leader)
+curl -X PUT http://localhost:8080/key1 --data "value1"
+curl -X PUT http://localhost:8090/key2 --data "value2"
+curl -X PUT http://localhost:8100/key3 --data "value3"
+
+# Read from any node (data is replicated)
+curl http://localhost:8080/key1
+curl http://localhost:8090/key2
+curl http://localhost:8100/key3
+```
+
+**Test coverage:**
+```bash
+# Write path tests
+cargo test write_request
+
+# Read path tests
+cargo test read_request
+
+# Data consistency tests
+cargo test consistency
+```
+
+## Deployment
+
+### Using Shell Scripts
+
+```bash
+# Start cluster
+./scripts/start-cluster.sh
+
+# Test cluster functionality
+./scripts/test-cluster.sh
+
+# Stop cluster
+./scripts/stop-cluster.sh
+```
+
+### Using Docker Compose
+
+```bash
+# Start multi-node cluster
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop cluster
+docker-compose down
+```
+
+### Using Systemd (Production)
+
+```bash
+# Install service files
+sudo cp scripts/systemd/scribe-node-*.service /etc/systemd/system/
+
+# Start services
+sudo systemctl start scribe-node-1
+sudo systemctl start scribe-node-2
+sudo systemctl start scribe-node-3
+
+# Enable on boot
+sudo systemctl enable scribe-node-{1,2,3}
+
+# Check status
+sudo systemctl status scribe-node-1
+```
+
+See [Systemd Deployment Guide](scripts/systemd/README.md) for details.
+
+## Testing
 
 ### Unit & Integration Tests
-Run the comprehensive Rust test suite:
 
 ```bash
 # Run all tests
 cargo test
 
-# Run tests with output
+# Run with output
 cargo test -- --nocapture
 
-# Run specific test modules
+# Run specific modules
 cargo test storage
 cargo test consensus
-cargo test crypto
+cargo test http_tests
 ```
 
 ### End-to-End Tests
 
-**Functional E2E Tests:**
+**Python E2E Test Framework:**
+
 ```bash
-# Multi-node cluster functionality
+# Install dependencies
+pip install -r tests/e2e/requirements.txt
+
+# Build binary
+cargo build --bin scribe-node
+
+# Run E2E tests
 python3 tests/e2e/cluster_e2e_test.py
 ```
 
-**Alternative: Using Scripts**
+**Test Coverage:**
+- Health checks across all nodes
+- Node connectivity verification
+- Data replication testing
+- Metrics endpoint validation
+- Concurrent operations (50+ parallel)
+- Performance benchmarking
+- Stress testing (100+ operations)
+
+See [E2E Test Guide](tests/e2e/README.md) for details.
+
+**Alternative using scripts:**
 ```bash
-# Start the cluster
 ./scripts/start-cluster.sh
-
-# Run tests (in another terminal)
 ./scripts/test-cluster.sh
-
-# Stop the cluster
 ./scripts/stop-cluster.sh
 ```
 
-The test suite includes:
-- **Unit tests** for core functionality
-- **Consensus tests** for Raft cluster behavior
-- **Integration tests** for HTTP endpoints
-- **Storage tests** including S3 integration
-- **Cryptographic tests** for Merkle tree verification
-- **E2E tests** for multi-node cluster scenarios
-- **Configuration validation** and environment variable tests
+### Test Organization
 
----
+- `tests/storage_tests.rs` - Storage layer tests
+- `tests/consensus_tests.rs` - Raft consensus tests
+- `tests/http_tests.rs` - HTTP API tests
+- `tests/cluster_tests.rs` - Multi-node cluster tests
+- `tests/consistency_tests.rs` - Data consistency tests
+- `tests/s3_storage_tests.rs` - S3 integration tests
+- `tests/e2e/` - End-to-end test suite
 
-## 🤝 Contributing
+## Examples
 
-We welcome contributions from the community! Whether you're fixing a bug, improving documentation, or proposing a new feature, your help is valued.
+### Basic Usage
 
-Please read our `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
+```bash
+cargo run --example basic_usage
+```
 
-**How to contribute:**
+Simple example demonstrating:
+- Creating a storage instance
+- Storing and retrieving data
+- Flushing to disk
+
+### Interactive CLI
+
+```bash
+cargo run --example cli_store
+```
+
+Interactive command-line interface with:
+- `put <key> <value>` - Store data
+- `get <key>` - Retrieve data
+- `list` - Show key count
+- `clear` - Remove all data
+- `quit` - Exit application
+
+### Configuration Demo
+
+```bash
+cargo run --example config_demo
+```
+
+Demonstrates:
+- Loading TOML configuration
+- Environment variable overrides
+- Configuration validation
+- Error handling
+
+### Data Types
+
+```bash
+cargo run --example data_types
+```
+
+Shows:
+- Request/Response types
+- Serialization with Serde
+- Type system usage
+
+## Error Handling
+
+Comprehensive error types covering:
+
+- **Storage Errors:** Sled operations, I/O failures
+- **Consensus Errors:** Raft operations, leadership issues
+- **Network Errors:** Connection failures, timeouts
+- **Configuration Errors:** Invalid settings, missing files
+- **Serialization Errors:** JSON/binary encoding issues
+
+All errors implement proper context and are converted to user-friendly messages.
+
+**Test coverage:**
+```bash
+# Error handling tests
+cargo test error
+
+# Type system tests
+cargo test types
+```
+
+## Manifest Management
+
+The manifest tracks segment metadata across the cluster:
+
+- Segment locations (local or S3)
+- Segment metadata (size, timestamp, checksums)
+- Merkle roots for cryptographic verification
+- Distributed updates via Raft consensus
+- Strong consistency guarantees
+
+**Test coverage:**
+```bash
+cargo test manifest
+```
+
+## Features
+
+### ✅ Implemented
+
+- **HTTP API Server** - RESTful API for data operations
+- **Local Storage** - Sled embedded database (hot tier)
+- **S3 Cold Storage** - Complete S3-compatible storage
+- **Hybrid Architecture** - Multi-tier storage system
+- **Distributed Consensus** - OpenRaft cluster coordination
+- **Dynamic Clustering** - Join/leave operations, auto-discovery
+- **Node Discovery** - Automatic cluster formation
+- **Fault Tolerance** - Comprehensive failure handling
+- **Manifest System** - Distributed metadata management
+- **Async Operations** - High-performance async I/O
+- **Configuration System** - TOML + environment variables
+- **Error Handling** - Comprehensive error types
+- **E2E Testing** - Python-based cluster testing
+- **Deployment Tools** - Scripts, Docker, systemd support
+
+### 🚧 Future Enhancements
+
+- Multi-region replication
+- Advanced monitoring and metrics
+- Enhanced security (TLS, authentication)
+- Performance optimizations
+- Log compaction and snapshots
+
+## Development
+
+### Building from Source
+
+```bash
+# Debug build
+cargo build
+
+# Release build (optimized)
+cargo build --release
+
+# Format code
+cargo fmt
+
+# Lint code
+cargo clippy
+```
+
+### Running Tests During Development
+
+```bash
+# Run tests on save (install cargo-watch first)
+cargo watch -x test
+
+# Run specific test
+cargo test test_name
+
+# Run tests with verbose output
+cargo test -- --nocapture --test-threads=1
+```
+
+## Performance
+
+### Optimizations
+
+- **Async I/O:** Tokio runtime for concurrent operations
+- **Connection Pooling:** Reused connections for S3
+- **Caching:** Configurable local cache (default 256MB)
+- **Compression:** Gzip compression for S3 segments
+- **Batching:** Request batching where applicable
+- **High Throughput Mode:** Optimized Sled configuration
+
+### Benchmarks
+
+Run performance benchmarks:
+
+```bash
+cargo bench
+```
+
+Benchmark categories:
+- Storage operations (put/get/delete)
+- S3 operations (upload/download)
+- Consensus operations
+- HTTP endpoint latency
+
+## Troubleshooting
+
+### Common Issues
+
+**Port Already in Use:**
+```bash
+# Stop existing cluster
+./scripts/stop-cluster.sh
+
+# Check for processes
+lsof -i :8080,8090,8100
+```
+
+**Build Errors:**
+```bash
+# Clean build
+cargo clean
+cargo build
+```
+
+**Test Failures:**
+```bash
+# Check logs
+ls -la logs/
+
+# Run tests individually
+cargo test --test storage_tests
+```
+
+**S3 Connection Issues:**
+- Verify MinIO is running
+- Check endpoint and credentials
+- Ensure bucket exists
+- Verify network connectivity
+
+## Contributing
+
+Contributions are welcome! Please:
+
 1. Fork the repository
-2. Create a new branch (`git checkout -b feature/YourFeature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes
+4. Run tests (`cargo test`)
+5. Format code (`cargo fmt`)
+6. Lint code (`cargo clippy`)
+7. Commit changes (`git commit -am 'Add feature'`)
+8. Push to branch (`git push origin feature/your-feature`)
+9. Open a Pull Request
 
----
+## License
 
-## 📄 License
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
-Hyra Scribe Ledger is distributed under the terms of the MIT license.
+## Acknowledgments
 
-See the [LICENSE](LICENSE) file for details.
+Hyra Scribe Ledger is built using OpenRaft for modern async Rust patterns and optimized performance.
