@@ -61,6 +61,10 @@ harness = false
 name = "archival_benchmark"
 harness = false
 
+[[bench]]
+name = "crypto_benchmark"
+harness = false
+
 [[example]]
 name = "basic_usage"
 path = "examples/basic_usage.rs"
