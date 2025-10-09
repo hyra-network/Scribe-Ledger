@@ -285,6 +285,7 @@ fn test_segment_metadata_serialization() {
         compressed_size: 1024,
         is_compressed: true,
         entry_count: 50,
+        merkle_root: vec![1, 2, 3, 4],
     };
 
     let json = serde_json::to_string(&metadata).unwrap();
@@ -293,5 +294,6 @@ fn test_segment_metadata_serialization() {
     assert_eq!(deserialized.segment_id, metadata.segment_id);
     assert_eq!(deserialized.original_size, metadata.original_size);
     assert_eq!(deserialized.compressed_size, metadata.compressed_size);
+    assert_eq!(deserialized.merkle_root, metadata.merkle_root);
     assert_eq!(deserialized.entry_count, metadata.entry_count);
 }
