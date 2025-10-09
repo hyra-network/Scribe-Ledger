@@ -169,21 +169,23 @@ Each node configuration includes:
 
 ### Development
 
-For development, use the provided development and testing scripts:
+For development, use standard Cargo commands:
 
 ```bash
-# Development commands
-./dev.sh build    # Build the project
-./dev.sh test     # Run tests
-./dev.sh fmt      # Format code
-./dev.sh clippy   # Run lints
+# Build the project
+cargo build
 
-# Comprehensive testing
-./test_runner.sh unit           # Run unit tests only
-./test_runner.sh performance    # Run performance tests
-./test_runner.sh stress         # Run stress tests
-./test_runner.sh server         # Start server and run all performance tests
-./test_runner.sh all           # Run all tests (requires running server)
+# Build in release mode
+cargo build --release
+
+# Run tests
+cargo test
+
+# Format code
+cargo fmt
+
+# Run lints
+cargo clippy
 ```
 
 ---
@@ -252,52 +254,33 @@ cargo test consensus
 cargo test crypto
 ```
 
-### End-to-End & Performance Tests
-Navigate to the E2E testing directory:
-
-```bash
-cd tests/e2e
-```
+### End-to-End Tests
 
 **Functional E2E Tests:**
 ```bash
 # Multi-node cluster functionality
-python3 e2e_test.py
+python3 tests/e2e/cluster_e2e_test.py
 ```
 
-**Performance Benchmarks:**
+**Alternative: Using Scripts**
 ```bash
-# Comprehensive performance analysis
-python3 benchmark.py
+# Start the cluster
+./scripts/start-cluster.sh
 
-# Quick performance check
-python3 quick_perf.py
+# Run tests (in another terminal)
+./scripts/test-cluster.sh
 
-# Stress testing under load
-python3 stress_test.py [server_url] [duration_seconds]
-```
-
-**Performance Test Examples:**
-```bash
-# Quick 30-second performance test
-python3 quick_perf.py
-
-# Full benchmark suite (15s per test)
-python3 benchmark.py
-
-# 60-second stress test with high concurrency
-python3 stress_test.py http://localhost:8080 60
+# Stop the cluster
+./scripts/stop-cluster.sh
 ```
 
 The test suite includes:
-- **Unit tests** for core functionality (34 tests)
-- **Consensus tests** for Raft cluster behavior (3 tests)
+- **Unit tests** for core functionality
+- **Consensus tests** for Raft cluster behavior
 - **Integration tests** for HTTP endpoints
-- **Storage tests** including S3 integration (7 S3-specific tests)
-- **Cryptographic tests** for Merkle tree verification (10 tests)
+- **Storage tests** including S3 integration
+- **Cryptographic tests** for Merkle tree verification
 - **E2E tests** for multi-node cluster scenarios
-- **Performance benchmarks** with detailed metrics and tabular results
-- **Stress tests** for high-load scenarios and system limits
 - **Configuration validation** and environment variable tests
 
 ---
