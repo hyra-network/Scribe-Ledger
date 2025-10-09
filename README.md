@@ -190,6 +190,768 @@ cargo clippy
 
 ---
 
+## 📚 Tutorials & Usage Guides
+
+This section provides comprehensive tutorials for all implemented features across Phases 1-9 of the development roadmap. Each tutorial shows you how to use the corresponding functionality with practical examples.
+
+### Table of Contents
+
+- [Phase 1: Foundation & Configuration](#phase-1-foundation--configuration)
+  - [Task 1.1: Project Setup](#task-11-project-setup)
+  - [Task 1.2: Configuration System](#task-12-configuration-system)
+  - [Task 1.3: Error Handling & Types](#task-13-error-handling--types)
+- [Phase 2: Storage Layer](#phase-2-storage-layer)
+  - [Task 2.1: Storage Backend](#task-21-storage-backend)
+  - [Task 2.2: Storage Tests](#task-22-storage-tests)
+  - [Task 2.3: Segment-based Storage](#task-23-segment-based-storage)
+- [Phase 3: OpenRaft Consensus](#phase-3-openraft-consensus)
+- [Phase 4: Manifest Management](#phase-4-manifest-management)
+- [Phase 5: HTTP API Server](#phase-5-http-api-server)
+- [Phase 6: S3 Cold Storage Integration](#phase-6-s3-cold-storage-integration)
+- [Phase 7: Node Discovery & Cluster Formation](#phase-7-node-discovery--cluster-formation)
+- [Phase 8: Write Path & Data Replication](#phase-8-write-path--data-replication)
+- [Phase 9: Binary & Multi-Node Deployment](#phase-9-binary--multi-node-deployment)
+
+---
+
+### Phase 1: Foundation & Configuration
+
+Phase 1 established the project foundation with configuration management, error handling, and type systems.
+
+#### Task 1.1: Project Setup
+
+**What was implemented:**
+- Complete project structure with OpenRaft dependencies
+- Directory organization: `src/{consensus/, storage/, network/, manifest/, config/}`
+- Build system with Cargo.toml configuration
+
+**How to use:**
+
+```bash
+# Clone and build the project
+git clone https://github.com/amogusdrip285/simple-scribe-ledger.git
+cd simple-scribe-ledger
+
+# Build in debug mode
+cargo build
+
+# Build optimized release
+cargo build --release
+
+# Run tests to verify setup
+cargo test
+```
+
+**Example files:**
+- See: [`Cargo.toml`](Cargo.toml) - Project dependencies and configuration
+- See: [`src/lib.rs`](src/lib.rs) - Main library entry point
+
+---
+
+#### Task 1.2: Configuration System
+
+**What was implemented:**
+- TOML-based configuration system
+- Environment variable overrides (SCRIBE_* prefix)
+- Multi-node configuration support
+- Validation and default values
+
+**How to use:**
+
+Run the configuration demo to see all features:
+
+```bash
+cargo run --example config_demo
+```
+
+**Configuration file example:**
+
+```toml
+# config.toml
+[node]
+id = 1
+address = "127.0.0.1:8001"
+data_dir = "./data"
+
+[storage]
+segment_size = 1048576          # 1MB
+max_cache_size = 268435456      # 256MB
+
+[consensus]
+election_timeout = 10
+heartbeat_timeout = 3
+
+[network]
+listen_addr = "127.0.0.1"
+client_port = 8080              # HTTP API
+raft_tcp_port = 8081            # Raft consensus
+```
+
+**Environment variable overrides:**
+
+```bash
+# Override configuration with environment variables
+export SCRIBE_NODE_ID=2
+export SCRIBE_NETWORK_CLIENT_PORT=8090
+export SCRIBE_NETWORK_RAFT_TCP_PORT=8082
+
+cargo run --bin scribe-node
+```
+
+**Example files:**
+- See: [`examples/config_demo.rs`](examples/config_demo.rs) - Interactive configuration demo
+- See: [`config.toml`](config.toml) - Single-node configuration
+- See: [`config-node1.toml`](config-node1.toml), [`config-node2.toml`](config-node2.toml), [`config-node3.toml`](config-node3.toml) - Multi-node configurations
+
+**Test files:**
+- Run: `cargo test config` - Configuration system tests
+
+---
+
+#### Task 1.3: Error Handling & Types
+
+**What was implemented:**
+- Comprehensive `ScribeError` enum with all error types
+- Type aliases for common types (Key, Value, NodeId, etc.)
+- Request/Response type system for operations
+- Serialization support with Serde
+
+**How to use:**
+
+The error handling system is used throughout the codebase. Here's an example:
+
+```rust
+use hyra_scribe_ledger::config::Config;
+use hyra_scribe_ledger::error::ScribeError;
+use hyra_scribe_ledger::types::{Request, Response};
+
+fn main() -> Result<(), ScribeError> {
+    // Error handling with proper types
+    let config = Config::from_file("config.toml")?;
+    
+    // Type-safe requests
+    let request = Request::Put {
+        key: b"my_key".to_vec(),
+        value: b"my_value".to_vec(),
+    };
+    
+    // Serialize to JSON
+    let json = serde_json::to_string_pretty(&request)?;
+    println!("{}", json);
+    
+    Ok(())
+}
+```
+
+**Example files:**
+- See: [`examples/config_demo.rs`](examples/config_demo.rs) - Demonstrates error handling
+- See: [`examples/data_types.rs`](examples/data_types.rs) - Shows type system usage
+
+**Test files:**
+- Run: `cargo test error` - Error handling tests
+- Run: `cargo test types` - Type system tests
+
+---
+
+### Phase 2: Storage Layer
+
+Phase 2 implemented the local storage layer with Sled embedded database and segment-based storage architecture.
+
+#### Task 2.1: Storage Backend
+
+**What was implemented:**
+- `StorageBackend` trait for storage abstraction
+- `SledStorage` implementation with async wrappers
+- Basic operations: put, get, delete, flush, snapshot
+
+**How to use:**
+
+Run the basic usage example:
+
+```bash
+cargo run --example basic_usage
+```
+
+**Code example:**
+
+```rust
+use hyra_scribe_ledger::SimpleScribeLedger;
+
+fn main() -> anyhow::Result<()> {
+    // Create a new storage instance
+    let ledger = SimpleScribeLedger::new("./my_data")?;
+    
+    // Store data
+    ledger.put("user:alice", "Alice Smith")?;
+    ledger.put("user:bob", "Bob Johnson")?;
+    
+    // Retrieve data
+    if let Some(value) = ledger.get("user:alice")? {
+        println!("Found: {}", String::from_utf8_lossy(&value));
+    }
+    
+    // Flush to disk
+    ledger.flush()?;
+    
+    Ok(())
+}
+```
+
+**Example files:**
+- See: [`examples/basic_usage.rs`](examples/basic_usage.rs) - Simple storage usage
+- See: [`examples/cli_store.rs`](examples/cli_store.rs) - Interactive CLI application
+
+**Test files:**
+- Run: `cargo test storage_tests` - Basic storage operations
+- Run: `cargo test sled_engine` - Sled-specific tests
+
+---
+
+#### Task 2.2: Storage Tests
+
+**What was implemented:**
+- Comprehensive test suite for storage operations
+- Tests for concurrent operations, large data, persistence
+- Edge case handling (empty keys, Unicode, etc.)
+
+**How to run tests:**
+
+```bash
+# Run all storage tests
+cargo test storage
+
+# Run with output to see detailed results
+cargo test storage -- --nocapture
+
+# Run specific test modules
+cargo test storage_tests::
+cargo test sled_engine_tests::
+```
+
+**Test coverage includes:**
+- Basic put/get/delete operations
+- Large data handling (10MB+ values)
+- Concurrent operations (100+ parallel requests)
+- Persistence across restarts
+- Unicode and special characters
+- Error cases and edge conditions
+
+**Test files:**
+- See: [`tests/storage_tests.rs`](tests/storage_tests.rs) - Storage layer tests
+- See: [`tests/sled_engine_tests.rs`](tests/sled_engine_tests.rs) - Sled engine tests
+
+---
+
+#### Task 2.3: Segment-based Storage
+
+**What was implemented:**
+- `Segment` data structure for grouping key-value pairs
+- Segment serialization/deserialization
+- Segment manager for tracking active/archived segments
+- Foundation for S3 archival (Phase 6)
+
+**How to use:**
+
+Segments are used internally for data organization and archival:
+
+```rust
+use hyra_scribe_ledger::storage::segment::{Segment, SegmentManager};
+use std::collections::HashMap;
+
+// Create a segment
+let mut data = HashMap::new();
+data.insert(b"key1".to_vec(), b"value1".to_vec());
+data.insert(b"key2".to_vec(), b"value2".to_vec());
+
+let segment = Segment::from_data(1, data);
+
+// Segment manager tracks multiple segments
+let segment_mgr = SegmentManager::new();
+segment_mgr.add_segment(segment);
+```
+
+**Test files:**
+- Run: `cargo test segment` - Segment-related tests
+
+---
+
+### Phase 3: OpenRaft Consensus
+
+Phase 3 implemented distributed consensus using OpenRaft for cluster coordination.
+
+**What was implemented:**
+- OpenRaft state machine for log replication
+- Persistent Raft storage backend
+- Network layer for Raft RPCs
+- Cluster membership management
+- Leader election and failover
+
+**How to use:**
+
+The consensus layer is automatically used when running multi-node clusters:
+
+```bash
+# Start a 3-node cluster (see Phase 9 for details)
+./scripts/start-cluster.sh
+
+# The nodes automatically:
+# - Elect a leader
+# - Replicate data across nodes
+# - Handle node failures
+# - Maintain consistency
+```
+
+**Test files:**
+- Run: `cargo test consensus` - Consensus layer tests
+- Run: `cargo test cluster` - Multi-node cluster tests
+
+**Key features:**
+- Automatic leader election
+- Log replication across nodes
+- Membership changes (join/leave)
+- Graceful failover on leader failure
+- Strong consistency guarantees
+
+---
+
+### Phase 4: Manifest Management
+
+Phase 4 implemented the manifest system for tracking segment metadata across the cluster.
+
+**What was implemented:**
+- Manifest data structures for segment metadata
+- Manifest manager with consensus integration
+- Merkle root tracking for verification
+- Distributed manifest updates via Raft
+
+**How to use:**
+
+The manifest is managed automatically by the system. It tracks:
+- Segment locations (local or S3)
+- Segment metadata (size, timestamp, checksums)
+- Merkle roots for cryptographic verification
+
+**Test files:**
+- Run: `cargo test manifest` - Manifest management tests
+
+---
+
+### Phase 5: HTTP API Server
+
+Phase 5 implemented the HTTP API server for client interactions.
+
+**What was implemented:**
+- RESTful HTTP API with Actix-web
+- CRUD endpoints (PUT, GET, DELETE)
+- Cluster management endpoints
+- Health and metrics endpoints
+- Binary data support
+
+**How to use:**
+
+Start a node and use the HTTP API:
+
+```bash
+# Start a single node
+cargo run --bin scribe-node
+
+# In another terminal, use curl or any HTTP client:
+
+# Store data
+curl -X PUT http://localhost:8080/my-key \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "my value data"
+
+# Retrieve data
+curl http://localhost:8080/my-key
+
+# Delete data
+curl -X DELETE http://localhost:8080/my-key
+
+# Check health
+curl http://localhost:8080/health
+
+# View metrics
+curl http://localhost:8080/metrics
+
+# Cluster status
+curl http://localhost:8080/cluster/status
+```
+
+**API Endpoints:**
+
+**Data Operations:**
+- `PUT /{key}` - Store a value
+- `GET /{key}` - Retrieve a value
+- `DELETE /{key}` - Delete a value
+
+**Cluster Management:**
+- `GET /cluster/status` - Get cluster status
+- `GET /cluster/members` - List cluster members
+- `GET /cluster/leader` - Get current leader
+- `POST /cluster/join` - Join a node to cluster
+- `POST /cluster/leave` - Remove a node from cluster
+
+**Health & Monitoring:**
+- `GET /health` - Health check endpoint
+- `GET /metrics` - Prometheus-compatible metrics
+
+**Test files:**
+- Run: `cargo test http_tests` - HTTP API tests
+- See: [`tests/http_tests.rs`](tests/http_tests.rs) - Complete API test suite
+
+---
+
+### Phase 6: S3 Cold Storage Integration
+
+Phase 6 implemented S3-compatible object storage for cold data archival.
+
+**What was implemented:**
+- S3 storage backend with AWS SDK
+- MinIO support for local development
+- Automatic segment archival to S3
+- Read-through caching for cold data
+- Compression with configurable levels
+- Data tiering policies based on age
+
+**How to use:**
+
+For detailed S3 usage, see the comprehensive documentation:
+
+📖 **[S3 Storage Documentation](docs/S3_STORAGE.md)** - Complete S3 setup and usage guide  
+📖 **[Archival & Tiering Documentation](docs/ARCHIVAL_TIERING.md)** - Data tiering and archival guide
+
+**Quick Start with MinIO:**
+
+```bash
+# 1. Start MinIO (local S3-compatible storage)
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+
+# 2. Create a bucket
+aws --endpoint-url http://localhost:9000 s3 mb s3://my-bucket
+
+# 3. Configure S3 in config.toml
+cat >> config.toml << EOF
+[storage.s3]
+bucket = "my-bucket"
+region = "us-east-1"
+endpoint = "http://localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+path_style = true
+EOF
+
+# 4. Start the node (S3 archival is automatic)
+cargo run --bin scribe-node
+```
+
+**Configuration example:**
+
+```toml
+[storage.s3]
+bucket = "my-scribe-bucket"
+region = "us-east-1"
+endpoint = "http://localhost:9000"    # MinIO endpoint
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+path_style = true                      # Required for MinIO
+
+[storage.tiering]
+age_threshold_secs = 3600              # Archive after 1 hour
+enable_compression = true
+compression_level = 6                  # Balanced (0-9)
+enable_auto_archival = true
+archival_check_interval_secs = 300    # Check every 5 minutes
+```
+
+**Test files:**
+- Run: `cargo test s3_storage_tests -- --ignored` - S3 integration tests (requires MinIO)
+- Run: `cargo test segment_archival -- --ignored` - Archival tests
+- Run: `cargo test data_tiering -- --ignored` - Tiering tests
+
+---
+
+### Phase 7: Node Discovery & Cluster Formation
+
+Phase 7 implemented automatic node discovery and dynamic cluster formation.
+
+**What was implemented:**
+- Discovery service with UDP broadcast
+- Peer list management
+- Heartbeat protocol for health monitoring
+- Automatic cluster joining
+- Failure detection
+
+**How to use:**
+
+Node discovery is automatic when running multi-node clusters:
+
+```bash
+# Nodes automatically discover each other when started
+./scripts/start-cluster.sh
+
+# The discovery service:
+# - Broadcasts node presence
+# - Discovers peer nodes
+# - Maintains peer list
+# - Detects node failures
+# - Triggers failover when needed
+```
+
+**Test files:**
+- Run: `cargo test discovery` - Discovery service tests
+- See: [`tests/discovery_tests.rs`](tests/discovery_tests.rs) - Discovery test suite
+
+---
+
+### Phase 8: Write Path & Data Replication
+
+Phase 8 implemented the distributed write and read paths with data replication.
+
+**What was implemented:**
+- Write request handling with leader forwarding
+- Read request handling with local-first strategy
+- Data consistency across nodes
+- Request batching and optimization
+- Comprehensive consistency tests
+
+**How to use:**
+
+Write and read operations are transparent across the cluster:
+
+```bash
+# Start a 3-node cluster
+./scripts/start-cluster.sh
+
+# Write to any node (automatically forwarded to leader)
+curl -X PUT http://localhost:8080/key1 --data "value1"    # Node 1
+curl -X PUT http://localhost:8090/key2 --data "value2"    # Node 2
+curl -X PUT http://localhost:8100/key3 --data "value3"    # Node 3
+
+# Read from any node (served locally if available)
+curl http://localhost:8080/key1   # Can read from any node
+curl http://localhost:8090/key2   # Data is replicated
+curl http://localhost:8100/key3   # Consistent across cluster
+```
+
+**How it works:**
+
+**Write Path:**
+1. Client sends PUT to any node
+2. If not leader, request is forwarded to leader
+3. Leader proposes write via Raft consensus
+4. Waits for quorum (majority of nodes)
+5. Applies to local storage on all nodes
+6. Returns success to client
+
+**Read Path:**
+1. Client sends GET to any node
+2. Node checks local storage first (fast path)
+3. If not found locally, checks manifest
+4. Retrieves from S3 if necessary (cold data)
+5. Returns value to client
+
+**Test files:**
+- Run: `cargo test write_request` - Write path tests
+- Run: `cargo test read_request` - Read path tests
+- Run: `cargo test consistency` - Data consistency tests
+- See: [`tests/consistency_tests.rs`](tests/consistency_tests.rs) - Consistency test suite
+
+---
+
+### Phase 9: Binary & Multi-Node Deployment
+
+Phase 9 provided deployment scripts, systemd services, and comprehensive end-to-end testing.
+
+#### Task 9.1: Node Binary
+
+**What was implemented:**
+- Production-ready `scribe-node` binary
+- Command-line argument parsing
+- Configuration file support
+- Graceful shutdown handling
+
+**How to use:**
+
+```bash
+# Build the binary
+cargo build --release --bin scribe-node
+
+# Run with default config
+./target/release/scribe-node
+
+# Run with custom config
+./target/release/scribe-node --config config-node1.toml
+
+# Run with environment variables
+SCRIBE_NODE_ID=2 SCRIBE_NETWORK_CLIENT_PORT=8090 \
+  ./target/release/scribe-node
+```
+
+---
+
+#### Task 9.2: Multi-Node Testing Scripts
+
+**What was implemented:**
+- Cluster management scripts (start/stop/test)
+- Systemd service files for production deployment
+- Docker support (Dockerfile, docker-compose.yml)
+
+**How to use:**
+
+**Using Shell Scripts:**
+
+```bash
+# Start a 3-node cluster
+./scripts/start-cluster.sh
+
+# Test the cluster (health checks, data operations)
+./scripts/test-cluster.sh
+
+# Stop the cluster
+./scripts/stop-cluster.sh
+```
+
+**Using Docker Compose:**
+
+```bash
+# Start cluster with Docker
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop cluster
+docker-compose down
+```
+
+**Using Systemd (Production):**
+
+```bash
+# Install service files
+sudo cp scripts/systemd/scribe-node-*.service /etc/systemd/system/
+
+# Start services
+sudo systemctl start scribe-node-1
+sudo systemctl start scribe-node-2
+sudo systemctl start scribe-node-3
+
+# Enable auto-start on boot
+sudo systemctl enable scribe-node-1
+sudo systemctl enable scribe-node-2
+sudo systemctl enable scribe-node-3
+
+# Check status
+sudo systemctl status scribe-node-1
+```
+
+**Example files:**
+- See: [`scripts/start-cluster.sh`](scripts/start-cluster.sh) - Cluster startup script
+- See: [`scripts/stop-cluster.sh`](scripts/stop-cluster.sh) - Cluster shutdown script
+- See: [`scripts/test-cluster.sh`](scripts/test-cluster.sh) - Cluster testing script
+- See: [`scripts/systemd/README.md`](scripts/systemd/README.md) - Systemd deployment guide
+- See: [`Dockerfile`](Dockerfile) - Docker image definition
+- See: [`docker-compose.yml`](docker-compose.yml) - Multi-node Docker setup
+
+---
+
+#### Task 9.3: End-to-End Tests
+
+**What was implemented:**
+- Python E2E test framework
+- 7 comprehensive test scenarios
+- CI/CD integration with GitHub Actions
+- Stress testing and performance benchmarks
+
+**How to use:**
+
+For detailed E2E test documentation, see:
+
+📖 **[E2E Test Documentation](tests/e2e/README.md)** - Complete testing guide
+
+**Quick Start:**
+
+```bash
+# 1. Install Python dependencies
+pip install -r tests/e2e/requirements.txt
+
+# 2. Build the node binary
+cargo build --bin scribe-node
+
+# 3. Run E2E tests
+python3 tests/e2e/cluster_e2e_test.py
+```
+
+**Test Coverage:**
+
+The E2E test suite includes:
+
+1. **Health Checks** - Verify all nodes respond correctly
+2. **Node Connectivity** - Ensure inter-node communication
+3. **Data Replication** - Test data propagation across nodes
+4. **Metrics Endpoints** - Verify monitoring endpoints
+5. **Concurrent Operations** - Test parallel operations (50+ requests)
+6. **Performance Benchmark** - Measure latency and throughput
+7. **Stress Test** - System behavior under load (100+ operations)
+
+**Running specific tests:**
+
+```bash
+# Run just the health checks
+python3 tests/e2e/cluster_e2e_test.py --test health
+
+# Run with verbose output
+python3 tests/e2e/cluster_e2e_test.py --verbose
+
+# Run performance benchmarks only
+python3 tests/e2e/cluster_e2e_test.py --test benchmark
+```
+
+**Alternative: Using Scripts:**
+
+```bash
+# Start cluster and run all tests
+./scripts/start-cluster.sh
+./scripts/test-cluster.sh
+./scripts/stop-cluster.sh
+```
+
+**Test files:**
+- See: [`tests/e2e/cluster_e2e_test.py`](tests/e2e/cluster_e2e_test.py) - Main E2E test suite
+- See: [`tests/e2e_infrastructure_tests.rs`](tests/e2e_infrastructure_tests.rs) - Infrastructure tests
+- Run: `cargo test e2e_infrastructure` - E2E Rust tests
+
+---
+
+## 🎓 Learning Path
+
+If you're new to the project, we recommend following this learning path:
+
+1. **Start with Phase 1** - Understand configuration and error handling
+   - Run: `cargo run --example config_demo`
+   - Run: `cargo run --example basic_usage`
+
+2. **Explore Phase 2** - Learn storage operations
+   - Run: `cargo run --example cli_store`
+   - Experiment with the interactive CLI
+
+3. **Try Phase 5** - Use the HTTP API
+   - Start: `cargo run --bin scribe-node`
+   - Test with curl commands
+
+4. **Deploy Phase 9** - Run a multi-node cluster
+   - Run: `./scripts/start-cluster.sh`
+   - Explore cluster operations
+
+5. **Advanced: Phase 6** - Set up S3 storage
+   - Follow: [S3 Storage Documentation](docs/S3_STORAGE.md)
+   - Set up MinIO for local testing
+
+---
+
 ## 📋 Current Features
 
 ### ✅ Implemented
