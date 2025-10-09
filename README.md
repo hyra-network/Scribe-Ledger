@@ -1,12 +1,12 @@
-# Simple Scribe Ledger
+# Hyra Scribe Ledger
 
 > **A distributed, immutable, append-only key-value storage system**
 
-Simple Scribe Ledger is a production-ready distributed storage system built with Rust, designed for durability, consistency, and high performance. It combines local storage with S3-compatible object storage to provide a robust multi-tier architecture for persistent data management.
+Hyra Scribe Ledger is a production-ready distributed storage system built with Rust, designed for durability, consistency, and high performance. It combines local storage with S3-compatible object storage to provide a robust multi-tier architecture for persistent data management.
 
 ## Overview
 
-Simple Scribe Ledger provides a complete distributed storage solution with:
+Hyra Scribe Ledger provides a complete distributed storage solution with:
 
 - **Immutability:** Write-once, read-forever append-only storage
 - **Durability:** Multi-tier architecture with local caching and S3 persistence
@@ -107,8 +107,22 @@ The HTTP API will be available at `http://localhost:8080`.
 
 ### Running a Multi-Node Cluster
 
+Start a 3-node cluster by running each node in a separate terminal:
+
 ```bash
-# Use the provided cluster scripts
+# Terminal 1 - Node 1 (Leader)
+cargo run --bin scribe-node -- --config config-node1.toml
+
+# Terminal 2 - Node 2 (Follower)
+cargo run --bin scribe-node -- --config config-node2.toml
+
+# Terminal 3 - Node 3 (Follower)
+cargo run --bin scribe-node -- --config config-node3.toml
+```
+
+Alternatively, use the provided cluster management scripts:
+
+```bash
 ./scripts/start-cluster.sh   # Start 3-node cluster
 ./scripts/test-cluster.sh    # Run cluster tests
 ./scripts/stop-cluster.sh    # Stop the cluster
@@ -760,4 +774,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 
 ## Acknowledgments
 
-Simple Scribe Ledger is inspired by the [Hyra Scribe Ledger](https://github.com/hyra-network/Scribe-Ledger) project, reimplemented with OpenRaft for modern async Rust patterns and optimized performance.
+Hyra Scribe Ledger is built using OpenRaft for modern async Rust patterns and optimized performance.
