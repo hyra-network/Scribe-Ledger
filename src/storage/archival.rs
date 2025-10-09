@@ -67,6 +67,8 @@ pub struct SegmentMetadata {
     pub is_compressed: bool,
     /// Number of key-value pairs
     pub entry_count: usize,
+    /// Merkle root hash for verification
+    pub merkle_root: Vec<u8>,
 }
 
 /// Archival manager for automatic segment archival to S3
@@ -106,6 +108,11 @@ impl ArchivalManager {
         let original_size = segment.size;
         let entry_count = segment.len();
 
+        // Compute Merkle root for verification
+        let merkle_root = segment
+            .compute_merkle_root()
+            .unwrap_or_else(|| vec![0u8; 32]); // Use zeros for empty segments
+
         // Serialize segment
         let data = segment.serialize()?;
 
@@ -128,6 +135,7 @@ impl ArchivalManager {
             compressed_size,
             is_compressed,
             entry_count,
+            merkle_root,
         };
 
         // Store segment data
@@ -387,6 +395,7 @@ mod tests {
             compressed_size: 512,
             is_compressed: true,
             entry_count: 10,
+            merkle_root: vec![1, 2, 3, 4],
         };
 
         let json = serde_json::to_string(&metadata).unwrap();
@@ -396,6 +405,7 @@ mod tests {
         assert_eq!(deserialized.original_size, metadata.original_size);
         assert_eq!(deserialized.compressed_size, metadata.compressed_size);
         assert!(deserialized.is_compressed);
+        assert_eq!(deserialized.merkle_root, metadata.merkle_root);
     }
 
     #[test]

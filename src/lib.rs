@@ -162,6 +162,49 @@ impl SimpleScribeLedger {
             Ok(None)
         }
     }
+
+    /// Get all key-value pairs from the storage
+    ///
+    /// Note: This is an expensive operation that should be used sparingly,
+    /// primarily for Merkle tree construction or full data exports.
+    pub fn get_all(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let mut pairs = Vec::new();
+        for item in self.db.iter() {
+            let (key, value) = item?;
+            pairs.push((key.to_vec(), value.to_vec()));
+        }
+        Ok(pairs)
+    }
+
+    /// Compute Merkle root for all data in the storage
+    ///
+    /// This creates a Merkle tree from all key-value pairs and returns the root hash.
+    pub fn compute_merkle_root(&self) -> Result<Option<Vec<u8>>> {
+        let pairs = self.get_all()?;
+        if pairs.is_empty() {
+            return Ok(None);
+        }
+
+        let tree = crypto::MerkleTree::from_pairs(pairs);
+        Ok(tree.root_hash())
+    }
+
+    /// Generate a Merkle proof for a specific key
+    ///
+    /// Returns a proof that can be used to verify the key-value pair
+    /// is included in the Merkle tree.
+    pub fn generate_merkle_proof<K>(&self, key: K) -> Result<Option<crypto::MerkleProof>>
+    where
+        K: AsRef<[u8]>,
+    {
+        let pairs = self.get_all()?;
+        if pairs.is_empty() {
+            return Ok(None);
+        }
+
+        let tree = crypto::MerkleTree::from_pairs(pairs);
+        Ok(tree.get_proof(key.as_ref()))
+    }
 }
 
 impl Drop for SimpleScribeLedger {

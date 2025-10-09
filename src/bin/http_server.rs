@@ -74,6 +74,20 @@ struct ClusterLeaderResponse {
     leader_id: Option<u64>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct VerifyResponse {
+    key: String,
+    verified: bool,
+    proof: Option<VerifyProof>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct VerifyProof {
+    root_hash: String,
+    siblings: Vec<String>,
+}
+
 // Application state with metrics
 struct AppState {
     ledger: Arc<SimpleScribeLedger>,
@@ -357,6 +371,107 @@ async fn cluster_leader_handler() -> Response {
         .into_response()
 }
 
+// Verification endpoint - generates and verifies Merkle proof for a key
+async fn verify_handler(State(state): State<Arc<AppState>>, Path(key): Path<String>) -> Response {
+    // Check if key exists
+    match state.ledger.get(&key) {
+        Ok(Some(_)) => {
+            // Generate Merkle proof for the key
+            match state.ledger.generate_merkle_proof(&key) {
+                Ok(Some(proof)) => {
+                    // Get the current Merkle root
+                    match state.ledger.compute_merkle_root() {
+                        Ok(Some(root_hash)) => {
+                            // Verify the proof
+                            let verified = hyra_scribe_ledger::crypto::MerkleTree::verify_proof(
+                                &proof, &root_hash,
+                            );
+
+                            // Convert proof to hex strings for JSON response
+                            let siblings_hex: Vec<String> =
+                                proof.siblings.iter().map(|s| hex::encode(s)).collect();
+
+                            (
+                                StatusCode::OK,
+                                Json(VerifyResponse {
+                                    key: key.clone(),
+                                    verified,
+                                    proof: Some(VerifyProof {
+                                        root_hash: hex::encode(root_hash),
+                                        siblings: siblings_hex,
+                                    }),
+                                    error: None,
+                                }),
+                            )
+                                .into_response()
+                        }
+                        Ok(None) => (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(VerifyResponse {
+                                key,
+                                verified: false,
+                                proof: None,
+                                error: Some("Failed to compute Merkle root".to_string()),
+                            }),
+                        )
+                            .into_response(),
+                        Err(e) => (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(VerifyResponse {
+                                key,
+                                verified: false,
+                                proof: None,
+                                error: Some(format!("Error computing Merkle root: {}", e)),
+                            }),
+                        )
+                            .into_response(),
+                    }
+                }
+                Ok(None) => (
+                    StatusCode::NOT_FOUND,
+                    Json(VerifyResponse {
+                        key,
+                        verified: false,
+                        proof: None,
+                        error: Some("Key not found in Merkle tree".to_string()),
+                    }),
+                )
+                    .into_response(),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(VerifyResponse {
+                        key,
+                        verified: false,
+                        proof: None,
+                        error: Some(format!("Failed to generate proof: {}", e)),
+                    }),
+                )
+                    .into_response(),
+            }
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(VerifyResponse {
+                key,
+                verified: false,
+                proof: None,
+                error: Some("Key not found".to_string()),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(VerifyResponse {
+                key,
+                verified: false,
+                proof: None,
+                error: Some(format!("Failed to retrieve key: {}", e)),
+            }),
+        )
+            .into_response(),
+    }
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
     println!("Starting Hyra Scribe Ledger HTTP Server...");
@@ -371,6 +486,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/:key", get(get_handler))
         .route("/:key", put(put_handler))
         .route("/:key", delete(delete_handler))
+        .route("/verify/:key", get(verify_handler))
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
         .route("/cluster/info", get(cluster_status_handler))
@@ -394,6 +510,7 @@ async fn main() -> anyhow::Result<()> {
     println!("  PUT    /:key               - Store a value (JSON or binary)");
     println!("  GET    /:key               - Retrieve a value (JSON or binary)");
     println!("  DELETE /:key               - Delete a key");
+    println!("  GET    /verify/:key        - Verify a key with Merkle proof");
     println!();
     println!("Cluster management endpoints:");
     println!("  POST   /cluster/nodes/add     - Add a node to the cluster");
@@ -413,6 +530,9 @@ async fn main() -> anyhow::Result<()> {
     println!();
     println!("  # Delete:");
     println!("  curl -X DELETE http://localhost:3000/test");
+    println!();
+    println!("  # Verify:");
+    println!("  curl http://localhost:3000/verify/test");
     println!();
     println!("  # Metrics:");
     println!("  curl http://localhost:3000/metrics");

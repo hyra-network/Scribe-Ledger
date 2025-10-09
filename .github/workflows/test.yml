@@ -156,3 +156,6 @@ jobs:
 
     - name: Run crypto tests (Task 10.1)
       run: cargo test --test crypto_tests --verbose
+
+    - name: Run verification tests (Task 10.2)
+      run: cargo test --test verification_tests --verbose

@@ -418,6 +418,59 @@ let entry = ManifestEntry::new(
 );
 ```
 
+**HTTP Verification Endpoint:**
+
+The HTTP server provides a verification endpoint to check data integrity:
+
+```bash
+# Store data
+curl -X PUT http://localhost:3000/test \
+  -H 'Content-Type: application/json' \
+  -d '{"value": "hello world"}'
+
+# Verify the key with Merkle proof
+curl http://localhost:3000/verify/test
+```
+
+**Response:**
+```json
+{
+  "key": "test",
+  "verified": true,
+  "proof": {
+    "root_hash": "a1b2c3d4e5f6...",
+    "siblings": ["e5f6g7h8...", "i9j0k1l2..."]
+  },
+  "error": null
+}
+```
+
+The verification endpoint:
+- Generates a Merkle proof for the requested key
+- Verifies the proof against the current root hash
+- Returns hex-encoded proof data for inspection
+- Provides cryptographic guarantees of data integrity
+
+**Ledger Verification Methods:**
+
+```rust
+use hyra_scribe_ledger::SimpleScribeLedger;
+
+let ledger = SimpleScribeLedger::temp()?;
+ledger.put("alice", "data1")?;
+ledger.put("bob", "data2")?;
+
+// Compute Merkle root of all data
+let root_hash = ledger.compute_merkle_root()?.unwrap();
+
+// Generate proof for specific key
+let proof = ledger.generate_merkle_proof("alice")?.unwrap();
+
+// Verify the proof
+let verified = MerkleTree::verify_proof(&proof, &root_hash);
+assert!(verified);
+```
+
 **Test coverage:**
 ```bash
 # Crypto module tests
@@ -425,6 +478,9 @@ cargo test --lib crypto::
 
 # Comprehensive crypto tests
 cargo test crypto_tests
+
+# Verification endpoint tests
+cargo test verification_tests
 ```
 
 ## Distributed Consensus
