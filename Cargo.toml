@@ -17,7 +17,7 @@ tower-http = { version = "0.5", features = ["cors"] }
 openraft = { version = "0.9", features = ["serde", "storage-v2"] }
 thiserror = "1.0"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 toml = "0.8"
 async-trait = "0.1"
 socket2 = "0.5"
@@ -30,6 +30,10 @@ futures = "0.3"
 flate2 = "1.0"
 sha2 = "0.10"
 hex = "0.4"
+prometheus = "0.13"
+lazy_static = "1.4"
+tracing-appender = "0.2"
+fastrand = "2.0"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

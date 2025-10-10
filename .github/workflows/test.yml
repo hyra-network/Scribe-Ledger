@@ -159,3 +159,12 @@ jobs:
 
     - name: Run verification tests (Task 10.2)
       run: cargo test --test verification_tests --verbose
+
+    - name: Run metrics and logging tests (Task 11.1 & 11.2)
+      run: cargo test --test metrics_logging_tests --verbose
+
+    - name: Test metrics module (Task 11.1)
+      run: cargo test --lib 'metrics::' --verbose
+
+    - name: Test logging module (Task 11.2)
+      run: cargo test --lib 'logging::' --verbose
