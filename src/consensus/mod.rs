@@ -38,10 +38,32 @@ pub struct ConsensusNode {
 }
 
 impl ConsensusNode {
-    /// Create a new consensus node
+    /// Create a new consensus node with default configuration
     pub async fn new(
         node_id: NodeId,
         db: sled::Db,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        // Use default configuration
+        let config = Config {
+            heartbeat_interval: 500,
+            election_timeout_min: 1500,
+            election_timeout_max: 3000,
+            enable_tick: true,
+            enable_heartbeat: true,
+            max_payload_entries: 300,
+            snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(5000),
+            max_in_snapshot_log_to_keep: 1000,
+            ..Default::default()
+        };
+
+        Self::new_with_config(node_id, db, config).await
+    }
+
+    /// Create a new consensus node with custom configuration
+    pub async fn new_with_config(
+        node_id: NodeId,
+        db: sled::Db,
+        config: Config,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Create storage
         let storage = RaftStorage::new(db);
@@ -54,16 +76,6 @@ impl ConsensusNode {
 
         // Create network factory
         let network_factory = NetworkFactory::new(node_id);
-
-        // Create Raft configuration
-        let config = Config {
-            heartbeat_interval: 500,
-            election_timeout_min: 1500,
-            election_timeout_max: 3000,
-            enable_tick: true,
-            enable_heartbeat: true,
-            ..Default::default()
-        };
 
         // Create Raft instance with separate log store and state machine
         let raft = Raft::new(

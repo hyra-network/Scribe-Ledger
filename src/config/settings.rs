@@ -102,6 +102,27 @@ pub struct ConsensusConfig {
     pub election_timeout_ms: u64,
     /// Heartbeat interval in milliseconds
     pub heartbeat_interval_ms: u64,
+    /// Maximum batch size for Raft proposals
+    #[serde(default = "default_max_payload_entries")]
+    pub max_payload_entries: u64,
+    /// Snapshot policy: number of logs to keep in memory before triggering snapshot
+    #[serde(default = "default_snapshot_policy")]
+    pub snapshot_logs_since_last: u64,
+    /// Maximum number of entries to send in a single append entries request
+    #[serde(default = "default_max_in_snapshot_log_to_keep")]
+    pub max_in_snapshot_log_to_keep: u64,
+}
+
+fn default_max_payload_entries() -> u64 {
+    300
+}
+
+fn default_snapshot_policy() -> u64 {
+    5000
+}
+
+fn default_max_in_snapshot_log_to_keep() -> u64 {
+    1000
 }
 
 impl Config {
@@ -145,6 +166,9 @@ impl Config {
             consensus: ConsensusConfig {
                 election_timeout_ms: 1000,
                 heartbeat_interval_ms: 300,
+                max_payload_entries: 300,
+                snapshot_logs_since_last: 5000,
+                max_in_snapshot_log_to_keep: 1000,
             },
         }
     }

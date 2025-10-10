@@ -1,8 +1,9 @@
 //! API module for handling distributed read/write requests
 //!
 //! This module provides the high-level API for distributed operations,
-//! including write request forwarding, batching, read operations, and timeout handling.
+//! including write request forwarding, batching, read operations, caching, and timeout handling.
 
+use crate::cache::HotDataCache;
 use crate::consensus::{AppRequest, AppResponse, ConsensusNode};
 use crate::error::{Result, ScribeError};
 use crate::types::{Key, NodeId, Value};
@@ -19,6 +20,9 @@ const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(10);
 /// Maximum batch size for write operations
 const DEFAULT_BATCH_SIZE: usize = 100;
 
+/// Default cache capacity for hot data
+const DEFAULT_CACHE_CAPACITY: usize = 1000;
+
 /// Read consistency level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReadConsistency {
@@ -31,7 +35,7 @@ pub enum ReadConsistency {
     Stale,
 }
 
-/// Distributed API for handling read/write requests
+/// Distributed API for handling read/write requests with caching
 pub struct DistributedApi {
     /// The consensus node
     consensus: Arc<ConsensusNode>,
@@ -39,15 +43,18 @@ pub struct DistributedApi {
     write_timeout: Duration,
     /// Maximum batch size
     max_batch_size: usize,
+    /// Hot data cache
+    cache: Arc<HotDataCache>,
 }
 
 impl DistributedApi {
-    /// Create a new distributed API
+    /// Create a new distributed API with default cache
     pub fn new(consensus: Arc<ConsensusNode>) -> Self {
         Self {
             consensus,
             write_timeout: DEFAULT_WRITE_TIMEOUT,
             max_batch_size: DEFAULT_BATCH_SIZE,
+            cache: Arc::new(HotDataCache::with_capacity(DEFAULT_CACHE_CAPACITY)),
         }
     }
 
@@ -57,6 +64,7 @@ impl DistributedApi {
             consensus,
             write_timeout,
             max_batch_size: DEFAULT_BATCH_SIZE,
+            cache: Arc::new(HotDataCache::with_capacity(DEFAULT_CACHE_CAPACITY)),
         }
     }
 
@@ -66,6 +74,7 @@ impl DistributedApi {
             consensus,
             write_timeout: DEFAULT_WRITE_TIMEOUT,
             max_batch_size,
+            cache: Arc::new(HotDataCache::with_capacity(DEFAULT_CACHE_CAPACITY)),
         }
     }
 
@@ -79,6 +88,32 @@ impl DistributedApi {
             consensus,
             write_timeout,
             max_batch_size,
+            cache: Arc::new(HotDataCache::with_capacity(DEFAULT_CACHE_CAPACITY)),
+        }
+    }
+
+    /// Create a new distributed API with custom cache capacity
+    pub fn with_cache_capacity(consensus: Arc<ConsensusNode>, cache_capacity: usize) -> Self {
+        Self {
+            consensus,
+            write_timeout: DEFAULT_WRITE_TIMEOUT,
+            max_batch_size: DEFAULT_BATCH_SIZE,
+            cache: Arc::new(HotDataCache::with_capacity(cache_capacity)),
+        }
+    }
+
+    /// Create a new distributed API with full configuration
+    pub fn with_full_config(
+        consensus: Arc<ConsensusNode>,
+        write_timeout: Duration,
+        max_batch_size: usize,
+        cache_capacity: usize,
+    ) -> Self {
+        Self {
+            consensus,
+            write_timeout,
+            max_batch_size,
+            cache: Arc::new(HotDataCache::with_capacity(cache_capacity)),
         }
     }
 
@@ -90,14 +125,22 @@ impl DistributedApi {
     /// 3. If leader, proposes the write to Raft
     /// 4. Waits for consensus with timeout
     /// 5. Returns success once committed
+    /// 6. Invalidates cache entry for the key
     pub async fn put(&self, key: Key, value: Value) -> Result<()> {
-        let request = AppRequest::Put { key, value };
+        let request = AppRequest::Put {
+            key: key.clone(),
+            value: value.clone(),
+        };
 
         // Execute write with timeout
         let result = timeout(self.write_timeout, self.consensus.client_write(request)).await;
 
         match result {
-            Ok(Ok(AppResponse::PutOk)) => Ok(()),
+            Ok(Ok(AppResponse::PutOk)) => {
+                // Update cache with new value
+                self.cache.put(key, value);
+                Ok(())
+            }
             Ok(Ok(AppResponse::Error { message })) => {
                 Err(ScribeError::Consensus(format!("Write failed: {}", message)))
             }
@@ -109,13 +152,17 @@ impl DistributedApi {
 
     /// Delete a key with timeout and automatic forwarding
     pub async fn delete(&self, key: Key) -> Result<()> {
-        let request = AppRequest::Delete { key };
+        let request = AppRequest::Delete { key: key.clone() };
 
         // Execute delete with timeout
         let result = timeout(self.write_timeout, self.consensus.client_write(request)).await;
 
         match result {
-            Ok(Ok(AppResponse::DeleteOk)) => Ok(()),
+            Ok(Ok(AppResponse::DeleteOk)) => {
+                // Remove from cache
+                self.cache.remove(&key);
+                Ok(())
+            }
             Ok(Ok(AppResponse::Error { message })) => Err(ScribeError::Consensus(format!(
                 "Delete failed: {}",
                 message
@@ -131,11 +178,27 @@ impl DistributedApi {
     /// This method provides two consistency levels:
     /// - Linearizable: Reads the latest committed data from the leader
     /// - Stale: Reads from local state machine (may be slightly outdated)
+    ///
+    /// Both modes use the cache for performance optimization.
     pub async fn get(&self, key: Key, consistency: ReadConsistency) -> Result<Option<Value>> {
-        match consistency {
-            ReadConsistency::Linearizable => self.get_linearizable(key).await,
-            ReadConsistency::Stale => self.get_stale(key).await,
+        // Try cache first for stale reads
+        if consistency == ReadConsistency::Stale {
+            if let Some(value) = self.cache.get(&key) {
+                return Ok(Some(value));
+            }
         }
+
+        let result = match consistency {
+            ReadConsistency::Linearizable => self.get_linearizable(key.clone()).await,
+            ReadConsistency::Stale => self.get_stale(key.clone()).await,
+        };
+
+        // Update cache on successful read
+        if let Ok(Some(ref value)) = result {
+            self.cache.put(key, value.clone());
+        }
+
+        result
     }
 
     /// Get a value with linearizable consistency (from leader only)
@@ -200,6 +263,21 @@ impl DistributedApi {
     /// Get consensus metrics
     pub async fn metrics(&self) -> openraft::RaftMetrics<NodeId, openraft::BasicNode> {
         self.consensus.metrics().await
+    }
+
+    /// Clear the hot data cache
+    pub fn clear_cache(&self) {
+        self.cache.clear();
+    }
+
+    /// Get cache statistics
+    pub fn cache_size(&self) -> usize {
+        self.cache.len()
+    }
+
+    /// Get cache capacity
+    pub fn cache_capacity(&self) -> usize {
+        self.cache.capacity()
     }
 }
 

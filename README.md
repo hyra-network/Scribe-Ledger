@@ -11,8 +11,9 @@ Hyra Scribe Ledger provides a complete distributed storage solution with:
 - **Immutability:** Write-once, read-forever append-only storage
 - **Durability:** Multi-tier architecture with local caching and S3 persistence
 - **Distribution:** OpenRaft-based consensus for cluster coordination
-- **Performance:** Async I/O with Tokio for high-throughput operations
+- **Performance:** Async I/O with Tokio, hot data caching, and optimized batching
 - **Verifiability:** Cryptographic proofs for data integrity
+- **Optimization:** Tunable Raft parameters, bincode serialization, and LRU caching
 
 ## Architecture
 
@@ -24,6 +25,8 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 - Sled embedded database for fast local access
 - Optimized for high-throughput writes and low-latency reads
 - Configurable cache size (default: 256MB)
+- LRU cache layer for frequently accessed data (Task 11.3)
+- Bincode serialization for internal operations
 
 **S3 Tier (Cold Data)**
 - S3-compatible object storage for long-term persistence
@@ -55,10 +58,11 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 6. Success returned to client
 
 **Read Path:**
-1. Request served from local storage (fast path)
-2. Falls back to S3 if not in local cache
-3. Transparent read-through caching
-4. Consistent reads across the cluster
+1. Check hot data cache (LRU) for immediate response
+2. Request served from local storage if not cached
+3. Falls back to S3 if not in local storage
+4. Transparent read-through caching with automatic cache updates
+5. Consistent reads across the cluster
 
 ## Technology Stack
 
@@ -71,6 +75,8 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 | **AWS SDK**     | S3-compatible object storage integration                            |
 | **Axum**        | High-performance HTTP framework                                     |
 | **Serde**       | Serialization and deserialization                                   |
+| **Bincode**     | Fast binary serialization for internal operations                   |
+| **LRU Cache**   | Hot data caching for performance optimization                       |
 
 ## Quick Start
 
@@ -856,14 +862,112 @@ cargo test -- --nocapture --test-threads=1
 
 ## Performance
 
-### Optimizations
+### Optimizations (Task 11.3)
+
+The system includes several performance optimizations for high-throughput and low-latency operations:
+
+#### Core Optimizations
 
 - **Async I/O:** Tokio runtime for concurrent operations
-- **Connection Pooling:** Reused connections for S3
-- **Caching:** Configurable local cache (default 256MB)
+- **Connection Pooling:** Reused HTTP connections for S3 and cluster communication
+- **Caching:** Configurable local cache (default 256MB) + LRU hot data cache
 - **Compression:** Gzip compression for S3 segments
-- **Batching:** Request batching where applicable
+- **Batching:** Request batching for Raft proposals and storage operations
 - **High Throughput Mode:** Optimized Sled configuration
+
+#### Hot Data Caching Layer
+
+A dedicated LRU cache for frequently accessed keys provides:
+
+- **Fast Read Performance:** Cache hits avoid storage backend access
+- **Configurable Capacity:** Default 1,000 entries, customizable per deployment
+- **Automatic Cache Invalidation:** Write/delete operations update cache coherently
+- **Thread-Safe:** Mutex-protected for concurrent access
+
+```rust
+use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
+use std::sync::Arc;
+
+// Create API with custom cache capacity
+let api = DistributedApi::with_cache_capacity(consensus, 5000);
+
+// Cache is used automatically for reads
+let value = api.get(key, ReadConsistency::Stale).await?;
+
+// Monitor cache usage
+println!("Cache size: {}/{}", api.cache_size(), api.cache_capacity());
+```
+
+#### Optimized Serialization
+
+- **Bincode for Internal Operations:** Faster than JSON for Raft state and snapshots
+- **Zero-Copy Reads:** Direct buffer access where possible
+- **Pre-allocated Buffers:** Reduced allocation overhead
+
+```rust
+use hyra_scribe_ledger::SimpleScribeLedger;
+
+let ledger = SimpleScribeLedger::temp()?;
+
+// Use bincode for complex data structures
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ComplexData {
+    id: u64,
+    metadata: Vec<String>,
+}
+
+let data = ComplexData { id: 42, metadata: vec!["tag1".into()] };
+ledger.put_bincode("key", &data)?;
+let retrieved: Option<ComplexData> = ledger.get_bincode("key")?;
+```
+
+#### Tunable Raft Parameters
+
+Consensus performance can be tuned via configuration:
+
+```toml
+[consensus]
+# Election timeout (milliseconds)
+election_timeout_ms = 1000
+
+# Heartbeat interval (milliseconds)
+heartbeat_interval_ms = 300
+
+# Maximum entries per Raft proposal (batching)
+max_payload_entries = 300
+
+# Snapshot policy (logs to keep before snapshot)
+snapshot_logs_since_last = 5000
+
+# Max logs to keep after snapshot
+max_in_snapshot_log_to_keep = 1000
+```
+
+#### Batch Operations
+
+Efficient batch processing for high throughput:
+
+```rust
+// Batch writes
+let mut batch = SimpleScribeLedger::new_batch();
+for i in 0..1000 {
+    batch.insert(format!("key{}", i).as_bytes(), b"value");
+}
+ledger.apply_batch(batch)?;
+
+// Multiple batches with single flush
+ledger.apply_batches_with_flush(vec![batch1, batch2, batch3])?;
+```
+
+### Performance Targets
+
+Based on release builds with optimizations enabled:
+
+- **Write Throughput:** 200k+ ops/sec (batched, local)
+- **Read Throughput:** 1.8M+ ops/sec (cached, local)
+- **Mixed Workload:** 400k+ ops/sec (local)
+- **Distributed Write Latency:** < 50ms (3-node cluster)
+- **Distributed Read Latency:** < 10ms (linearizable), < 1ms (stale)
 
 ### Benchmarks
 

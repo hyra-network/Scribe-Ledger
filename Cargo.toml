@@ -34,6 +34,7 @@ prometheus = "0.13"
 lazy_static = "1.4"
 tracing-appender = "0.2"
 fastrand = "2.0"
+lru = "0.12"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
