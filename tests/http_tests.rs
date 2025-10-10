@@ -1,10 +1,8 @@
 use anyhow::Result;
 use hyra_scribe_ledger::SimpleScribeLedger;
-use reqwest;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio;
 
 // Import the HTTP server types and handlers (we'll replicate them for testing)
 use axum::{
@@ -542,7 +540,7 @@ async fn test_metrics_endpoint() -> Result<()> {
     assert_eq!(response.status().as_u16(), 200);
 
     let metrics: MetricsResponse = response.json().await?;
-    assert_eq!(metrics.is_empty, true);
+    assert!(metrics.is_empty);
     assert_eq!(metrics.total_keys, 0);
 
     // Perform some operations
@@ -564,7 +562,7 @@ async fn test_metrics_endpoint() -> Result<()> {
     let response = client.get(format!("{}/metrics", base_url)).send().await?;
     let metrics: MetricsResponse = response.json().await?;
 
-    assert_eq!(metrics.is_empty, false);
+    assert!(!metrics.is_empty);
     assert_eq!(metrics.total_keys, 2);
     assert_eq!(metrics.total_puts, 2);
     assert_eq!(metrics.total_gets, 1);
@@ -771,7 +769,7 @@ async fn test_cluster_status_endpoint() -> Result<()> {
 
     let body: ClusterStatusResponse = response.json().await?;
     assert_eq!(body.node_id, 1);
-    assert_eq!(body.is_leader, true);
+    assert!(body.is_leader);
     assert_eq!(body.current_leader, Some(1));
     assert_eq!(body.state, "Leader");
 

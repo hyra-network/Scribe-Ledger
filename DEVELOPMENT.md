@@ -537,25 +537,27 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 10.2: Manifest Merkle Root Integration
-- [ ] Add merkle_root field to ManifestEntry
-- [ ] Compute Merkle root during segment creation
-- [ ] Store Merkle root in manifest
-- [ ] Implement verification API endpoint
-- [ ] Add GET /verify/:key endpoint
+### Task 10.2: Manifest Merkle Root Integration ✅
+- [x] Add merkle_root field to ManifestEntry
+- [x] Compute Merkle root during segment creation
+- [x] Store Merkle root in manifest
+- [x] Implement verification API endpoint
+- [x] Add GET /verify/:key endpoint
 
-**Deliverables**: Merkle root in manifest
+**Deliverables**: Merkle root in manifest  
+**Status**: ✅ Complete
 
 ---
 
-### Task 10.3: Crypto Tests
-- [ ] Test Merkle tree construction
-- [ ] Test proof generation and verification
-- [ ] Test with various data sizes
-- [ ] Test edge cases
-- [ ] Benchmark performance
+### Task 10.3: Crypto Tests ✅
+- [x] Test Merkle tree construction
+- [x] Test proof generation and verification
+- [x] Test with various data sizes
+- [x] Test edge cases
+- [x] Benchmark performance
 
-**Deliverables**: Cryptographic verification tests
+**Deliverables**: Cryptographic verification tests  
+**Status**: ✅ Complete
 
 ---
 

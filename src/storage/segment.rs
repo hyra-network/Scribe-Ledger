@@ -3,6 +3,7 @@
 //! This module provides segment data structures for buffering writes and
 //! preparing for future S3 integration.
 
+use crate::crypto::MerkleTree;
 use crate::error::{Result, ScribeError};
 use crate::types::{Key, SegmentId, Value};
 use serde::{Deserialize, Serialize};
@@ -98,6 +99,26 @@ impl Segment {
     /// Deserialize a segment from bytes using bincode
     pub fn deserialize(bytes: &[u8]) -> Result<Self> {
         bincode::deserialize(bytes).map_err(|e| ScribeError::Serialization(e.to_string()))
+    }
+
+    /// Compute the Merkle root hash for this segment's data
+    ///
+    /// This creates a Merkle tree from all key-value pairs in the segment
+    /// and returns the root hash for cryptographic verification.
+    pub fn compute_merkle_root(&self) -> Option<Vec<u8>> {
+        if self.data.is_empty() {
+            return None;
+        }
+
+        // Convert HashMap to Vec of (key, value) pairs for MerkleTree
+        let pairs: Vec<(Vec<u8>, Vec<u8>)> = self
+            .data
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        let tree = MerkleTree::from_pairs(pairs);
+        tree.root_hash()
     }
 }
 
@@ -545,5 +566,66 @@ mod tests {
         let ts = current_timestamp();
         assert!(ts > 0);
         assert!(ts < u64::MAX);
+    }
+
+    #[test]
+    fn test_segment_compute_merkle_root_empty() {
+        let segment = Segment::new(1);
+        assert_eq!(segment.compute_merkle_root(), None);
+    }
+
+    #[test]
+    fn test_segment_compute_merkle_root_single_entry() {
+        let mut segment = Segment::new(1);
+        segment.put(b"key1".to_vec(), b"value1".to_vec());
+
+        let merkle_root = segment.compute_merkle_root();
+        assert!(merkle_root.is_some());
+        assert!(!merkle_root.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_segment_compute_merkle_root_multiple_entries() {
+        let mut segment = Segment::new(1);
+        segment.put(b"key1".to_vec(), b"value1".to_vec());
+        segment.put(b"key2".to_vec(), b"value2".to_vec());
+        segment.put(b"key3".to_vec(), b"value3".to_vec());
+
+        let merkle_root = segment.compute_merkle_root();
+        assert!(merkle_root.is_some());
+
+        let root_hash = merkle_root.unwrap();
+        assert_eq!(root_hash.len(), 32); // SHA-256 produces 32-byte hash
+    }
+
+    #[test]
+    fn test_segment_compute_merkle_root_deterministic() {
+        // Same data should produce same Merkle root
+        let mut segment1 = Segment::new(1);
+        segment1.put(b"alice".to_vec(), b"data1".to_vec());
+        segment1.put(b"bob".to_vec(), b"data2".to_vec());
+
+        let mut segment2 = Segment::new(2);
+        segment2.put(b"alice".to_vec(), b"data1".to_vec());
+        segment2.put(b"bob".to_vec(), b"data2".to_vec());
+
+        let root1 = segment1.compute_merkle_root().unwrap();
+        let root2 = segment2.compute_merkle_root().unwrap();
+
+        assert_eq!(root1, root2);
+    }
+
+    #[test]
+    fn test_segment_compute_merkle_root_different_data() {
+        let mut segment1 = Segment::new(1);
+        segment1.put(b"key1".to_vec(), b"value1".to_vec());
+
+        let mut segment2 = Segment::new(1);
+        segment2.put(b"key1".to_vec(), b"value2".to_vec());
+
+        let root1 = segment1.compute_merkle_root().unwrap();
+        let root2 = segment2.compute_merkle_root().unwrap();
+
+        assert_ne!(root1, root2);
     }
 }
