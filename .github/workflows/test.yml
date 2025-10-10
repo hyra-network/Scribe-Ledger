@@ -168,3 +168,9 @@ jobs:
 
     - name: Test logging module (Task 11.2)
       run: cargo test --lib 'logging::' --verbose
+
+    - name: Run performance optimization tests (Task 11.3)
+      run: cargo test --test performance_optimization_tests --verbose
+
+    - name: Test cache module (Task 11.3)
+      run: cargo test --lib 'cache::' --verbose

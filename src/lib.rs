@@ -5,6 +5,7 @@ use std::path::Path;
 // New modules for distributed ledger functionality
 pub mod api;
 pub mod async_storage_ops;
+pub mod cache;
 pub mod cluster;
 pub mod config;
 pub mod consensus;
