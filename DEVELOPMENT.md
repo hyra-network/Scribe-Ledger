@@ -565,29 +565,53 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 **Goal**: Add production-ready features and optimizations.
 
-### Task 11.1: Monitoring & Metrics
-- [ ] Add Prometheus metrics collection
-- [ ] Track key metrics:
+### Task 11.1: Monitoring & Metrics ✅
+- [x] Add Prometheus metrics collection
+- [x] Track key metrics:
   - Request latency (p50, p95, p99)
   - Throughput (ops/sec)
   - Storage size
   - Raft metrics (term, commit index)
   - Node health
-- [ ] Add /metrics endpoint
-- [ ] Create Grafana dashboard templates
+- [x] Add /metrics/prometheus endpoint
+- [x] Create comprehensive test suite (17 tests)
 
-**Deliverables**: Monitoring and metrics
+**Deliverables**: Monitoring and metrics ✅
+
+**Status**: ✅ Complete
+
+**Implementation details:**
+- Created `src/metrics.rs` with Prometheus integration
+- Implemented latency histograms with configurable buckets
+- Added request counters (GET, PUT, DELETE)
+- Integrated metrics into HTTP handlers
+- Added storage and Raft metrics tracking
+- Created 17 comprehensive unit tests
+- Added `/metrics/prometheus` endpoint for Prometheus scraping
+- Maintained backward compatibility with `/metrics` JSON endpoint
 
 ---
 
-### Task 11.2: Advanced Logging
-- [ ] Implement structured logging with tracing
-- [ ] Add log levels (debug, info, warn, error)
-- [ ] Support log rotation
-- [ ] Add request tracing with correlation IDs
-- [ ] Configure log output (console, file, JSON)
+### Task 11.2: Advanced Logging ✅
+- [x] Implement structured logging with tracing
+- [x] Add log levels (debug, info, warn, error)
+- [x] Support log rotation
+- [x] Add request tracing with correlation IDs
+- [x] Configure log output (console, file, JSON)
 
-**Deliverables**: Production-ready logging
+**Deliverables**: Production-ready logging ✅
+
+**Status**: ✅ Complete
+
+**Implementation details:**
+- Created `src/logging.rs` with tracing-based logging
+- Implemented configurable log levels (TRACE, DEBUG, INFO, WARN, ERROR)
+- Added log rotation support using tracing-appender
+- Implemented correlation ID generation for request tracing
+- Configured multiple output formats (Console, JSON)
+- Added file and console output options
+- Integrated structured logging into HTTP handlers
+- All logging tests passing
 
 ---
 

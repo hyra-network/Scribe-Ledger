@@ -187,6 +187,47 @@ For cluster deployments, configure each node with unique ports and IDs:
 
 ## HTTP API
 
+### Monitoring & Metrics
+
+**Health Check**
+```bash
+curl http://localhost:3000/health
+```
+
+**Legacy Metrics (JSON)**
+```bash
+curl http://localhost:3000/metrics
+```
+
+Returns JSON with:
+- Total keys in storage
+- Total GET/PUT/DELETE requests
+- Storage status
+
+**Prometheus Metrics**
+```bash
+curl http://localhost:3000/metrics/prometheus
+```
+
+Returns Prometheus-formatted metrics including:
+- Request latency histograms (p50, p95, p99)
+- Request counters (GET, PUT, DELETE)
+- Throughput metrics (operations/sec)
+- Storage metrics (keys, size)
+- Raft consensus metrics (term, commit index, last applied)
+- Node health status
+- Error counters
+
+**Example Prometheus configuration:**
+```yaml
+scrape_configs:
+  - job_name: 'scribe-ledger'
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/metrics/prometheus'
+    scrape_interval: 15s
+```
+
 ### Data Operations
 
 **Store Data (PUT)**
@@ -772,11 +813,12 @@ cargo test manifest
 - **Error Handling** - Comprehensive error types
 - **E2E Testing** - Python-based cluster testing
 - **Deployment Tools** - Scripts, Docker, systemd support
+- **Prometheus Metrics** - Production-ready monitoring (Task 11.1)
+- **Structured Logging** - Advanced logging with tracing (Task 11.2)
 
 ### 🚧 Future Enhancements
 
 - Multi-region replication
-- Advanced monitoring and metrics
 - Enhanced security (TLS, authentication)
 - Performance optimizations
 - Log compaction and snapshots
