@@ -245,17 +245,6 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 4.3: Manifest Tests
-- [ ] Test manifest updates in single node
-- [ ] Test manifest replication across cluster
-- [ ] Test manifest consistency after node failure
-- [ ] Test concurrent manifest updates
-- [ ] Verify manifest versioning
-
-**Deliverables**: Complete manifest tests
-
----
-
 ## Phase 5: HTTP API Server (3-4 tasks)
 
 **Goal**: Implement REST API for client interactions.
