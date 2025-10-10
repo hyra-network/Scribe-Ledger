@@ -6,11 +6,13 @@ use axum::{
     routing::{delete, get, put},
     Json, Router,
 };
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::{logging, metrics, SimpleScribeLedger};
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Arc};
+use std::time::Instant;
 use tokio;
 use tower_http::cors::CorsLayer;
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PutRequest {
@@ -114,9 +116,18 @@ async fn put_handler(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    let start = Instant::now();
+    let correlation_id = logging::generate_correlation_id();
+
+    debug!(correlation_id = %correlation_id, key = %key, "PUT request received");
+
     state
         .puts
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    // Track metrics
+    metrics::PUT_REQUESTS.inc();
+    metrics::OPS_TOTAL.inc();
 
     // Check content type to determine if we're handling binary or JSON
     let content_type = headers
@@ -135,30 +146,42 @@ async fn put_handler(
                 state.ledger.put(&key, payload.value.as_bytes())
             }
             Err(e) => {
+                warn!(correlation_id = %correlation_id, error = %e, "Invalid JSON payload");
+                metrics::ERRORS_TOTAL.inc();
                 return (
                     StatusCode::BAD_REQUEST,
                     Json(ErrorResponse {
                         error: format!("Invalid JSON payload: {}", e),
                     }),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     };
 
+    let duration = start.elapsed();
+    metrics::PUT_LATENCY.observe(duration.as_secs_f64());
+
     match result {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(serde_json::json!({"status": "ok", "message": "Value stored successfully"})),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to store value: {}", e),
-            }),
-        )
-            .into_response(),
+        Ok(()) => {
+            info!(correlation_id = %correlation_id, key = %key, latency_ms = %duration.as_millis(), "PUT request successful");
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "ok", "message": "Value stored successfully"})),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            error!(correlation_id = %correlation_id, key = %key, error = %e, "PUT request failed");
+            metrics::ERRORS_TOTAL.inc();
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Failed to store value: {}", e),
+                }),
+            )
+                .into_response()
+        }
     }
 }
 
@@ -168,17 +191,30 @@ async fn get_handler(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Response {
+    let start = Instant::now();
+    let correlation_id = logging::generate_correlation_id();
+
+    debug!(correlation_id = %correlation_id, key = %key, "GET request received");
+
     state
         .gets
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    // Track metrics
+    metrics::GET_REQUESTS.inc();
+    metrics::OPS_TOTAL.inc();
 
     let accept = headers
         .get(header::ACCEPT)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/json");
 
-    match state.ledger.get(&key) {
+    let result = match state.ledger.get(&key) {
         Ok(Some(value_bytes)) => {
+            let duration = start.elapsed();
+            metrics::GET_LATENCY.observe(duration.as_secs_f64());
+            info!(correlation_id = %correlation_id, key = %key, latency_ms = %duration.as_millis(), "GET request successful");
+
             if accept.contains("application/octet-stream") {
                 // Return binary data directly
                 (
@@ -198,6 +234,7 @@ async fn get_handler(
                     )
                         .into_response(),
                     Err(_) => {
+                        warn!(correlation_id = %correlation_id, key = %key, "Value is binary data");
                         // If not valid UTF-8, return error
                         (
                             StatusCode::BAD_REQUEST,
@@ -210,15 +247,28 @@ async fn get_handler(
                 }
             }
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(GetResponse { value: None })).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to retrieve value: {}", e),
-            }),
-        )
-            .into_response(),
-    }
+        Ok(None) => {
+            let duration = start.elapsed();
+            metrics::GET_LATENCY.observe(duration.as_secs_f64());
+            debug!(correlation_id = %correlation_id, key = %key, "GET request - key not found");
+            (StatusCode::NOT_FOUND, Json(GetResponse { value: None })).into_response()
+        }
+        Err(e) => {
+            let duration = start.elapsed();
+            metrics::GET_LATENCY.observe(duration.as_secs_f64());
+            error!(correlation_id = %correlation_id, key = %key, error = %e, "GET request failed");
+            metrics::ERRORS_TOTAL.inc();
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Failed to retrieve value: {}", e),
+                }),
+            )
+                .into_response()
+        }
+    };
+
+    result
 }
 
 // DELETE endpoint handler
@@ -227,49 +277,82 @@ async fn get_handler(
 // setup with consensus, deletions would be handled as append-only log entries that
 // mark data as deleted without actually removing it.
 async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<String>) -> Response {
+    let start = Instant::now();
+    let correlation_id = logging::generate_correlation_id();
+
+    debug!(correlation_id = %correlation_id, key = %key, "DELETE request received");
+
     state
         .deletes
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
+    // Track metrics
+    metrics::DELETE_REQUESTS.inc();
+    metrics::OPS_TOTAL.inc();
+
     // Check if key exists first
-    match state.ledger.get(&key) {
+    let result = match state.ledger.get(&key) {
         Ok(Some(_)) => {
             // Key exists, perform deletion by setting to empty (sled doesn't have direct delete)
             // We'll use remove via batch operation
             let mut batch = SimpleScribeLedger::new_batch();
             batch.remove(key.as_bytes());
             match state.ledger.apply_batch(batch) {
-                Ok(()) => (
-                    StatusCode::OK,
-                    Json(
-                        serde_json::json!({"status": "ok", "message": "Key deleted successfully"}),
-                    ),
-                )
-                    .into_response(),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: format!("Failed to delete key: {}", e),
-                    }),
-                )
-                    .into_response(),
+                Ok(()) => {
+                    let duration = start.elapsed();
+                    metrics::DELETE_LATENCY.observe(duration.as_secs_f64());
+                    info!(correlation_id = %correlation_id, key = %key, latency_ms = %duration.as_millis(), "DELETE request successful");
+                    (
+                        StatusCode::OK,
+                        Json(
+                            serde_json::json!({"status": "ok", "message": "Key deleted successfully"}),
+                        ),
+                    )
+                        .into_response()
+                }
+                Err(e) => {
+                    let duration = start.elapsed();
+                    metrics::DELETE_LATENCY.observe(duration.as_secs_f64());
+                    error!(correlation_id = %correlation_id, key = %key, error = %e, "DELETE request failed");
+                    metrics::ERRORS_TOTAL.inc();
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: format!("Failed to delete key: {}", e),
+                        }),
+                    )
+                        .into_response()
+                }
             }
         }
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "Key not found".to_string(),
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Failed to check key: {}", e),
-            }),
-        )
-            .into_response(),
-    }
+        Ok(None) => {
+            let duration = start.elapsed();
+            metrics::DELETE_LATENCY.observe(duration.as_secs_f64());
+            debug!(correlation_id = %correlation_id, key = %key, "DELETE request - key not found");
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "Key not found".to_string(),
+                }),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            let duration = start.elapsed();
+            metrics::DELETE_LATENCY.observe(duration.as_secs_f64());
+            error!(correlation_id = %correlation_id, key = %key, error = %e, "DELETE request failed");
+            metrics::ERRORS_TOTAL.inc();
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Failed to check key: {}", e),
+                }),
+            )
+                .into_response()
+        }
+    };
+
+    result
 }
 
 // Health check endpoint
@@ -280,13 +363,16 @@ async fn health_handler() -> Json<serde_json::Value> {
     }))
 }
 
-// Metrics endpoint
+// Legacy metrics endpoint (JSON format for backward compatibility)
 async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
     let total_keys = state.ledger.len();
     let is_empty = state.ledger.is_empty();
     let total_gets = state.gets.load(std::sync::atomic::Ordering::Relaxed);
     let total_puts = state.puts.load(std::sync::atomic::Ordering::Relaxed);
     let total_deletes = state.deletes.load(std::sync::atomic::Ordering::Relaxed);
+
+    // Update storage metrics for Prometheus
+    metrics::update_storage_metrics(total_keys, 0); // Size calculation would require more work
 
     (
         StatusCode::OK,
@@ -297,6 +383,17 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> Response {
             total_puts,
             total_deletes,
         }),
+    )
+        .into_response()
+}
+
+// Prometheus metrics endpoint
+async fn prometheus_metrics_handler() -> Response {
+    let metrics_text = metrics::get_metrics();
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/plain; version=0.0.4")],
+        metrics_text,
     )
         .into_response()
 }
@@ -474,11 +571,21 @@ async fn verify_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
-    println!("Starting Hyra Scribe Ledger HTTP Server...");
+    // Initialize logging with default configuration
+    let log_config = logging::LogConfig::default();
+    let _guard = logging::init_logging(log_config);
+
+    info!("Starting Hyra Scribe Ledger HTTP Server...");
+
+    // Initialize Prometheus metrics
+    metrics::init_metrics();
+    info!("Metrics system initialized");
 
     // Initialize the ledger with optimized configuration
     let ledger = SimpleScribeLedger::temp()?;
     let app_state = Arc::new(AppState::new(ledger));
+
+    info!("Ledger initialized");
 
     // Build the router with all endpoints - optimized order
     // Place most frequently accessed endpoints first for faster routing
@@ -489,6 +596,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/verify/:key", get(verify_handler))
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
+        .route("/metrics/prometheus", get(prometheus_metrics_handler))
         .route("/cluster/info", get(cluster_status_handler))
         .route("/cluster/nodes", get(cluster_members_handler))
         .route("/cluster/leader/info", get(cluster_leader_handler))
@@ -503,23 +611,24 @@ async fn main() -> anyhow::Result<()> {
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 
-    println!("Server starting on http://0.0.0.0:3000");
-    println!("Available endpoints:");
-    println!("  GET    /health             - Health check");
-    println!("  GET    /metrics            - Get server metrics");
-    println!("  PUT    /:key               - Store a value (JSON or binary)");
-    println!("  GET    /:key               - Retrieve a value (JSON or binary)");
-    println!("  DELETE /:key               - Delete a key");
-    println!("  GET    /verify/:key        - Verify a key with Merkle proof");
-    println!();
-    println!("Cluster management endpoints:");
-    println!("  POST   /cluster/nodes/add     - Add a node to the cluster");
-    println!("  POST   /cluster/nodes/remove  - Remove a node from the cluster");
-    println!("  GET    /cluster/info          - Get cluster status information");
-    println!("  GET    /cluster/nodes         - List all cluster nodes");
-    println!("  GET    /cluster/leader/info   - Get current cluster leader information");
-    println!();
-    println!("Example usage:");
+    info!("Server starting on http://0.0.0.0:3000");
+    info!("Available endpoints:");
+    info!("  GET    /health                  - Health check");
+    info!("  GET    /metrics                 - Get server metrics (JSON)");
+    info!("  GET    /metrics/prometheus      - Prometheus metrics endpoint");
+    info!("  PUT    /:key                    - Store a value (JSON or binary)");
+    info!("  GET    /:key                    - Retrieve a value (JSON or binary)");
+    info!("  DELETE /:key                    - Delete a key");
+    info!("  GET    /verify/:key             - Verify a key with Merkle proof");
+    info!("");
+    info!("Cluster management endpoints:");
+    info!("  POST   /cluster/nodes/add       - Add a node to the cluster");
+    info!("  POST   /cluster/nodes/remove    - Remove a node from the cluster");
+    info!("  GET    /cluster/info            - Get cluster status information");
+    info!("  GET    /cluster/nodes           - List all cluster nodes");
+    info!("  GET    /cluster/leader/info     - Get current cluster leader information");
+    info!("");
+    info!("Example usage:");
     println!("  # JSON data:");
     println!("  curl -X PUT http://localhost:3000/test -H 'Content-Type: application/json' -d '{{\"value\": \"hello world\"}}'");
     println!("  curl http://localhost:3000/test");
