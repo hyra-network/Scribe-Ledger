@@ -42,6 +42,10 @@ pub struct NetworkConfig {
     pub client_port: u16,
     /// Port for Raft consensus communication
     pub raft_port: u16,
+    /// Seed peer addresses for initial discovery (optional)
+    /// Format: ["node_id@host:port", "node_id@host:port"]
+    #[serde(default)]
+    pub seed_peers: Vec<String>,
 }
 
 /// Storage configuration
@@ -157,6 +161,7 @@ impl Config {
                     .expect("Valid socket address"),
                 client_port: (8000 + node_id) as u16,
                 raft_port: (9000 + node_id) as u16,
+                seed_peers: Vec::new(),
             },
             storage: StorageConfig {
                 segment_size: 64 * 1024 * 1024,    // 64MB

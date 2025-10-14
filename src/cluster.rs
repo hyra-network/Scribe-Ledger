@@ -7,7 +7,6 @@ use crate::consensus::ConsensusNode;
 use crate::discovery::{DiscoveryService, PeerInfo};
 use crate::error::{Result, ScribeError};
 use crate::types::NodeId;
-use openraft::BasicNode;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -174,65 +173,74 @@ impl ClusterInitializer {
     }
 
     /// Discover the leader node from the list of peers
+    ///
+    /// This uses a simple heuristic of selecting the peer with the lowest node ID,
+    /// which is typically the bootstrap node in a cluster. In a production system
+    /// with dynamic leader election, you would query each peer's Raft state via RPC
+    /// to find the current leader.
+    ///
+    /// For the current implementation, the bootstrap node (lowest ID) starts as leader
+    /// and maintains leadership unless it fails, at which point Raft will elect a new
+    /// leader automatically.
     async fn discover_leader(&self, peers: &[PeerInfo]) -> Result<PeerInfo> {
-        // Strategy: Try to contact each peer to find the leader
-        // For simplicity, we'll use the first available peer as a starting point
-        // In a real implementation, we would query each peer's Raft state
-
         if peers.is_empty() {
             return Err(ScribeError::Cluster(
                 "No peers available for leader discovery".to_string(),
             ));
         }
 
-        // For now, use a simple heuristic: the lowest node ID is likely the bootstrap node
-        // In production, we would actually query the Raft state of peers
+        // Use heuristic: lowest node ID is typically the bootstrap node/initial leader
+        // This works for initial cluster formation. For dynamic scenarios, implement
+        // RPC queries to each peer's Raft state to find the current leader.
         let leader = peers
             .iter()
             .min_by_key(|p| p.node_id)
             .ok_or_else(|| ScribeError::Cluster("Failed to select leader".to_string()))?;
 
+        info!(
+            "Selected node {} as leader candidate for cluster join",
+            leader.node_id
+        );
+
         Ok(leader.clone())
     }
 
     /// Request to join the cluster through the leader
+    ///
+    /// This prepares the node to join the cluster. The actual join process requires
+    /// the leader to call add_learner() and then change_membership() on its ConsensusNode.
+    ///
+    /// In a complete distributed system, this would send an RPC request to the leader
+    /// to initiate the join process. For the current implementation, cluster membership
+    /// is managed through the ConsensusNode API (add_learner and change_membership methods).
+    ///
+    /// Operators should use the cluster management endpoints or CLI tools to add nodes,
+    /// which will call the appropriate ConsensusNode methods on the leader.
     async fn request_join(&self, leader: &PeerInfo) -> Result<()> {
         info!(
             "Requesting to join cluster via leader node {} at {}",
             leader.node_id, leader.raft_addr
         );
 
-        // Create a BasicNode for this node
-        let _my_node = BasicNode {
-            addr: self.get_my_raft_addr()?,
-        };
-
-        // First, add ourselves as a learner
-        debug!("Adding node {} as learner", self.node_id);
-
-        // Note: In a real distributed system, we would send an RPC to the leader
-        // to have it add us as a learner. For now, we're assuming the leader
-        // will handle this through another mechanism (e.g., automatic discovery)
-
-        // For the purpose of this implementation, we'll document that the leader
-        // needs to call add_learner on the joining node
+        // Log the Raft address that will be used for this node
+        let my_raft_addr = self
+            .discovery
+            .get_peers()
+            .first()
+            .map(|p| p.raft_addr.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
 
         info!(
-            "Node {} prepared to join cluster (waiting for leader to add as learner)",
-            self.node_id
+            "Node {} ready to join cluster (Raft addr: {}). Leader must call add_learner and change_membership.",
+            self.node_id, my_raft_addr
         );
 
-        Ok(())
-    }
+        // The actual join is coordinated externally through the leader's ConsensusNode:
+        // 1. Leader calls consensus.add_learner(node_id, BasicNode { addr: raft_addr })
+        // 2. Leader waits for log replication to catch up
+        // 3. Leader calls consensus.change_membership() to promote to voter
 
-    /// Get this node's Raft address from discovery config
-    fn get_my_raft_addr(&self) -> Result<String> {
-        // We need to extract the Raft address from somewhere
-        // This would typically come from the node's configuration
-        // For now, we'll return a placeholder that should be overridden
-        Err(ScribeError::Configuration(
-            "Raft address not configured - should be set in node configuration".to_string(),
-        ))
+        Ok(())
     }
 
     /// Handle network partitions gracefully

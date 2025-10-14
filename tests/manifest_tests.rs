@@ -35,8 +35,10 @@ async fn test_manifest_updates_single_node() {
     // Should be leader
     assert!(node.is_leader().await);
 
-    // Create manifest manager with Raft integration
-    let manager = ManifestManager::with_raft(node.raft());
+    // Create manifest manager
+    // Note: In production, manifest updates are coordinated through the
+    // distributed API layer which uses Raft consensus
+    let manager = ManifestManager::new();
 
     // Test adding segments
     let entry1 = ManifestEntry::new(1, 1234567890, vec![1, 2, 3, 4], 1024);

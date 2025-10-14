@@ -18,6 +18,7 @@ pub mod logging;
 pub mod manifest;
 pub mod metrics;
 pub mod network;
+pub mod security;
 pub mod storage;
 pub mod storage_ops;
 pub mod types;
