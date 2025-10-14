@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
             .unwrap(),
         discovery_port: config.network.raft_port,
         broadcast_addr: config.node.address.clone(),
-        seed_addrs: Vec::new(), // TODO: Add seed addresses from config
+        seed_addrs: config.network.seed_peers.clone(),
         heartbeat_interval_ms: 500,
         failure_timeout_ms: 1500,
     };

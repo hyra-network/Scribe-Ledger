@@ -193,16 +193,18 @@ For cluster deployments, configure each node with unique ports and IDs:
 
 ## HTTP API
 
+> **Note**: The examples below use port 8080 which is the default for scribe-node. The standalone http_server binary uses port 3000. Adjust the port based on your configuration.
+
 ### Monitoring & Metrics
 
 **Health Check**
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 ```
 
 **Legacy Metrics (JSON)**
 ```bash
-curl http://localhost:3000/metrics
+curl http://localhost:8080/metrics
 ```
 
 Returns JSON with:
@@ -212,7 +214,7 @@ Returns JSON with:
 
 **Prometheus Metrics**
 ```bash
-curl http://localhost:3000/metrics/prometheus
+curl http://localhost:8080/metrics/prometheus
 ```
 
 Returns Prometheus-formatted metrics including:
@@ -229,7 +231,7 @@ Returns Prometheus-formatted metrics including:
 scrape_configs:
   - job_name: 'scribe-ledger'
     static_configs:
-      - targets: ['localhost:3000']
+      - targets: ['localhost:8080', 'localhost:8090', 'localhost:8100']
     metrics_path: '/metrics/prometheus'
     scrape_interval: 15s
 ```
@@ -267,17 +269,17 @@ curl http://localhost:8080/metrics
 
 **Cluster Status**
 ```bash
-curl http://localhost:8080/cluster/status
+curl http://localhost:8080/cluster/info
 ```
 
 **List Members**
 ```bash
-curl http://localhost:8080/cluster/members
+curl http://localhost:8080/cluster/nodes
 ```
 
 **Get Leader**
 ```bash
-curl http://localhost:8080/cluster/leader
+curl http://localhost:8080/cluster/leader/info
 ```
 
 ## Storage Backend
@@ -606,6 +608,132 @@ cargo test read_request
 
 # Data consistency tests
 cargo test consistency
+```
+
+## Security Features
+
+> **Note**: The security module provides TLS, authentication, rate limiting, and audit logging components. These features are available as library modules but are not yet integrated into the HTTP server or scribe-node binaries. Integration requires additional implementation work to wire these components into the server middleware and configuration system.
+
+### TLS Encryption
+
+TLS configuration module for secure node-to-node communication:
+
+**Configuration:**
+```toml
+[security.tls]
+enabled = true
+cert_path = "/path/to/cert.pem"
+key_path = "/path/to/key.pem"
+
+# Optional: Mutual TLS
+ca_cert_path = "/path/to/ca.pem"
+require_client_cert = true
+```
+
+**Generating Certificates:**
+```bash
+# Generate self-signed certificate for development
+openssl req -x509 -newkey rsa:4096 \
+  -keyout key.pem -out cert.pem \
+  -days 365 -nodes \
+  -subj "/CN=localhost"
+
+# For production, use certificates from a trusted CA
+```
+
+**Rust Configuration:**
+```rust
+use hyra_scribe_ledger::security::TlsConfig;
+
+let tls_config = TlsConfig::new(
+    PathBuf::from("/path/to/cert.pem"),
+    PathBuf::from("/path/to/key.pem")
+);
+
+// Enable mutual TLS
+let mutual_tls = tls_config.with_mutual_tls(
+    PathBuf::from("/path/to/ca.pem")
+);
+```
+
+### Authentication
+
+Authentication module with API key and bearer token support:
+
+> **Note**: Authentication is available as a module but requires integration into the HTTP server to be functional.
+
+**Configuration:**
+```rust
+use hyra_scribe_ledger::security::{AuthConfig, Role};
+
+let mut auth_config = AuthConfig::new(true);
+
+// Add API keys with roles
+auth_config.add_api_key("admin-key".to_string(), Role::admin());
+auth_config.add_api_key("read-key".to_string(), Role::read_only());
+auth_config.add_api_key("write-key".to_string(), Role::read_write());
+```
+
+**Role-Based Access Control (RBAC):**
+
+| Role | Read | Write | Delete | Admin (Cluster/Metrics) |
+|------|------|-------|--------|------------------------|
+| **Read-only** | ✓ | ✗ | ✗ | ✗ |
+| **Read-write** | ✓ | ✓ | ✗ | ✗ |
+| **Admin** | ✓ | ✓ | ✓ | ✓ |
+
+
+
+### Rate Limiting
+
+Token bucket rate limiting module for request throttling:
+
+**Configuration:**
+```rust
+use hyra_scribe_ledger::security::RateLimiterConfig;
+
+// 100 requests per minute per client, with burst of 10
+let rate_config = RateLimiterConfig::new(100, 60)
+    .with_burst_size(10);
+```
+
+> **Note**: Rate limiting requires integration into HTTP server middleware to be functional.
+
+### Audit Logging
+
+Structured audit logging module for security events:
+
+**Audit Events:**
+- Authentication attempts (success/failure)
+- Authorization decisions (granted/denied)
+- Data access (read/write/delete)
+- Rate limit violations
+- Configuration changes
+- System events
+
+**Example:**
+```rust
+use hyra_scribe_ledger::logging::{audit_log, AuditEvent};
+
+audit_log(
+    AuditEvent::AuthSuccess,
+    Some("user@example.com"),
+    "login",
+    Some("/auth"),
+    "success",
+    Some("User authenticated successfully")
+);
+```
+
+> **Note**: Audit logging is available as a module. Integration into the application requires calling audit_log at appropriate security checkpoints.
+
+**Test Coverage:**
+```bash
+# Security module tests
+cargo test --lib security::
+
+# Integration tests
+cargo test security_tests
 ```
 
 ## Deployment

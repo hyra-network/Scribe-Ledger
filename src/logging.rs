@@ -175,6 +175,74 @@ pub fn generate_correlation_id() -> String {
 // Re-export fastrand for correlation ID generation
 use fastrand;
 
+/// Audit event types for security logging
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuditEvent {
+    /// Authentication attempt
+    AuthAttempt,
+    /// Authentication success
+    AuthSuccess,
+    /// Authentication failure
+    AuthFailure,
+    /// Authorization check
+    AuthzCheck,
+    /// Authorization denied
+    AuthzDenied,
+    /// Rate limit exceeded
+    RateLimitExceeded,
+    /// Data access (read)
+    DataRead,
+    /// Data modification (write)
+    DataWrite,
+    /// Data deletion
+    DataDelete,
+    /// Configuration change
+    ConfigChange,
+    /// System event
+    SystemEvent,
+}
+
+impl AuditEvent {
+    /// Get event name as string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AuditEvent::AuthAttempt => "auth_attempt",
+            AuditEvent::AuthSuccess => "auth_success",
+            AuditEvent::AuthFailure => "auth_failure",
+            AuditEvent::AuthzCheck => "authz_check",
+            AuditEvent::AuthzDenied => "authz_denied",
+            AuditEvent::RateLimitExceeded => "rate_limit_exceeded",
+            AuditEvent::DataRead => "data_read",
+            AuditEvent::DataWrite => "data_write",
+            AuditEvent::DataDelete => "data_delete",
+            AuditEvent::ConfigChange => "config_change",
+            AuditEvent::SystemEvent => "system_event",
+        }
+    }
+}
+
+/// Log an audit event with structured data
+pub fn audit_log(
+    event: AuditEvent,
+    user: Option<&str>,
+    action: &str,
+    resource: Option<&str>,
+    result: &str,
+    details: Option<&str>,
+) {
+    use tracing::info;
+
+    info!(
+        audit_event = event.as_str(),
+        user = user.unwrap_or("anonymous"),
+        action = action,
+        resource = resource.unwrap_or("none"),
+        result = result,
+        details = details.unwrap_or(""),
+        "Audit event"
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,5 +318,27 @@ mod tests {
         assert_eq!(LogFormat::Console, LogFormat::Console);
         assert_eq!(LogFormat::Json, LogFormat::Json);
         assert_ne!(LogFormat::Console, LogFormat::Json);
+    }
+
+    #[test]
+    fn test_audit_event_enum() {
+        assert_eq!(AuditEvent::AuthSuccess.as_str(), "auth_success");
+        assert_eq!(AuditEvent::AuthFailure.as_str(), "auth_failure");
+        assert_eq!(AuditEvent::AuthzDenied.as_str(), "authz_denied");
+        assert_eq!(AuditEvent::DataRead.as_str(), "data_read");
+        assert_eq!(AuditEvent::DataWrite.as_str(), "data_write");
+    }
+
+    #[test]
+    fn test_audit_log_function() {
+        // Just verify the function can be called without panic
+        audit_log(
+            AuditEvent::AuthSuccess,
+            Some("testuser"),
+            "login",
+            Some("/auth"),
+            "success",
+            Some("User logged in successfully"),
+        );
     }
 }

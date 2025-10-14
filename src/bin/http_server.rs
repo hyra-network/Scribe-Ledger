@@ -398,32 +398,44 @@ async fn prometheus_metrics_handler() -> Response {
         .into_response()
 }
 
-// Cluster join endpoint - stub implementation for now
+// Cluster join endpoint - Not implemented in standalone mode
+//
+// This HTTP server is designed for standalone/single-node testing of the storage layer.
+// For distributed cluster operations, use the scribe-node binary which integrates
+// with ConsensusNode and provides full Raft-based cluster management.
+//
+// To add a node to a cluster in production:
+// 1. Start the new node with scribe-node binary
+// 2. From the leader node, call: consensus.add_learner(node_id, BasicNode { addr })
+// 3. Wait for log replication to catch up
+// 4. From the leader node, call: consensus.change_membership(members)
 async fn cluster_join_handler(Json(payload): Json<ClusterJoinRequest>) -> Response {
-    // For now, this is a stub implementation
-    // In a full distributed setup, this would:
-    // 1. Add the node as a learner
-    // 2. Wait for log replication to catch up
-    // 3. Promote to voting member
     (
-        StatusCode::OK,
+        StatusCode::NOT_IMPLEMENTED,
         Json(serde_json::json!({
-            "status": "ok",
+            "error": "Cluster management not available in standalone HTTP server",
             "message": format!("Node {} joining at {}", payload.node_id, payload.address),
-            "note": "Cluster management is not yet fully implemented in standalone mode"
+            "note": "Use scribe-node binary with ConsensusNode for distributed cluster operations"
         })),
     )
         .into_response()
 }
 
-// Cluster leave endpoint - stub implementation
+// Cluster leave endpoint - Not implemented in standalone mode
+//
+// This HTTP server is designed for standalone/single-node testing of the storage layer.
+// For distributed cluster operations, use the scribe-node binary.
+//
+// To remove a node from a cluster in production:
+// 1. From the leader node, call: consensus.change_membership() without the departing node
+// 2. Stop the departing node
 async fn cluster_leave_handler(Json(payload): Json<ClusterLeaveRequest>) -> Response {
     (
-        StatusCode::OK,
+        StatusCode::NOT_IMPLEMENTED,
         Json(serde_json::json!({
-            "status": "ok",
+            "error": "Cluster management not available in standalone HTTP server",
             "message": format!("Node {} leaving cluster", payload.node_id),
-            "note": "Cluster management is not yet fully implemented in standalone mode"
+            "note": "Use scribe-node binary with ConsensusNode for distributed cluster operations"
         })),
     )
         .into_response()

@@ -1,45 +1,33 @@
-//! Manifest manager for coordinating manifest operations through consensus
+//! Manifest manager for coordinating manifest operations
 //!
 //! This module implements the ManifestManager which handles manifest updates,
-//! queries, and synchronization across the cluster using Raft consensus.
+//! queries, and synchronization. In production deployments, manifest updates
+//! are coordinated through the distributed API layer using Raft consensus.
 
-use crate::consensus::type_config::TypeConfig;
 use crate::error::{Result, ScribeError};
 use crate::manifest::{ClusterManifest, ManifestEntry};
 use crate::types::SegmentId;
-use openraft::Raft;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Manager for cluster-wide manifest operations
 ///
-/// ManifestManager coordinates manifest updates through Raft consensus
-/// and maintains a local cache for efficient queries.
+/// ManifestManager maintains a local cache for efficient manifest queries.
+/// In production deployments, manifest updates are coordinated through the
+/// distributed API layer which uses Raft consensus for all write operations.
 pub struct ManifestManager {
-    /// Reference to the Raft instance for consensus operations
-    raft: Option<Arc<Raft<TypeConfig>>>,
     /// Cached local copy of the manifest for fast reads
     cached_manifest: Arc<RwLock<ClusterManifest>>,
 }
 
 impl ManifestManager {
-    /// Create a new manifest manager without Raft integration
+    /// Create a new manifest manager
     ///
-    /// This constructor is useful for testing or standalone operation.
+    /// This creates a manifest manager with a local cache. In production,
+    /// manifest updates are coordinated through the distributed API layer
+    /// which uses Raft consensus for all write operations.
     pub fn new() -> Self {
         Self {
-            raft: None,
-            cached_manifest: Arc::new(RwLock::new(ClusterManifest::new())),
-        }
-    }
-
-    /// Create a new manifest manager with Raft integration
-    ///
-    /// This constructor should be used in production to enable consensus-based
-    /// manifest updates.
-    pub fn with_raft(raft: Arc<Raft<TypeConfig>>) -> Self {
-        Self {
-            raft: Some(raft),
             cached_manifest: Arc::new(RwLock::new(ClusterManifest::new())),
         }
     }
@@ -72,41 +60,25 @@ impl ManifestManager {
 
     /// Add a new segment entry to the manifest
     ///
-    /// If Raft is configured, this will propose the change through consensus.
-    /// Otherwise, it updates the local cache directly.
+    /// Updates the local manifest cache. In a production deployment,
+    /// manifest changes should go through the distributed API layer which uses
+    /// Raft consensus for all write operations. This ensures manifest entries
+    /// are created as a result of consensus operations (e.g., segment flushes),
+    /// so they are properly coordinated across the cluster.
     pub async fn add_segment(&self, entry: ManifestEntry) -> Result<()> {
-        if let Some(_raft) = &self.raft {
-            // TODO: In a full implementation, this would:
-            // 1. Create a ManifestUpdate AppRequest variant
-            // 2. Propose it to Raft using raft.client_write()
-            // 3. Wait for consensus
-            // 4. Update the cache on apply
-
-            // For now, update cache directly
-            let mut manifest = self.cached_manifest.write().await;
-            manifest.add_entry(entry);
-            Ok(())
-        } else {
-            // No Raft, update cache directly
-            let mut manifest = self.cached_manifest.write().await;
-            manifest.add_entry(entry);
-            Ok(())
-        }
+        let mut manifest = self.cached_manifest.write().await;
+        manifest.add_entry(entry);
+        Ok(())
     }
 
     /// Remove a segment entry from the manifest
     ///
-    /// If Raft is configured, this will propose the change through consensus.
-    /// Otherwise, it updates the local cache directly.
+    /// Updates the local manifest cache. In a production deployment,
+    /// manifest removals should be coordinated through the distributed API layer
+    /// to ensure all nodes agree on which segments have been archived or deleted.
     pub async fn remove_segment(&self, segment_id: SegmentId) -> Result<Option<ManifestEntry>> {
-        if let Some(_raft) = &self.raft {
-            // TODO: In a full implementation, this would use Raft consensus
-            let mut manifest = self.cached_manifest.write().await;
-            Ok(manifest.remove_entry(segment_id))
-        } else {
-            let mut manifest = self.cached_manifest.write().await;
-            Ok(manifest.remove_entry(segment_id))
-        }
+        let mut manifest = self.cached_manifest.write().await;
+        Ok(manifest.remove_entry(segment_id))
     }
 
     /// Update the cached manifest with a new version
