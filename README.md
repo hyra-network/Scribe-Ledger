@@ -975,6 +975,27 @@ cargo fmt
 cargo clippy
 ```
 
+### Code Quality Standards
+
+The codebase follows strict quality standards to ensure maintainability and reliability:
+
+- **No Hardcoded Values in Tests:** All test data uses named constants for clarity and maintainability
+- **Type Safety:** Strong typing throughout with minimal use of `unwrap()`
+- **Documentation:** Comprehensive inline documentation and external docs
+- **Consistent Style:** Enforced via `cargo fmt` and `cargo clippy`
+
+**Test Constants Pattern:**
+```rust
+// Example from src/discovery.rs tests
+const TEST_NODE_ID: u64 = 1;
+const TEST_NODE_ID_2: u64 = 2;
+const TEST_RAFT_PORT: u16 = 9001;
+const TEST_CLIENT_PORT: u16 = 8001;
+const TEST_IP: &str = "127.0.0.1";
+```
+
+This pattern improves test readability and makes it easier to update test configurations.
+
 ### Running Tests During Development
 
 ```bash
@@ -987,6 +1008,13 @@ cargo test test_name
 # Run tests with verbose output
 cargo test -- --nocapture --test-threads=1
 ```
+
+### Documentation Organization
+
+- **README.md** - Main project documentation (this file)
+- **DEVELOPMENT.md** - Development guide and task tracking
+- **docs/** - All other documentation files
+  - Configuration guides, deployment guides, troubleshooting, etc.
 
 ## Performance
 
