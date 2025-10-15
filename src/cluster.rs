@@ -110,12 +110,24 @@ impl ClusterInitializer {
 
         if peers.is_empty() {
             warn!("No peers discovered");
-            // Don't try to bootstrap if we already have state, just continue as standalone
-            info!(
-                "Node {} will continue as standalone (existing state preserved)",
+
+            // Check if we already have cluster state
+            let metrics = self.consensus.metrics().await;
+            if metrics.last_log_index.is_some() || metrics.current_term > 0 {
+                // Node already has state, just continue without re-initializing
+                info!(
+                    "Node {} continuing with existing cluster state (term: {}, last_log: {:?})",
+                    self.node_id, metrics.current_term, metrics.last_log_index
+                );
+                return Ok(());
+            }
+
+            // No existing state, initialize as single-node cluster
+            warn!(
+                "Node {} will initialize as standalone cluster",
                 self.node_id
             );
-            return Ok(());
+            return self.bootstrap().await;
         }
 
         // Find the leader
