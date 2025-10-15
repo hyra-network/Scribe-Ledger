@@ -407,7 +407,7 @@ async fn wait_for_shutdown_signal() {
 
     #[cfg(not(unix))]
     {
-        signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
         info!("Received Ctrl+C signal");
     }
 }
