@@ -20,6 +20,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::config::ConsensusConfig as ScribeConsensusConfig;
 use crate::types::NodeId;
 
 /// Type alias for the Raft instance
@@ -44,15 +45,35 @@ impl ConsensusNode {
         db: sled::Db,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Use default configuration
-        let config = Config {
-            heartbeat_interval: 500,
+        let scribe_config = ScribeConsensusConfig {
             election_timeout_min: 1500,
             election_timeout_max: 3000,
+            heartbeat_interval_ms: 300,
+            max_payload_entries: 300,
+            snapshot_logs_since_last: 5000,
+            max_in_snapshot_log_to_keep: 1000,
+        };
+
+        Self::new_with_scribe_config(node_id, db, &scribe_config).await
+    }
+
+    /// Create a new consensus node from Scribe configuration
+    pub async fn new_with_scribe_config(
+        node_id: NodeId,
+        db: sled::Db,
+        scribe_config: &ScribeConsensusConfig,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let config = Config {
+            heartbeat_interval: scribe_config.heartbeat_interval_ms as u64,
+            election_timeout_min: scribe_config.election_timeout_min as u64,
+            election_timeout_max: scribe_config.election_timeout_max as u64,
             enable_tick: true,
             enable_heartbeat: true,
-            max_payload_entries: 300,
-            snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(5000),
-            max_in_snapshot_log_to_keep: 1000,
+            max_payload_entries: scribe_config.max_payload_entries as u64,
+            snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(
+                scribe_config.snapshot_logs_since_last,
+            ),
+            max_in_snapshot_log_to_keep: scribe_config.max_in_snapshot_log_to_keep,
             ..Default::default()
         };
 

@@ -10,11 +10,18 @@ use hyra_scribe_ledger::api::DistributedApi;
 use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
 use hyra_scribe_ledger::config::Config;
 use hyra_scribe_ledger::consensus::ConsensusNode;
-use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use hyra_scribe_ledger::discovery::DiscoveryService;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Json},
+    routing::get,
+    Router,
+};
+use serde_json::json;
 
 /// Hyra Scribe Ledger - Distributed Node
 #[derive(Parser, Debug)]
@@ -79,14 +86,14 @@ async fn main() -> Result<()> {
 
     // Create consensus node
     let consensus = Arc::new(
-        ConsensusNode::new(config.node.id, db)
+        ConsensusNode::new_with_scribe_config(config.node.id, db, &config.consensus)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create consensus node: {}", e))?,
     );
     info!("Consensus node created with ID {}", config.node.id);
 
     // Create discovery service
-    let discovery_config = DiscoveryConfig {
+    let discovery_config = hyra_scribe_ledger::discovery::DiscoveryConfig {
         node_id: config.node.id,
         raft_addr: format!("{}:{}", config.node.address, config.network.raft_port)
             .parse()
@@ -97,8 +104,8 @@ async fn main() -> Result<()> {
         discovery_port: config.network.raft_port,
         broadcast_addr: config.node.address.clone(),
         seed_addrs: config.network.seed_peers.clone(),
-        heartbeat_interval_ms: 500,
-        failure_timeout_ms: 1500,
+        heartbeat_interval_ms: config.discovery.heartbeat_interval_ms,
+        failure_timeout_ms: config.discovery.failure_timeout_ms,
     };
 
     let discovery = Arc::new(DiscoveryService::new(discovery_config)?);
@@ -108,13 +115,35 @@ async fn main() -> Result<()> {
     discovery.start().await?;
     info!("Discovery service started");
 
+    // Determine initialization mode
+    // Check if the database already has Raft state (previous initialization)
+    let has_existing_state = check_existing_raft_state(&db_path)?;
+    
+    let init_mode = if cli.bootstrap {
+        if has_existing_state {
+            warn!("Bootstrap flag provided but Raft state already exists");
+            warn!("Cluster will attempt to join existing state instead");
+            warn!("To force bootstrap, delete the data directory: {:?}", config.node.data_dir);
+            InitMode::Join
+        } else {
+            info!("Bootstrapping new cluster");
+            InitMode::Bootstrap
+        }
+    } else {
+        if has_existing_state {
+            info!("Existing Raft state detected, rejoining cluster");
+            InitMode::Join
+        } else {
+            warn!("No existing Raft state found");
+            warn!("If this is the first node, use --bootstrap flag");
+            info!("Attempting to join existing cluster");
+            InitMode::Join
+        }
+    };
+
     // Create cluster initializer
     let cluster_config = ClusterConfig {
-        mode: if cli.bootstrap {
-            InitMode::Bootstrap
-        } else {
-            InitMode::Join
-        },
+        mode: init_mode.clone(),
         seed_addrs: Vec::new(),
         discovery_timeout_ms: 5000,
         min_peers_for_join: 1,
@@ -125,21 +154,39 @@ async fn main() -> Result<()> {
     // Initialize cluster
     info!(
         "Initializing cluster in {} mode",
-        if cli.bootstrap { "Bootstrap" } else { "Join" }
+        if matches!(init_mode, InitMode::Bootstrap) { "Bootstrap" } else { "Join" }
     );
     if let Err(e) = initializer.initialize().await {
         error!("Failed to initialize cluster: {}", e);
         return Err(e.into());
     }
 
-    // Create distributed API
-    let _api = DistributedApi::new(consensus.clone());
+    // Create distributed API with config
+    let api = Arc::new(DistributedApi::from_config(consensus.clone(), &config.api));
+
+    // Start HTTP server
+    info!("Starting HTTP server on {}", config.network.listen_addr);
+    let http_server = start_http_server(
+        config.network.listen_addr,
+        consensus.clone(),
+        api.clone(),
+    );
 
     info!("Node {} is ready", config.node.id);
+    info!("HTTP API available at http://{}", config.network.listen_addr);
     info!("Press Ctrl+C to shutdown gracefully");
 
-    // Wait for shutdown signal
-    wait_for_shutdown_signal().await;
+    // Run HTTP server and wait for shutdown signal concurrently
+    tokio::select! {
+        result = http_server => {
+            if let Err(e) = result {
+                error!("HTTP server error: {}", e);
+            }
+        }
+        _ = wait_for_shutdown_signal() => {
+            info!("Shutdown signal received");
+        }
+    }
 
     // Graceful shutdown
     info!("Shutdown signal received, stopping node...");
@@ -203,6 +250,75 @@ fn load_config(cli: &Cli) -> Result<Config> {
         let node_id = cli.node_id.unwrap_or(1);
         Ok(Config::default_for_node(node_id))
     }
+}
+
+/// Check if there is existing Raft state in the database
+fn check_existing_raft_state(db_path: &PathBuf) -> Result<bool> {
+    // Check if the db directory exists and has files
+    if !db_path.exists() {
+        return Ok(false);
+    }
+    
+    // Check if there are any files in the directory
+    match std::fs::read_dir(db_path) {
+        Ok(entries) => {
+            let has_files = entries.count() > 0;
+            Ok(has_files)
+        }
+        Err(_) => Ok(false),
+    }
+}
+
+/// Start HTTP server for API endpoints
+async fn start_http_server(
+    addr: std::net::SocketAddr,
+    consensus: Arc<ConsensusNode>,
+    _api: Arc<DistributedApi>,
+) -> Result<()> {
+    let app = Router::new()
+        .route("/health", get(health_handler))
+        .route("/metrics", get(metrics_handler))
+        .route("/cluster/status", get(cluster_status_handler))
+        .with_state(consensus);
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    info!("HTTP server listening on {}", addr);
+    
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+/// Health check endpoint
+async fn health_handler() -> impl IntoResponse {
+    Json(json!({
+        "status": "healthy",
+        "service": "scribe-ledger"
+    }))
+}
+
+/// Metrics endpoint
+async fn metrics_handler(State(consensus): State<Arc<ConsensusNode>>) -> impl IntoResponse {
+    let metrics = consensus.metrics().await;
+    Json(json!({
+        "state": metrics.state,
+        "current_term": metrics.current_term,
+        "current_leader": metrics.current_leader,
+        "last_log_index": metrics.last_log_index,
+        "last_applied": metrics.last_applied,
+    }))
+}
+
+/// Cluster status endpoint
+async fn cluster_status_handler(State(consensus): State<Arc<ConsensusNode>>) -> impl IntoResponse {
+    let metrics = consensus.metrics().await;
+    Json(json!({
+        "node_id": consensus.node_id(),
+        "state": format!("{:?}", metrics.state),
+        "current_term": metrics.current_term,
+        "current_leader": metrics.current_leader,
+        "last_log_index": metrics.last_log_index,
+        "last_applied": metrics.last_applied,
+    }))
 }
 
 /// Wait for SIGTERM or SIGINT signal

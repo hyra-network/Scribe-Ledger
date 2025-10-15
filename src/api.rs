@@ -4,6 +4,7 @@
 //! including write request forwarding, batching, read operations, caching, and timeout handling.
 
 use crate::cache::HotDataCache;
+use crate::config::ApiConfig;
 use crate::consensus::{AppRequest, AppResponse, ConsensusNode};
 use crate::error::{Result, ScribeError};
 use crate::types::{Key, NodeId, Value};
@@ -55,6 +56,16 @@ impl DistributedApi {
             write_timeout: DEFAULT_WRITE_TIMEOUT,
             max_batch_size: DEFAULT_BATCH_SIZE,
             cache: Arc::new(HotDataCache::with_capacity(DEFAULT_CACHE_CAPACITY)),
+        }
+    }
+
+    /// Create a new distributed API from config
+    pub fn from_config(consensus: Arc<ConsensusNode>, config: &ApiConfig) -> Self {
+        Self {
+            consensus,
+            write_timeout: Duration::from_secs(config.write_timeout_secs),
+            max_batch_size: config.max_batch_size,
+            cache: Arc::new(HotDataCache::with_capacity(config.cache_capacity)),
         }
     }
 

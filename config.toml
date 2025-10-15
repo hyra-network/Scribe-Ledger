@@ -24,7 +24,25 @@ segment_size = 67108864
 max_cache_size = 268435456
 
 [consensus]
-# Election timeout in milliseconds
-election_timeout_ms = 1000
+# Election timeout minimum in milliseconds
+election_timeout_min = 1500
+# Election timeout maximum in milliseconds
+election_timeout_max = 3000
 # Heartbeat interval in milliseconds (must be less than election timeout)
 heartbeat_interval_ms = 300
+
+[api]
+# Write timeout in seconds
+write_timeout_secs = 30
+# Read timeout in seconds
+read_timeout_secs = 10
+# Maximum batch size for write operations
+max_batch_size = 100
+# Cache capacity for hot data
+cache_capacity = 1000
+
+[discovery]
+# Heartbeat interval in milliseconds
+heartbeat_interval_ms = 500
+# Failure detection timeout in milliseconds
+failure_timeout_ms = 1500
