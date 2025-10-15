@@ -34,3 +34,5 @@ test_*_db_*/
 
 # Example data files
 example_data/
+test-node-*
+/tmp/*.log
