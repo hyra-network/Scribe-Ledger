@@ -33,6 +33,24 @@ segment_size = 67108864
 # Env: SCRIBE_MAX_CACHE_SIZE
 max_cache_size = 268435456
 
+# S3 storage configuration (optional)
+# Uncomment and configure to enable S3 archival
+[storage.s3]
+bucket = "scribe-ledger-node1"
+region = "us-east-1"
+# For MinIO or custom S3-compatible endpoint
+endpoint = "http://localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+# Enable path-style for MinIO (required)
+path_style = true
+# Connection pool size (default: 10)
+pool_size = 10
+# Request timeout in seconds (default: 30)
+timeout_secs = 30
+# Maximum retry attempts (default: 3)
+max_retries = 3
+
 [consensus]
 # Election timeout min (ms, default: 1500)
 # Env: SCRIBE_ELECTION_TIMEOUT_MIN_MS
@@ -46,6 +64,7 @@ heartbeat_interval_ms = 300
 
 [discovery]
 # UDP discovery port (default: 17946)
+# Each node must have a unique discovery port to avoid collisions
 # Env: SCRIBE_DISCOVERY_PORT
 discovery_port = 17946
 # Broadcast address (default: 255.255.255.255)

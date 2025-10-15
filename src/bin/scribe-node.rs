@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use tokio::signal;
 
 /// Hyra Scribe Ledger - Distributed Node
 #[derive(Parser, Debug)]
@@ -84,6 +83,46 @@ async fn main() -> Result<()> {
     let db_path = config.node.data_dir.join("db");
     let db = sled::open(&db_path)?;
     info!("Storage initialized at {:?}", db_path);
+
+    // Initialize S3 storage if configured
+    if let Some(s3_config) = &config.storage.s3 {
+        info!("S3 storage configuration detected");
+        info!("  Bucket: {}", s3_config.bucket);
+        info!("  Region: {}", s3_config.region);
+        if let Some(endpoint) = &s3_config.endpoint {
+            info!("  Endpoint: {}", endpoint);
+        }
+        info!("  Path style: {}", s3_config.path_style);
+        info!("  Pool size: {}", s3_config.pool_size);
+        info!("  Timeout: {}s", s3_config.timeout_secs);
+        info!("  Max retries: {}", s3_config.max_retries);
+
+        // Create S3 storage config from the TOML config
+        let s3_storage_config = hyra_scribe_ledger::storage::s3::S3StorageConfig {
+            bucket: s3_config.bucket.clone(),
+            region: s3_config.region.clone(),
+            endpoint: s3_config.endpoint.clone(),
+            access_key_id: s3_config.access_key_id.clone(),
+            secret_access_key: s3_config.secret_access_key.clone(),
+            path_style: s3_config.path_style,
+            timeout_secs: s3_config.timeout_secs,
+            max_retries: s3_config.max_retries,
+        };
+
+        // Try to initialize S3 storage (this will validate configuration)
+        match hyra_scribe_ledger::storage::s3::S3Storage::new(s3_storage_config).await {
+            Ok(_s3_storage) => {
+                info!("✓ S3 storage initialized successfully");
+                // S3 storage is ready for use by archival tier when needed
+            }
+            Err(e) => {
+                warn!("Failed to initialize S3 storage: {}", e);
+                warn!("Node will continue without S3 archival support");
+            }
+        }
+    } else {
+        info!("S3 storage not configured (running with local storage only)");
+    }
 
     // Create consensus node
     let consensus = Arc::new(
