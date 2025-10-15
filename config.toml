@@ -48,21 +48,21 @@ max_cache_size = 268435456
 
 # S3 storage configuration (optional)
 # Uncomment and configure to enable S3 archival
-# [storage.s3]
-# bucket = "scribe-ledger"
-# region = "us-east-1"
-# # For MinIO or custom S3-compatible endpoint
-# endpoint = "http://localhost:9000"
-# access_key_id = "minioadmin"
-# secret_access_key = "minioadmin"
-# # Enable path-style for MinIO (default: false)
-# path_style = true
-# # Connection pool size (default: 10)
-# pool_size = 10
-# # Request timeout in seconds (default: 30)
-# timeout_secs = 30
-# # Maximum retry attempts (default: 3)
-# max_retries = 3
+[storage.s3]
+bucket = "scribe-ledger"
+region = "us-east-1"
+# For MinIO or custom S3-compatible endpoint
+endpoint = "http://localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+# Enable path-style for MinIO (default: false)
+path_style = true
+# Connection pool size (default: 10)
+pool_size = 10
+# Request timeout in seconds (default: 30)
+timeout_secs = 30
+# Maximum retry attempts (default: 3)
+max_retries = 3
 
 [consensus]
 # Election timeout minimum in milliseconds (default: 1500)
