@@ -352,6 +352,29 @@ impl Config {
                 self.consensus.heartbeat_interval_ms = parsed_interval;
             }
         }
+
+        // Discovery config overrides
+        if let Ok(port) = std::env::var("SCRIBE_DISCOVERY_PORT") {
+            if let Ok(parsed_port) = port.parse() {
+                self.discovery.discovery_port = parsed_port;
+            }
+        }
+        if let Ok(addr) = std::env::var("SCRIBE_BROADCAST_ADDR") {
+            self.discovery.broadcast_addr = addr;
+        }
+        if let Ok(secret) = std::env::var("SCRIBE_CLUSTER_SECRET") {
+            self.discovery.cluster_secret = Some(secret);
+        }
+        if let Ok(interval) = std::env::var("SCRIBE_DISCOVERY_HEARTBEAT_MS") {
+            if let Ok(parsed_interval) = interval.parse() {
+                self.discovery.heartbeat_interval_ms = parsed_interval;
+            }
+        }
+        if let Ok(timeout) = std::env::var("SCRIBE_DISCOVERY_FAILURE_TIMEOUT_MS") {
+            if let Ok(parsed_timeout) = timeout.parse() {
+                self.discovery.failure_timeout_ms = parsed_timeout;
+            }
+        }
     }
 
     /// Validate the configuration

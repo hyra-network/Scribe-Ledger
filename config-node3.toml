@@ -2,36 +2,55 @@
 
 [node]
 # Unique node identifier
+# Env: SCRIBE_NODE_ID
 id = 3
 # Node address
+# Env: SCRIBE_NODE_ADDRESS
 address = "127.0.0.1"
 # Data directory
+# Env: SCRIBE_DATA_DIR
 data_dir = "./node-3"
 
 [network]
 # Client API listen address
+# Env: SCRIBE_LISTEN_ADDR
 listen_addr = "127.0.0.1:8003"
 # Client HTTP API port (default: 8000 + node_id = 8003)
+# Env: SCRIBE_CLIENT_PORT
 client_port = 8003
 # Raft consensus port (default: 9000 + node_id = 9003)
+# Env: SCRIBE_RAFT_PORT
 raft_port = 9003
+# Seed peers for cross-network discovery (optional)
+# Example: seed_peers = ["10.0.1.5:17946", "192.168.1.100:17946"]
+seed_peers = []
 
 [storage]
 # Segment size (64MB)
+# Env: SCRIBE_SEGMENT_SIZE
 segment_size = 67108864
 # Max cache size (256MB)
+# Env: SCRIBE_MAX_CACHE_SIZE
 max_cache_size = 268435456
 
 [consensus]
 # Election timeout min (ms, default: 1500)
+# Env: SCRIBE_ELECTION_TIMEOUT_MIN_MS
 election_timeout_min = 1500
 # Election timeout max (ms, default: 3000)
+# Env: SCRIBE_ELECTION_TIMEOUT_MAX_MS
 election_timeout_max = 3000
 # Heartbeat interval (ms, default: 300)
+# Env: SCRIBE_HEARTBEAT_INTERVAL_MS
 heartbeat_interval_ms = 300
 
 [discovery]
 # UDP discovery port (default: 17946)
+# Env: SCRIBE_DISCOVERY_PORT
 discovery_port = 17946
 # Broadcast address (default: 255.255.255.255)
+# Env: SCRIBE_BROADCAST_ADDR
 broadcast_addr = "255.255.255.255"
+# Cluster secret for cross-network auth (optional)
+# Env: SCRIBE_CLUSTER_SECRET
+# cluster_secret = "your-secret"
