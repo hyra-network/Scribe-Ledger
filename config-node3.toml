@@ -15,5 +15,6 @@ segment_size = 67108864
 max_cache_size = 268435456
 
 [consensus]
-election_timeout_ms = 1000
+election_timeout_min = 1500
+election_timeout_max = 3000
 heartbeat_interval_ms = 300

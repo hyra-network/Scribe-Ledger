@@ -109,8 +109,10 @@ impl ClusterInitializer {
         let peers = self.wait_for_peers().await?;
 
         if peers.is_empty() {
-            warn!("No peers discovered, falling back to bootstrap mode");
-            return self.bootstrap().await;
+            warn!("No peers discovered");
+            // Don't try to bootstrap if we already have state, just continue as standalone
+            info!("Node {} will continue as standalone (existing state preserved)", self.node_id);
+            return Ok(());
         }
 
         // Find the leader

@@ -4,4 +4,6 @@
 
 mod settings;
 
-pub use settings::{Config, ConsensusConfig, NetworkConfig, NodeConfig, StorageConfig};
+pub use settings::{
+    ApiConfig, Config, ConsensusConfig, DiscoveryConfig, NetworkConfig, NodeConfig, StorageConfig,
+};
