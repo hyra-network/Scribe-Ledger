@@ -362,8 +362,10 @@ mod tests {
 
     // Test constants to avoid hardcoded values
     const TEST_NODE_ID: u64 = 1;
+    #[allow(dead_code)]
     const TEST_NODE_ID_2: u64 = 2;
     const TEST_NODE_ADDR: &str = "127.0.0.1:8080";
+    #[allow(dead_code)]
     const TEST_NODE_ADDR_2: &str = "127.0.0.1:8081";
 
     #[test]
