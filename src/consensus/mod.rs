@@ -307,19 +307,25 @@ pub struct HealthStatus {
 mod tests {
     use super::*;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 2;
+    const TEST_ADDR_2: &str = "127.0.0.1:5002";
+
     #[tokio::test]
     async fn test_consensus_node_creation() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
-        assert_eq!(node.node_id(), 1);
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
+        assert_eq!(node.node_id(), TEST_NODE_ID);
     }
 
     #[tokio::test]
     async fn test_register_peer() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
 
-        node.register_peer(2, "127.0.0.1:5002".to_string()).await;
+        node.register_peer(TEST_NODE_ID_2, TEST_ADDR_2.to_string())
+            .await;
 
         // Can't directly access node_addresses from outside, so just verify it doesn't error
     }
@@ -327,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn test_initialize_single_node_cluster() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
 
         // Initialize as single-node cluster
         node.initialize().await.unwrap();

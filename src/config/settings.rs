@@ -200,6 +200,16 @@ pub struct DiscoveryConfig {
     /// Failure detection timeout in milliseconds
     #[serde(default = "default_discovery_failure_timeout_ms")]
     pub failure_timeout_ms: u64,
+    /// UDP port for discovery broadcasts (default: 17946)
+    #[serde(default = "default_discovery_port")]
+    pub discovery_port: u16,
+    /// Broadcast address for local discovery (default: 255.255.255.255 for LAN)
+    #[serde(default = "default_broadcast_addr")]
+    pub broadcast_addr: String,
+    /// Secret token for cross-network node authentication (optional)
+    /// Nodes must have matching tokens to join the same cluster across networks
+    #[serde(default)]
+    pub cluster_secret: Option<String>,
 }
 
 fn default_discovery_heartbeat_ms() -> u64 {
@@ -210,15 +220,25 @@ fn default_discovery_failure_timeout_ms() -> u64 {
     1500
 }
 
+fn default_discovery_port() -> u16 {
+    17946
+}
+
+fn default_broadcast_addr() -> String {
+    "255.255.255.255".to_string()
+}
+
 impl Default for DiscoveryConfig {
     fn default() -> Self {
         Self {
             heartbeat_interval_ms: default_discovery_heartbeat_ms(),
             failure_timeout_ms: default_discovery_failure_timeout_ms(),
+            discovery_port: default_discovery_port(),
+            broadcast_addr: default_broadcast_addr(),
+            cluster_secret: None,
         }
     }
 }
-
 
 impl Config {
     /// Load configuration from a TOML file
@@ -332,6 +352,29 @@ impl Config {
                 self.consensus.heartbeat_interval_ms = parsed_interval;
             }
         }
+
+        // Discovery config overrides
+        if let Ok(port) = std::env::var("SCRIBE_DISCOVERY_PORT") {
+            if let Ok(parsed_port) = port.parse() {
+                self.discovery.discovery_port = parsed_port;
+            }
+        }
+        if let Ok(addr) = std::env::var("SCRIBE_BROADCAST_ADDR") {
+            self.discovery.broadcast_addr = addr;
+        }
+        if let Ok(secret) = std::env::var("SCRIBE_CLUSTER_SECRET") {
+            self.discovery.cluster_secret = Some(secret);
+        }
+        if let Ok(interval) = std::env::var("SCRIBE_DISCOVERY_HEARTBEAT_MS") {
+            if let Ok(parsed_interval) = interval.parse() {
+                self.discovery.heartbeat_interval_ms = parsed_interval;
+            }
+        }
+        if let Ok(timeout) = std::env::var("SCRIBE_DISCOVERY_FAILURE_TIMEOUT_MS") {
+            if let Ok(parsed_timeout) = timeout.parse() {
+                self.discovery.failure_timeout_ms = parsed_timeout;
+            }
+        }
     }
 
     /// Validate the configuration
@@ -428,19 +471,26 @@ mod tests {
     use super::*;
     use std::env;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 42;
+    const TEST_CLIENT_PORT: u16 = 8001;
+    const TEST_RAFT_PORT: u16 = 9001;
+    const TEST_CLIENT_PORT_OVERRIDE: u16 = 7777;
+
     #[test]
     fn test_default_config() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
-        assert_eq!(config.node.id, 1);
-        assert_eq!(config.network.client_port, 8001);
-        assert_eq!(config.network.raft_port, 9001);
+        assert_eq!(config.node.id, TEST_NODE_ID);
+        assert_eq!(config.network.client_port, TEST_CLIENT_PORT);
+        assert_eq!(config.network.raft_port, TEST_RAFT_PORT);
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_config_validation_invalid_node_id() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.node.id = 0;
 
         assert!(config.validate().is_err());
@@ -448,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_config_validation_same_ports() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.network.raft_port = config.network.client_port;
 
         assert!(config.validate().is_err());
@@ -456,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_config_validation_zero_segment_size() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.storage.segment_size = 0;
 
         assert!(config.validate().is_err());
@@ -464,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_config_validation_heartbeat_timeout() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.consensus.heartbeat_interval_ms = 1000;
         config.consensus.election_timeout_min = 500;
 
@@ -473,7 +523,7 @@ mod tests {
 
     #[test]
     fn test_duration_helpers() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
         assert_eq!(config.election_timeout_min(), Duration::from_millis(1500));
         assert_eq!(config.election_timeout_max(), Duration::from_millis(3000));
@@ -484,10 +534,10 @@ mod tests {
     fn test_env_override_node_id() {
         env::set_var("SCRIBE_NODE_ID", "42");
 
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.apply_env_overrides();
 
-        assert_eq!(config.node.id, 42);
+        assert_eq!(config.node.id, TEST_NODE_ID_2);
 
         env::remove_var("SCRIBE_NODE_ID");
     }
@@ -496,17 +546,17 @@ mod tests {
     fn test_env_override_client_port() {
         env::set_var("SCRIBE_CLIENT_PORT", "7777");
 
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.apply_env_overrides();
 
-        assert_eq!(config.network.client_port, 7777);
+        assert_eq!(config.network.client_port, TEST_CLIENT_PORT_OVERRIDE);
 
         env::remove_var("SCRIBE_CLIENT_PORT");
     }
 
     #[test]
     fn test_config_serialization() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
         // Test TOML serialization
         let toml_str = toml::to_string(&config).unwrap();
