@@ -64,7 +64,7 @@ Open PowerShell or Command Prompt and run:
 cd C:\Users\YourUsername\Projects
 
 # Clone the repository
-git clone https://github.com/amogusdrip285/Scribe-Ledger.git
+git clone https://github.com/hyra-network/Scribe-Ledger.git
 cd Scribe-Ledger
 ```
 
@@ -136,8 +136,8 @@ Open a new PowerShell window and test the API:
 # Health check
 curl http://localhost:8001/health
 
-# Store some data
-curl -X PUT http://localhost:8001/test-key -H "Content-Type: application/octet-stream" -d "Hello from Windows!"
+# Store some data (using PowerShell-native command)
+Invoke-RestMethod -Uri http://localhost:8001/test-key -Method Put -Body "Hello from Windows!" -ContentType "application/octet-stream"
 
 # Retrieve the data
 curl http://localhost:8001/test-key
@@ -145,6 +145,8 @@ curl http://localhost:8001/test-key
 # Check metrics
 curl http://localhost:8001/metrics
 ```
+
+**Note:** PowerShell's `curl` is an alias for `Invoke-WebRequest`. For PUT requests with headers, use `Invoke-RestMethod` as shown above.
 
 ## Running a Multi-Node Cluster
 
@@ -206,15 +208,17 @@ curl http://localhost:8001/cluster/nodes
 ### Basic Operations
 
 ```powershell
-# Write data to the cluster (any node)
-curl -X PUT http://localhost:8001/user:alice -H "Content-Type: application/octet-stream" -d "Alice Smith"
+# Write data to the cluster (any node) - using PowerShell-native command
+Invoke-RestMethod -Uri http://localhost:8001/user:alice -Method Put -Body "Alice Smith" -ContentType "application/octet-stream"
 
 # Read from any node (data is replicated)
 curl http://localhost:8002/user:alice
 
 # Delete data
-curl -X DELETE http://localhost:8003/user:alice
+Invoke-RestMethod -Uri http://localhost:8003/user:alice -Method Delete
 ```
+
+**Note:** For PUT and DELETE operations with specific content types, use `Invoke-RestMethod` instead of the `curl` alias.
 
 ### Cluster Health Monitoring
 
@@ -232,7 +236,7 @@ curl http://localhost:8001/metrics/prometheus
 
 1. Write data to Node 1:
    ```powershell
-   curl -X PUT http://localhost:8001/test-replication -d "This should replicate!"
+   Invoke-RestMethod -Uri http://localhost:8001/test-replication -Method Put -Body "This should replicate!" -ContentType "application/octet-stream"
    ```
 
 2. Read from Node 2 and Node 3:
@@ -249,7 +253,7 @@ Both should return the same data.
 
 2. Write data using Node 1:
    ```powershell
-   curl -X PUT http://localhost:8001/fault-test -d "Node 2 is down"
+   Invoke-RestMethod -Uri http://localhost:8001/fault-test -Method Put -Body "Node 2 is down" -ContentType "application/octet-stream"
    ```
 
 3. Read from Node 3:
@@ -408,7 +412,7 @@ If you encounter issues not covered here:
 
 1. Check the main [README.md](../README.md) for general documentation
 2. Review [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
-3. Check the [GitHub Issues](https://github.com/amogusdrip285/Scribe-Ledger/issues) page
+3. Check the [GitHub Issues](https://github.com/hyra-network/Scribe-Ledger/issues) page
 4. Open a new issue with:
    - Windows version
    - Rust version (`rustc --version`)

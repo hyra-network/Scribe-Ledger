@@ -91,7 +91,7 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 
 ```bash
 # Clone the repository
-git clone https://github.com/amogusdrip285/simple-scribe-ledger.git
+git clone https://github.com/hyra-network/simple-scribe-ledger.git
 cd simple-scribe-ledger
 
 # Build the project
