@@ -10,6 +10,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
+// Test constants to avoid hardcoded values
+const TEST_IP: &str = "127.0.0.1";
+const TEST_RAFT_BASE_PORT: u16 = 9000;
+const TEST_CLIENT_BASE_PORT: u16 = 8000;
+
 /// Helper to create discovery config for testing
 fn create_discovery_config(node_id: u64, base_port: u16, num_nodes: u64) -> DiscoveryConfig {
     let my_port = base_port + node_id as u16;
@@ -18,16 +23,16 @@ fn create_discovery_config(node_id: u64, base_port: u16, num_nodes: u64) -> Disc
     for other_id in 1..=num_nodes {
         if other_id != node_id {
             let other_port = base_port + other_id as u16;
-            seed_addrs.push(format!("127.0.0.1:{}", other_port));
+            seed_addrs.push(format!("{}:{}", TEST_IP, other_port));
         }
     }
 
     DiscoveryConfig {
         node_id,
-        raft_addr: format!("127.0.0.1:{}", 9000 + node_id).parse().unwrap(),
-        client_addr: format!("127.0.0.1:{}", 8000 + node_id).parse().unwrap(),
+        raft_addr: format!("{}:{}", TEST_IP, TEST_RAFT_BASE_PORT + node_id as u16).parse().unwrap(),
+        client_addr: format!("{}:{}", TEST_IP, TEST_CLIENT_BASE_PORT + node_id as u16).parse().unwrap(),
         discovery_port: my_port,
-        broadcast_addr: "127.0.0.1".to_string(),
+        broadcast_addr: TEST_IP.to_string(),
         seed_addrs,
         heartbeat_interval_ms: 200,
         failure_timeout_ms: 600,
@@ -165,9 +170,11 @@ async fn test_cluster_config_default() {
 
 #[tokio::test]
 async fn test_bootstrap_mode_configuration() {
+    const TEST_SEED_ADDR: &str = "127.0.0.1:9001";
+
     let config = ClusterConfig {
         mode: InitMode::Bootstrap,
-        seed_addrs: vec!["127.0.0.1:9001".to_string()],
+        seed_addrs: vec![TEST_SEED_ADDR.to_string()],
         discovery_timeout_ms: 2000,
         min_peers_for_join: 0,
     };
@@ -179,9 +186,12 @@ async fn test_bootstrap_mode_configuration() {
 
 #[tokio::test]
 async fn test_join_mode_configuration() {
+    const TEST_SEED_ADDR_1: &str = "127.0.0.1:9001";
+    const TEST_SEED_ADDR_2: &str = "127.0.0.1:9002";
+
     let config = ClusterConfig {
         mode: InitMode::Join,
-        seed_addrs: vec!["127.0.0.1:9001".to_string(), "127.0.0.1:9002".to_string()],
+        seed_addrs: vec![TEST_SEED_ADDR_1.to_string(), TEST_SEED_ADDR_2.to_string()],
         discovery_timeout_ms: 5000,
         min_peers_for_join: 2,
     };
