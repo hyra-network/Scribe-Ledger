@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use tokio::signal;
 
 /// Hyra Scribe Ledger - Distributed Node
 #[derive(Parser, Debug)]
@@ -273,17 +272,36 @@ fn setup_logging(log_level: &str) -> Result<()> {
 
 /// Print startup banner
 fn print_banner() {
+    // ANSI color codes
+    const CYAN: &str = "\x1b[36m";
+    const BRIGHT_CYAN: &str = "\x1b[96m";
+    const YELLOW: &str = "\x1b[33m";
+    const RESET: &str = "\x1b[0m";
+    const BOLD: &str = "\x1b[1m";
+
+    let version = env!("CARGO_PKG_VERSION");
+
     println!(
-        r#"
-╔═══════════════════════════════════════════════════════╗
-║                                                       ║
-║           Hyra Scribe Ledger Node                    ║
-║           Distributed Key-Value Store                ║
-║                                                       ║
-║           Version: {}                         ║
-╚═══════════════════════════════════════════════════════╝
-"#,
-        env!("CARGO_PKG_VERSION")
+        "\n{}{}╔═══════════════════════════════════════════════════════════╗",
+        BOLD, CYAN
+    );
+    println!("║                                                           ║");
+    println!(
+        "║     {}{}🚀  Hyra Scribe Ledger Node  🚀{}{}                ║",
+        BOLD, BRIGHT_CYAN, RESET, CYAN
+    );
+    println!(
+        "║        {}Distributed Key-Value Store with Raft{}          ║",
+        BRIGHT_CYAN, CYAN
+    );
+    println!("║                                                           ║");
+    println!(
+        "║           {}Version: {:<10}{}                        ║",
+        YELLOW, version, CYAN
+    );
+    println!(
+        "╚═══════════════════════════════════════════════════════════╝{}\n",
+        RESET
     );
 }
 
