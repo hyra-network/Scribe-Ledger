@@ -110,7 +110,7 @@ impl ClusterInitializer {
 
         if peers.is_empty() {
             warn!("No peers discovered");
-            
+
             // Check if we already have cluster state
             let metrics = self.consensus.metrics().await;
             if metrics.last_log_index.is_some() || metrics.current_term > 0 {
@@ -121,7 +121,7 @@ impl ClusterInitializer {
                 );
                 return Ok(());
             }
-            
+
             // No existing state, initialize as single-node cluster
             warn!(
                 "Node {} will initialize as standalone cluster",
