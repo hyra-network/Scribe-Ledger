@@ -20,6 +20,7 @@ use hyra_scribe_ledger::discovery::DiscoveryService;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::signal;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
