@@ -274,6 +274,21 @@ mod tests {
     use super::*;
     use crate::discovery::DiscoveryConfig;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_RAFT_PORT: u16 = 9001;
+    const TEST_CLIENT_PORT: u16 = 8001;
+    const TEST_DISCOVERY_PORT: u16 = 17001;
+    const TEST_IP: &str = "127.0.0.1";
+
+    fn test_raft_addr(port: u16) -> std::net::SocketAddr {
+        format!("{}:{}", TEST_IP, port).parse().unwrap()
+    }
+
+    fn test_client_addr(port: u16) -> std::net::SocketAddr {
+        format!("{}:{}", TEST_IP, port).parse().unwrap()
+    }
+
     #[test]
     fn test_cluster_config_default() {
         let config = ClusterConfig::default();
@@ -291,11 +306,11 @@ mod tests {
     #[tokio::test]
     async fn test_cluster_initializer_bootstrap() {
         let discovery_config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
-            discovery_port: 17001,
-            broadcast_addr: "127.0.0.1".to_string(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
+            discovery_port: TEST_DISCOVERY_PORT,
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
@@ -303,7 +318,7 @@ mod tests {
 
         let discovery = Arc::new(DiscoveryService::new(discovery_config).unwrap());
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let consensus = Arc::new(ConsensusNode::new(1, db).await.unwrap());
+        let consensus = Arc::new(ConsensusNode::new(TEST_NODE_ID, db).await.unwrap());
 
         let cluster_config = ClusterConfig {
             mode: InitMode::Bootstrap,

@@ -360,18 +360,24 @@ fn current_timestamp_ms() -> u64 {
 mod tests {
     use super::*;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 2;
+    const TEST_NODE_ADDR: &str = "127.0.0.1:8080";
+    const TEST_NODE_ADDR_2: &str = "127.0.0.1:8081";
+
     #[test]
     fn test_cluster_node_new() {
-        let node = ClusterNode::new(1, "127.0.0.1:8080".to_string());
-        assert_eq!(node.id, 1);
-        assert_eq!(node.address, "127.0.0.1:8080");
+        let node = ClusterNode::new(TEST_NODE_ID, TEST_NODE_ADDR.to_string());
+        assert_eq!(node.id, TEST_NODE_ID);
+        assert_eq!(node.address, TEST_NODE_ADDR);
         assert_eq!(node.state, NodeState::Joining);
         assert!(node.last_heartbeat > 0);
     }
 
     #[test]
     fn test_cluster_node_heartbeat() {
-        let mut node = ClusterNode::new(1, "127.0.0.1:8080".to_string());
+        let mut node = ClusterNode::new(TEST_NODE_ID, TEST_NODE_ADDR.to_string());
         let initial_heartbeat = node.last_heartbeat;
 
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -382,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_cluster_node_state_transitions() {
-        let mut node = ClusterNode::new(1, "127.0.0.1:8080".to_string());
+        let mut node = ClusterNode::new(TEST_NODE_ID, TEST_NODE_ADDR.to_string());
 
         node.mark_active();
         assert_eq!(node.state, NodeState::Active);
@@ -396,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_cluster_node_heartbeat_stale() {
-        let mut node = ClusterNode::new(1, "127.0.0.1:8080".to_string());
+        let mut node = ClusterNode::new(TEST_NODE_ID, TEST_NODE_ADDR.to_string());
 
         // Fresh heartbeat should not be stale
         assert!(!node.is_heartbeat_stale(1000));
@@ -651,7 +657,7 @@ mod tests {
 
     #[test]
     fn test_cluster_node_serialization() {
-        let node = ClusterNode::new(1, "127.0.0.1:8080".to_string());
+        let node = ClusterNode::new(TEST_NODE_ID, TEST_NODE_ADDR.to_string());
         let json = serde_json::to_string(&node).unwrap();
         let deserialized: ClusterNode = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.id, node.id);

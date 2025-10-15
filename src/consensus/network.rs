@@ -322,19 +322,27 @@ impl RaftNetworkFactory<TypeConfig> for NetworkFactory {
 mod tests {
     use super::*;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 2;
+    const TEST_TERM: u64 = 1;
+    const TEST_LOG_INDEX: u64 = 1;
+    const TEST_ADDR_PORT_1: &str = "127.0.0.1:5001";
+    const TEST_ADDR_PORT_2: &str = "127.0.0.1:5002";
+
     #[tokio::test]
     async fn test_network_creation() {
-        let network = Network::new(1, "127.0.0.1:5001".to_string());
-        assert_eq!(network.target, 1);
+        let network = Network::new(TEST_NODE_ID, TEST_ADDR_PORT_1.to_string());
+        assert_eq!(network.target, TEST_NODE_ID);
     }
 
     #[tokio::test]
     async fn test_network_factory() {
-        let factory = NetworkFactory::new(1);
-        factory.register_node(2, "127.0.0.1:5002".to_string()).await;
+        let factory = NetworkFactory::new(TEST_NODE_ID);
+        factory.register_node(TEST_NODE_ID_2, TEST_ADDR_PORT_2.to_string()).await;
 
         let addresses = factory.node_addresses.read().await;
-        assert_eq!(addresses.get(&2), Some(&"127.0.0.1:5002".to_string()));
+        assert_eq!(addresses.get(&TEST_NODE_ID_2), Some(&TEST_ADDR_PORT_2.to_string()));
     }
 
     #[tokio::test]
@@ -351,7 +359,7 @@ mod tests {
         use crate::consensus::type_config::AppRequest;
         use openraft::{EntryPayload, LeaderId, LogId};
 
-        let log_id = LogId::new(LeaderId::new(1, 1), 1);
+        let log_id = LogId::new(LeaderId::new(TEST_TERM, TEST_NODE_ID), TEST_LOG_INDEX);
         let entry = openraft::Entry {
             log_id,
             payload: EntryPayload::Normal(AppRequest::Put {
@@ -361,7 +369,7 @@ mod tests {
         };
 
         let request = AppendEntriesRequest {
-            vote: openraft::Vote::new(1, 1u64),
+            vote: openraft::Vote::new(TEST_TERM, TEST_NODE_ID),
             prev_log_id: None,
             entries: vec![entry],
             leader_commit: None,
@@ -380,7 +388,7 @@ mod tests {
     #[test]
     fn test_vote_message_serialization() {
         let vote_request = VoteRequest {
-            vote: openraft::Vote::new(1, 1u64),
+            vote: openraft::Vote::new(TEST_TERM, TEST_NODE_ID),
             last_log_id: None,
         };
 
