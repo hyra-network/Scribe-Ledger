@@ -268,7 +268,7 @@ fn test_consensus_config_defaults() {
     let config = Config::default_for_node(1);
 
     // Verify consensus parameters are set
-    assert_eq!(config.consensus.election_timeout_ms, 1000);
+    assert_eq!(config.consensus.election_timeout_min, 1000);
     assert_eq!(config.consensus.heartbeat_interval_ms, 300);
     assert_eq!(config.consensus.max_payload_entries, 300);
     assert_eq!(config.consensus.snapshot_logs_since_last, 5000);

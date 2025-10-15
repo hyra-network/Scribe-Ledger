@@ -248,8 +248,8 @@ fn run_optimized_test(size: usize) -> Result<BenchmarkResults> {
         }
         ledger.apply_batch(batch)?;
 
-        for i in 0..half_size {
-            let _value = ledger.get(keys[i].as_slice())?;
+        for key in keys.iter().take(half_size) {
+            let _value = ledger.get(key.as_slice())?;
         }
 
         ledger.flush()?;

@@ -10,7 +10,6 @@ use hyra_scribe_ledger::{logging, metrics, SimpleScribeLedger};
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::Instant;
-use tokio;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn};
 
@@ -506,7 +505,7 @@ async fn verify_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 
                             // Convert proof to hex strings for JSON response
                             let siblings_hex: Vec<String> =
-                                proof.siblings.iter().map(|s| hex::encode(s)).collect();
+                                proof.siblings.iter().map(hex::encode).collect();
 
                             (
                                 StatusCode::OK,

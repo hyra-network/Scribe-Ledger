@@ -20,7 +20,6 @@ use hyra_scribe_ledger::discovery::DiscoveryService;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::signal;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -174,16 +173,14 @@ async fn main() -> Result<()> {
             info!("Bootstrapping new cluster");
             InitMode::Bootstrap
         }
+    } else if has_existing_state {
+        info!("Existing Raft state detected, rejoining cluster");
+        InitMode::Join
     } else {
-        if has_existing_state {
-            info!("Existing Raft state detected, rejoining cluster");
-            InitMode::Join
-        } else {
-            warn!("No existing Raft state found");
-            warn!("If this is the first node, use --bootstrap flag");
-            info!("Attempting to join existing cluster");
-            InitMode::Join
-        }
+        warn!("No existing Raft state found");
+        warn!("If this is the first node, use --bootstrap flag");
+        info!("Attempting to join existing cluster");
+        InitMode::Join
     };
 
     // Create cluster initializer

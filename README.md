@@ -80,6 +80,8 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 
 ## Quick Start
 
+> **Windows Users**: See [Windows Setup Guide](docs/WINDOWS.md) for detailed Windows-specific instructions.
+
 ### Prerequisites
 
 - **Rust 1.70+** - Install from [rustup.rs](https://rustup.rs/)
@@ -109,7 +111,7 @@ cargo run --bin scribe-node
 cargo run --bin scribe-node -- --config config.toml
 ```
 
-The HTTP API will be available at `http://localhost:8080`.
+The HTTP API will be available at `http://localhost:8001`.
 
 ### Running a Multi-Node Cluster
 
@@ -148,8 +150,8 @@ data_dir = "./data"
 
 [network]
 listen_addr = "127.0.0.1"
-client_port = 8080          # HTTP API port
-raft_tcp_port = 8081        # Raft consensus port
+client_port = 8001          # HTTP API port
+raft_tcp_port = 9001        # Raft consensus port
 
 [storage]
 segment_size = 1048576      # 1MB segments
@@ -166,8 +168,8 @@ Override configuration using environment variables with the `SCRIBE_` prefix:
 
 ```bash
 export SCRIBE_NODE_ID=2
-export SCRIBE_NETWORK_CLIENT_PORT=8090
-export SCRIBE_NETWORK_RAFT_TCP_PORT=8082
+export SCRIBE_NETWORK_CLIENT_PORT=8002
+export SCRIBE_NETWORK_RAFT_TCP_PORT=9002
 
 cargo run --bin scribe-node
 ```
@@ -187,24 +189,24 @@ This demonstrates:
 
 For cluster deployments, configure each node with unique ports and IDs:
 
-- **Node 1**: `config-node1.toml` - HTTP: 8080, Raft: 8081
-- **Node 2**: `config-node2.toml` - HTTP: 8090, Raft: 8082  
-- **Node 3**: `config-node3.toml` - HTTP: 8100, Raft: 8083
+- **Node 1**: `config-node1.toml` - HTTP: 8001, Raft: 9001
+- **Node 2**: `config-node2.toml` - HTTP: 8002, Raft: 9002  
+- **Node 3**: `config-node3.toml` - HTTP: 8003, Raft: 9003
 
 ## HTTP API
 
-> **Note**: The examples below use port 8080 which is the default for scribe-node. The standalone http_server binary uses port 3000. Adjust the port based on your configuration.
+> **Note**: The examples below use port 8001 which is the default for scribe-node. Adjust the port based on your configuration.
 
 ### Monitoring & Metrics
 
 **Health Check**
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8001/health
 ```
 
 **Legacy Metrics (JSON)**
 ```bash
-curl http://localhost:8080/metrics
+curl http://localhost:8001/metrics
 ```
 
 Returns JSON with:
@@ -214,7 +216,7 @@ Returns JSON with:
 
 **Prometheus Metrics**
 ```bash
-curl http://localhost:8080/metrics/prometheus
+curl http://localhost:8001/metrics/prometheus
 ```
 
 Returns Prometheus-formatted metrics including:
@@ -231,7 +233,7 @@ Returns Prometheus-formatted metrics including:
 scrape_configs:
   - job_name: 'scribe-ledger'
     static_configs:
-      - targets: ['localhost:8080', 'localhost:8090', 'localhost:8100']
+      - targets: ['localhost:8001', 'localhost:8002', 'localhost:8003']
     metrics_path: '/metrics/prometheus'
     scrape_interval: 15s
 ```
@@ -240,46 +242,46 @@ scrape_configs:
 
 **Store Data (PUT)**
 ```bash
-curl -X PUT http://localhost:8080/my-key \
+curl -X PUT http://localhost:8001/my-key \
   -H "Content-Type: application/octet-stream" \
   --data-binary "my value data"
 ```
 
 **Retrieve Data (GET)**
 ```bash
-curl http://localhost:8080/my-key
+curl http://localhost:8001/my-key
 ```
 
 **Delete Data (DELETE)**
 ```bash
-curl -X DELETE http://localhost:8080/my-key
+curl -X DELETE http://localhost:8001/my-key
 ```
 
 ### Cluster Management
 
 **Check Health**
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8001/health
 ```
 
 **View Metrics**
 ```bash
-curl http://localhost:8080/metrics
+curl http://localhost:8001/metrics
 ```
 
 **Cluster Status**
 ```bash
-curl http://localhost:8080/cluster/info
+curl http://localhost:8001/cluster/info
 ```
 
 **List Members**
 ```bash
-curl http://localhost:8080/cluster/nodes
+curl http://localhost:8001/cluster/nodes
 ```
 
 **Get Leader**
 ```bash
-curl http://localhost:8080/cluster/leader/info
+curl http://localhost:8001/cluster/leader/info
 ```
 
 ## Storage Backend
@@ -588,14 +590,14 @@ cargo test discovery
 ./scripts/start-cluster.sh
 
 # Write to different nodes (all forwarded to leader)
-curl -X PUT http://localhost:8080/key1 --data "value1"
-curl -X PUT http://localhost:8090/key2 --data "value2"
-curl -X PUT http://localhost:8100/key3 --data "value3"
+curl -X PUT http://localhost:8001/key1 --data "value1"
+curl -X PUT http://localhost:8002/key2 --data "value2"
+curl -X PUT http://localhost:8003/key3 --data "value3"
 
 # Read from any node (data is replicated)
-curl http://localhost:8080/key1
-curl http://localhost:8090/key2
-curl http://localhost:8100/key3
+curl http://localhost:8001/key1
+curl http://localhost:8002/key2
+curl http://localhost:8003/key3
 ```
 
 **Test coverage:**
@@ -1149,7 +1151,7 @@ Benchmark categories:
 ./scripts/stop-cluster.sh
 
 # Check for processes
-lsof -i :8080,8090,8100
+lsof -i :8001,8002,8003
 ```
 
 **Build Errors:**

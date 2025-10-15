@@ -64,12 +64,12 @@ impl ConsensusNode {
         scribe_config: &ScribeConsensusConfig,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let config = Config {
-            heartbeat_interval: scribe_config.heartbeat_interval_ms as u64,
-            election_timeout_min: scribe_config.election_timeout_min as u64,
-            election_timeout_max: scribe_config.election_timeout_max as u64,
+            heartbeat_interval: scribe_config.heartbeat_interval_ms,
+            election_timeout_min: scribe_config.election_timeout_min,
+            election_timeout_max: scribe_config.election_timeout_max,
             enable_tick: true,
             enable_heartbeat: true,
-            max_payload_entries: scribe_config.max_payload_entries as u64,
+            max_payload_entries: scribe_config.max_payload_entries,
             snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(
                 scribe_config.snapshot_logs_since_last,
             ),

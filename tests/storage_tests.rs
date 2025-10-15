@@ -12,7 +12,6 @@ use hyra_scribe_ledger::storage::{SledStorage, StorageBackend};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use tokio;
 
 /// Test basic put and get operations
 #[tokio::test]
@@ -403,7 +402,7 @@ async fn test_len_and_is_empty() {
 async fn test_special_characters() {
     let storage = SledStorage::temp().unwrap();
 
-    let special_keys = vec![
+    let special_keys = [
         b"\x00\x01\x02\x03".to_vec(),
         b"\xFF\xFE\xFD".to_vec(),
         b"key/with/slashes".to_vec(),

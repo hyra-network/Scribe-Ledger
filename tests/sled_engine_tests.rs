@@ -189,11 +189,11 @@ fn test_sled_data_consistency() -> Result<()> {
     // Update balances
     ledger.put(
         "account:alice:balance",
-        &(alice_balance - transfer_amount).to_string(),
+        (alice_balance - transfer_amount).to_string(),
     )?;
     ledger.put(
         "account:bob:balance",
-        &(bob_balance + transfer_amount).to_string(),
+        (bob_balance + transfer_amount).to_string(),
     )?;
     // Note: total_funds should remain the same
 
