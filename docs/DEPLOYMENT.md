@@ -111,8 +111,8 @@ data_dir = "/var/lib/scribe-ledger"
 
 [network]
 listen_addr = "0.0.0.0"
-client_port = 8080
-raft_tcp_port = 8081
+client_port = 8001
+raft_tcp_port = 9001
 
 [storage]
 segment_size = 1048576      # 1MB
@@ -209,8 +209,8 @@ id = 1
 address = "10.0.1.10:8001"
 
 [network]
-client_port = 8080
-raft_tcp_port = 8081
+client_port = 8001
+raft_tcp_port = 9001
 ```
 
 **Node 2 (10.0.1.11):**
@@ -220,8 +220,8 @@ id = 2
 address = "10.0.1.11:8002"
 
 [network]
-client_port = 8090
-raft_tcp_port = 8082
+client_port = 8002
+raft_tcp_port = 9002
 ```
 
 **Node 3 (10.0.1.12):**
@@ -231,8 +231,8 @@ id = 3
 address = "10.0.1.12:8003"
 
 [network]
-client_port = 8100
-raft_tcp_port = 8083
+client_port = 8003
+raft_tcp_port = 9003
 ```
 
 ### Initialize Cluster
@@ -244,19 +244,19 @@ ssh node2 'sudo systemctl start scribe-node-2'
 ssh node3 'sudo systemctl start scribe-node-3'
 
 # Bootstrap cluster (on node1)
-curl -X POST http://node1:8080/cluster/init
+curl -X POST http://node1:8001/cluster/init
 
 # Add nodes to cluster
-curl -X POST http://node1:8080/cluster/nodes/add \
+curl -X POST http://node1:8001/cluster/nodes/add \
   -H 'Content-Type: application/json' \
   -d '{"node_id": 2, "address": "10.0.1.11:8002"}'
 
-curl -X POST http://node1:8080/cluster/nodes/add \
+curl -X POST http://node1:8001/cluster/nodes/add \
   -H 'Content-Type: application/json' \
   -d '{"node_id": 3, "address": "10.0.1.12:8003"}'
 
 # Verify cluster status
-curl http://node1:8080/cluster/info
+curl http://node1:8001/cluster/info
 ```
 
 ## Docker Deployment
@@ -273,13 +273,13 @@ services:
     build: .
     container_name: scribe-node-1
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "8001:8001"
+      - "9001:9001"
     environment:
       - NODE_ID=1
       - NODE_ADDRESS=scribe-node-1:8001
-      - CLIENT_PORT=8080
-      - RAFT_PORT=8081
+      - CLIENT_PORT=8001
+      - RAFT_PORT=9001
     volumes:
       - ./data/node1:/var/lib/scribe-ledger
       - ./certs:/etc/scribe-ledger/certs:ro
@@ -290,13 +290,13 @@ services:
     build: .
     container_name: scribe-node-2
     ports:
-      - "8090:8090"
-      - "8082:8082"
+      - "8002:8002"
+      - "9002:9002"
     environment:
       - NODE_ID=2
       - NODE_ADDRESS=scribe-node-2:8002
-      - CLIENT_PORT=8090
-      - RAFT_PORT=8082
+      - CLIENT_PORT=8002
+      - RAFT_PORT=9002
     volumes:
       - ./data/node2:/var/lib/scribe-ledger
       - ./certs:/etc/scribe-ledger/certs:ro
@@ -307,13 +307,13 @@ services:
     build: .
     container_name: scribe-node-3
     ports:
-      - "8100:8100"
-      - "8083:8083"
+      - "8003:8003"
+      - "9003:9003"
     environment:
       - NODE_ID=3
       - NODE_ADDRESS=scribe-node-3:8003
-      - CLIENT_PORT=8100
-      - RAFT_PORT=8083
+      - CLIENT_PORT=8003
+      - RAFT_PORT=9003
     volumes:
       - ./data/node3:/var/lib/scribe-ledger
       - ./certs:/etc/scribe-ledger/certs:ro

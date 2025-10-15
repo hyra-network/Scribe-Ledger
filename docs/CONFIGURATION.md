@@ -75,11 +75,11 @@ data_dir = "/var/lib/scribe-ledger"
 # Use "0.0.0.0" to listen on all interfaces
 listen_addr = "0.0.0.0"
 
-# Port for HTTP API server (default: 8080)
-client_port = 8080
+# Port for HTTP API server (default: 8001 for node 1, 8000 + node_id)
+client_port = 8001
 
-# Port for Raft TCP communication (default: 8081)
-raft_tcp_port = 8081
+# Port for Raft TCP communication (default: 9001 for node 1, 9000 + node_id)
+raft_tcp_port = 9001
 
 # Maximum concurrent connections (default: 1000)
 max_connections = 1000
@@ -93,8 +93,8 @@ keepalive_timeout = 120
 
 **Defaults:**
 - `listen_addr`: `"127.0.0.1"`
-- `client_port`: `8080`
-- `raft_tcp_port`: `8081`
+- `client_port`: `8001` (or `8000 + node_id`)
+- `raft_tcp_port`: `9001` (or `9000 + node_id`)
 - `max_connections`: `1000`
 - `connection_timeout`: `30`
 - `keepalive_timeout`: `120`
@@ -426,8 +426,8 @@ export SCRIBE_NODE_DATA_DIR="/var/lib/scribe-ledger"
 
 # Network configuration
 export SCRIBE_NETWORK_LISTEN_ADDR="0.0.0.0"
-export SCRIBE_NETWORK_CLIENT_PORT=8080
-export SCRIBE_NETWORK_RAFT_TCP_PORT=8081
+export SCRIBE_NETWORK_CLIENT_PORT=8001
+export SCRIBE_NETWORK_RAFT_TCP_PORT=9001
 
 # Storage configuration
 export SCRIBE_STORAGE_SEGMENT_SIZE=1048576
@@ -470,7 +470,7 @@ data_dir = "./data"
 
 [network]
 listen_addr = "127.0.0.1"
-client_port = 8080
+client_port = 8001
 
 [storage]
 max_cache_size = 134217728  # 128MB
@@ -497,8 +497,8 @@ data_dir = "/var/lib/scribe-ledger"
 
 [network]
 listen_addr = "0.0.0.0"
-client_port = 8080
-raft_tcp_port = 8081
+client_port = 8001
+raft_tcp_port = 9001
 max_connections = 5000
 
 [storage]

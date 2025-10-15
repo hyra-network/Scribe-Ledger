@@ -22,9 +22,9 @@ scrape_configs:
   - job_name: 'scribe-ledger'
     static_configs:
       - targets:
-          - 'node1:8080'
-          - 'node2:8090'
-          - 'node3:8100'
+          - 'node1:8001'
+          - 'node2:8002'
+          - 'node3:8003'
     metrics_path: '/metrics/prometheus'
     scrape_interval: 15s
 ```
@@ -148,16 +148,16 @@ processors:
 
 ```bash
 # Check cluster health
-curl http://localhost:8080/health
+curl http://localhost:8001/health
 
 # View cluster info
-curl http://localhost:8080/cluster/info
+curl http://localhost:8001/cluster/info
 
 # List cluster members
-curl http://localhost:8080/cluster/nodes
+curl http://localhost:8001/cluster/nodes
 
 # Get current leader
-curl http://localhost:8080/cluster/leader/info
+curl http://localhost:8001/cluster/leader/info
 ```
 
 ### Add Node to Cluster
@@ -168,7 +168,7 @@ curl http://localhost:8080/cluster/leader/info
 sudo systemctl start scribe-node-4
 
 # 3. Add to cluster (from leader)
-curl -X POST http://leader:8080/cluster/nodes/add \
+curl -X POST http://leader:8001/cluster/nodes/add \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: admin-key' \
   -d '{
@@ -177,14 +177,14 @@ curl -X POST http://leader:8080/cluster/nodes/add \
   }'
 
 # 4. Verify node joined
-curl http://leader:8080/cluster/nodes
+curl http://leader:8001/cluster/nodes
 ```
 
 ### Remove Node from Cluster
 
 ```bash
 # 1. Remove from cluster (graceful)
-curl -X POST http://leader:8080/cluster/nodes/remove \
+curl -X POST http://leader:8001/cluster/nodes/remove \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: admin-key' \
   -d '{"node_id": 4}'
@@ -193,7 +193,7 @@ curl -X POST http://leader:8080/cluster/nodes/remove \
 ssh node4 'sudo systemctl stop scribe-node-4'
 
 # 3. Verify removal
-curl http://leader:8080/cluster/nodes
+curl http://leader:8001/cluster/nodes
 ```
 
 ### Rotate API Keys
@@ -223,7 +223,7 @@ done
 
 ```bash
 # 1. Stop writes (if possible) or create consistent snapshot
-curl -X POST http://leader:8080/admin/pause-writes \
+curl -X POST http://leader:8001/admin/pause-writes \
   -H 'X-API-Key: admin-key'
 
 # 2. Backup data directory
@@ -235,7 +235,7 @@ sudo cp /etc/scribe-ledger/config.toml \
   /backup/config-$(date +%Y%m%d).toml
 
 # 4. Resume writes
-curl -X POST http://leader:8080/admin/resume-writes \
+curl -X POST http://leader:8001/admin/resume-writes \
   -H 'X-API-Key: admin-key'
 
 # 5. Verify backup integrity
@@ -266,7 +266,7 @@ sudo chown -R scribe-ledger:scribe-ledger /var/lib/scribe-ledger
 sudo systemctl start scribe-node
 
 # 7. Verify data
-curl http://localhost:8080/metrics
+curl http://localhost:8001/metrics
 ```
 
 ### Certificate Renewal
@@ -284,7 +284,7 @@ for node in node{1..3}; do
 done
 
 # 4. Verify TLS is working
-openssl s_client -connect node1:8080
+openssl s_client -connect node1:8001
 ```
 
 ## Incident Response
@@ -315,7 +315,7 @@ ssh node2 'sudo systemctl restart scribe-node'
 #    - Configuration errors
 
 # 5. If cannot recover, remove node and redeploy
-curl -X POST http://leader:8080/cluster/nodes/remove \
+curl -X POST http://leader:8001/cluster/nodes/remove \
   -H 'X-API-Key: admin-key' \
   -d '{"node_id": 2}'
 ```
@@ -331,7 +331,7 @@ curl -X POST http://leader:8080/cluster/nodes/remove \
 
 ```bash
 # 1. Check how many nodes are available
-curl http://any-node:8080/cluster/nodes
+curl http://any-node:8001/cluster/nodes
 
 # 2. Bring up missing nodes
 for node in node{1..3}; do
@@ -364,7 +364,7 @@ ping -c 10 node1
 ping -c 10 node2
 
 # 3. Check database metrics
-curl http://node1:8080/metrics/prometheus | grep latency
+curl http://node1:8001/metrics/prometheus | grep latency
 
 # 4. Check for slow queries in logs
 ssh node1 'sudo journalctl -u scribe-node | grep "slow"'
@@ -383,7 +383,7 @@ ssh node1 'sudo journalctl -u scribe-node | grep "slow"'
 
 ```bash
 # 1. Identify affected node
-curl http://each-node:8080/verify/key
+curl http://each-node:8001/verify/key
 
 # 2. Stop affected node
 ssh affected-node 'sudo systemctl stop scribe-node'
@@ -398,7 +398,7 @@ ssh affected-node 'sudo rm -rf /var/lib/scribe-ledger/*'
 ssh affected-node 'sudo systemctl start scribe-node'
 
 # 6. Verify data integrity
-curl http://affected-node:8080/verify/key
+curl http://affected-node:8001/verify/key
 ```
 
 ## Maintenance Procedures
@@ -425,7 +425,7 @@ for node in node{1..3}; do
   sleep 60
   
   # Verify node is healthy
-  curl http://$node:8080/health
+  curl http://$node:8001/health
   
   echo "$node upgraded successfully"
 done
@@ -437,11 +437,11 @@ done
 # If database grows too large, compact on each node
 
 # 1. Trigger compaction (if supported)
-curl -X POST http://node1:8080/admin/compact \
+curl -X POST http://node1:8001/admin/compact \
   -H 'X-API-Key: admin-key'
 
 # 2. Monitor progress
-watch -n 5 'curl -s http://node1:8080/metrics | grep storage'
+watch -n 5 'curl -s http://node1:8001/metrics | grep storage'
 
 # 3. Repeat for other nodes
 ```
@@ -526,7 +526,7 @@ sudo sysctl -p
 #!/bin/bash
 # /usr/local/bin/check-scribe-health.sh
 
-NODES=("node1:8080" "node2:8090" "node3:8100")
+NODES=("node1:8001" "node2:8002" "node3:8003")
 
 for node in "${NODES[@]}"; do
   if ! curl -sf "http://$node/health" > /dev/null; then
