@@ -200,6 +200,16 @@ pub struct DiscoveryConfig {
     /// Failure detection timeout in milliseconds
     #[serde(default = "default_discovery_failure_timeout_ms")]
     pub failure_timeout_ms: u64,
+    /// UDP port for discovery broadcasts (default: 17946)
+    #[serde(default = "default_discovery_port")]
+    pub discovery_port: u16,
+    /// Broadcast address for local discovery (default: 255.255.255.255 for LAN)
+    #[serde(default = "default_broadcast_addr")]
+    pub broadcast_addr: String,
+    /// Secret token for cross-network node authentication (optional)
+    /// Nodes must have matching tokens to join the same cluster across networks
+    #[serde(default)]
+    pub cluster_secret: Option<String>,
 }
 
 fn default_discovery_heartbeat_ms() -> u64 {
@@ -210,15 +220,25 @@ fn default_discovery_failure_timeout_ms() -> u64 {
     1500
 }
 
+fn default_discovery_port() -> u16 {
+    17946
+}
+
+fn default_broadcast_addr() -> String {
+    "255.255.255.255".to_string()
+}
+
 impl Default for DiscoveryConfig {
     fn default() -> Self {
         Self {
             heartbeat_interval_ms: default_discovery_heartbeat_ms(),
             failure_timeout_ms: default_discovery_failure_timeout_ms(),
+            discovery_port: default_discovery_port(),
+            broadcast_addr: default_broadcast_addr(),
+            cluster_secret: None,
         }
     }
 }
-
 
 impl Config {
     /// Load configuration from a TOML file

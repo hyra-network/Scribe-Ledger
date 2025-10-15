@@ -324,7 +324,8 @@ mod tests {
         let db = sled::Config::new().temporary(true).open().unwrap();
         let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
 
-        node.register_peer(TEST_NODE_ID_2, TEST_ADDR_2.to_string()).await;
+        node.register_peer(TEST_NODE_ID_2, TEST_ADDR_2.to_string())
+            .await;
 
         // Can't directly access node_addresses from outside, so just verify it doesn't error
     }

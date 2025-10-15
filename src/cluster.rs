@@ -111,7 +111,10 @@ impl ClusterInitializer {
         if peers.is_empty() {
             warn!("No peers discovered");
             // Don't try to bootstrap if we already have state, just continue as standalone
-            info!("Node {} will continue as standalone (existing state preserved)", self.node_id);
+            info!(
+                "Node {} will continue as standalone (existing state preserved)",
+                self.node_id
+            );
             return Ok(());
         }
 
@@ -314,6 +317,7 @@ mod tests {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let discovery = Arc::new(DiscoveryService::new(discovery_config).unwrap());

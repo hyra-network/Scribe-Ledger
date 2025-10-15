@@ -1,20 +1,37 @@
 # Node 3 Configuration
 
 [node]
+# Unique node identifier
 id = 3
+# Node address
 address = "127.0.0.1"
+# Data directory
 data_dir = "./node-3"
 
 [network]
+# Client API listen address
 listen_addr = "127.0.0.1:8003"
+# Client HTTP API port (default: 8000 + node_id = 8003)
 client_port = 8003
+# Raft consensus port (default: 9000 + node_id = 9003)
 raft_port = 9003
 
 [storage]
+# Segment size (64MB)
 segment_size = 67108864
+# Max cache size (256MB)
 max_cache_size = 268435456
 
 [consensus]
+# Election timeout min (ms, default: 1500)
 election_timeout_min = 1500
+# Election timeout max (ms, default: 3000)
 election_timeout_max = 3000
+# Heartbeat interval (ms, default: 300)
 heartbeat_interval_ms = 300
+
+[discovery]
+# UDP discovery port (default: 17946)
+discovery_port = 17946
+# Broadcast address (default: 255.255.255.255)
+broadcast_addr = "255.255.255.255"

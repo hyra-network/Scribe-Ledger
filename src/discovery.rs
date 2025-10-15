@@ -32,11 +32,21 @@ pub enum DiscoveryMessage {
         node_id: u64,
         raft_addr: SocketAddr,
         client_addr: SocketAddr,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
     },
     /// Heartbeat to indicate node is alive
-    Heartbeat { node_id: u64 },
+    Heartbeat {
+        node_id: u64,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
+    },
     /// Request peer list from other nodes
-    PeerListRequest { node_id: u64 },
+    PeerListRequest {
+        node_id: u64,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
+    },
     /// Response with known peers
     PeerListResponse { peers: Vec<PeerInfo> },
 }
@@ -75,6 +85,8 @@ pub struct DiscoveryConfig {
     pub heartbeat_interval_ms: u64,
     /// Failure detection timeout in milliseconds
     pub failure_timeout_ms: u64,
+    /// Cluster secret for cross-network authentication (optional)
+    pub cluster_secret: Option<String>,
 }
 
 impl Default for DiscoveryConfig {
@@ -88,6 +100,7 @@ impl Default for DiscoveryConfig {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: DEFAULT_HEARTBEAT_INTERVAL_MS,
             failure_timeout_ms: DEFAULT_FAILURE_TIMEOUT_MS,
+            cluster_secret: None,
         }
     }
 }
@@ -244,6 +257,7 @@ impl DiscoveryService {
             node_id: self.config.node_id,
             raft_addr: self.config.raft_addr,
             client_addr: self.config.client_addr,
+            cluster_secret: self.config.cluster_secret.clone(),
         };
 
         self.broadcast_message(&msg)?;
@@ -255,6 +269,7 @@ impl DiscoveryService {
     fn send_heartbeat(&self) -> Result<()> {
         let msg = DiscoveryMessage::Heartbeat {
             node_id: self.config.node_id,
+            cluster_secret: self.config.cluster_secret.clone(),
         };
 
         self.broadcast_message(&msg)?;
@@ -355,9 +370,19 @@ impl DiscoveryService {
                 node_id,
                 raft_addr,
                 client_addr,
+                cluster_secret,
             } => {
                 // Ignore our own announces
                 if *node_id == config.node_id {
+                    return;
+                }
+
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected announce from node {} - invalid cluster secret",
+                        node_id
+                    );
                     return;
                 }
 
@@ -387,6 +412,7 @@ impl DiscoveryService {
                         node_id: config.node_id,
                         raft_addr: config.raft_addr,
                         client_addr: config.client_addr,
+                        cluster_secret: config.cluster_secret.clone(),
                     };
 
                     if let Ok(data) = bincode::serialize(&response) {
@@ -399,9 +425,21 @@ impl DiscoveryService {
                     }
                 }
             }
-            DiscoveryMessage::Heartbeat { node_id } => {
+            DiscoveryMessage::Heartbeat {
+                node_id,
+                cluster_secret,
+            } => {
                 // Ignore our own heartbeats
                 if *node_id == config.node_id {
+                    return;
+                }
+
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected heartbeat from node {} - invalid cluster secret",
+                        node_id
+                    );
                     return;
                 }
 
@@ -413,7 +451,19 @@ impl DiscoveryService {
                     debug!("Received heartbeat from unknown node {}, ignoring", node_id);
                 }
             }
-            DiscoveryMessage::PeerListRequest { node_id } => {
+            DiscoveryMessage::PeerListRequest {
+                node_id,
+                cluster_secret,
+            } => {
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected peer list request from node {} - invalid cluster secret",
+                        node_id
+                    );
+                    return;
+                }
+
                 debug!("Received peer list request from node {}", node_id);
                 // Implementation for peer list exchange would go here
                 // For now, receiving an announce is sufficient for discovery
@@ -484,6 +534,20 @@ impl DiscoveryService {
         info!("Failure detection loop stopped");
     }
 
+    /// Validate cluster secret from incoming message
+    fn validate_cluster_secret(config: &DiscoveryConfig, msg_secret: &Option<String>) -> bool {
+        match (&config.cluster_secret, msg_secret) {
+            // Both have secrets - they must match
+            (Some(our_secret), Some(their_secret)) => our_secret == their_secret,
+            // We have a secret but they don't - reject
+            (Some(_), None) => false,
+            // We don't have a secret but they do - reject (for security)
+            (None, Some(_)) => false,
+            // Neither has secret - allow (open network)
+            (None, None) => true,
+        }
+    }
+
     /// Clone for background tasks
     fn clone_for_task(&self) -> Self {
         Self {
@@ -547,6 +611,7 @@ mod tests {
             node_id: TEST_NODE_ID,
             raft_addr: test_raft_addr(TEST_RAFT_PORT),
             client_addr: test_client_addr(TEST_CLIENT_PORT),
+            cluster_secret: None,
         };
 
         let serialized = bincode::serialize(&msg).unwrap();
@@ -557,7 +622,10 @@ mod tests {
 
     #[test]
     fn test_heartbeat_message_serialization() {
-        let msg = DiscoveryMessage::Heartbeat { node_id: TEST_HEARTBEAT_NODE_ID };
+        let msg = DiscoveryMessage::Heartbeat {
+            node_id: TEST_HEARTBEAT_NODE_ID,
+            cluster_secret: None,
+        };
 
         let serialized = bincode::serialize(&msg).unwrap();
         let deserialized: DiscoveryMessage = bincode::deserialize(&serialized).unwrap();
@@ -575,6 +643,7 @@ mod tests {
             broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
+            cluster_secret: None,
             failure_timeout_ms: 1500,
         };
 
@@ -593,6 +662,7 @@ mod tests {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
@@ -611,6 +681,7 @@ mod tests {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
@@ -655,6 +726,7 @@ mod tests {
             broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 100,
+            cluster_secret: None,
             failure_timeout_ms: 200, // Very short timeout for testing
         };
 
@@ -693,6 +765,7 @@ mod tests {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
@@ -721,6 +794,7 @@ mod tests {
             node_id: TEST_NODE_ID,
             raft_addr: test_raft_addr(TEST_RAFT_PORT),
             client_addr: test_client_addr(TEST_CLIENT_PORT),
+            cluster_secret: None,
         };
 
         let serialized = bincode::serialize(&msg).unwrap();

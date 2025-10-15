@@ -5,24 +5,23 @@
 //! graceful shutdown handling.
 
 use anyhow::Result;
-use clap::Parser;
-use hyra_scribe_ledger::api::DistributedApi;
-use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
-use hyra_scribe_ledger::config::Config;
-use hyra_scribe_ledger::consensus::ConsensusNode;
-use hyra_scribe_ledger::discovery::DiscoveryService;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tracing::{error, info, warn};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use tokio::signal;
 use axum::{
     extract::State,
     response::{IntoResponse, Json},
     routing::get,
     Router,
 };
+use clap::Parser;
+use hyra_scribe_ledger::api::DistributedApi;
+use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
+use hyra_scribe_ledger::config::Config;
+use hyra_scribe_ledger::consensus::ConsensusNode;
+use hyra_scribe_ledger::discovery::DiscoveryService;
 use serde_json::json;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tracing::{error, info, warn};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// Hyra Scribe Ledger - Distributed Node
 #[derive(Parser, Debug)]
@@ -102,11 +101,12 @@ async fn main() -> Result<()> {
         client_addr: format!("{}:{}", config.node.address, config.network.client_port)
             .parse()
             .unwrap(),
-        discovery_port: config.network.raft_port,
-        broadcast_addr: config.node.address.clone(),
+        discovery_port: config.discovery.discovery_port,
+        broadcast_addr: config.discovery.broadcast_addr.clone(),
         seed_addrs: config.network.seed_peers.clone(),
         heartbeat_interval_ms: config.discovery.heartbeat_interval_ms,
         failure_timeout_ms: config.discovery.failure_timeout_ms,
+        cluster_secret: config.discovery.cluster_secret.clone(),
     };
 
     let discovery = Arc::new(DiscoveryService::new(discovery_config)?);
@@ -119,12 +119,15 @@ async fn main() -> Result<()> {
     // Determine initialization mode
     // Check if the database already has Raft state (previous initialization)
     let has_existing_state = check_existing_raft_state(&db_path)?;
-    
+
     let init_mode = if cli.bootstrap {
         if has_existing_state {
             warn!("Bootstrap flag provided but Raft state already exists");
             warn!("Cluster will attempt to join existing state instead");
-            warn!("To force bootstrap, delete the data directory: {:?}", config.node.data_dir);
+            warn!(
+                "To force bootstrap, delete the data directory: {:?}",
+                config.node.data_dir
+            );
             InitMode::Join
         } else {
             info!("Bootstrapping new cluster");
@@ -155,7 +158,11 @@ async fn main() -> Result<()> {
     // Initialize cluster
     info!(
         "Initializing cluster in {} mode",
-        if matches!(init_mode, InitMode::Bootstrap) { "Bootstrap" } else { "Join" }
+        if matches!(init_mode, InitMode::Bootstrap) {
+            "Bootstrap"
+        } else {
+            "Join"
+        }
     );
     if let Err(e) = initializer.initialize().await {
         error!("Failed to initialize cluster: {}", e);
@@ -167,14 +174,13 @@ async fn main() -> Result<()> {
 
     // Start HTTP server
     info!("Starting HTTP server on {}", config.network.listen_addr);
-    let http_server = start_http_server(
-        config.network.listen_addr,
-        consensus.clone(),
-        api.clone(),
-    );
+    let http_server = start_http_server(config.network.listen_addr, consensus.clone(), api.clone());
 
     info!("Node {} is ready", config.node.id);
-    info!("HTTP API available at http://{}", config.network.listen_addr);
+    info!(
+        "HTTP API available at http://{}",
+        config.network.listen_addr
+    );
     info!("Press Ctrl+C to shutdown gracefully");
 
     // Run HTTP server and wait for shutdown signal concurrently
@@ -259,7 +265,7 @@ fn check_existing_raft_state(db_path: &PathBuf) -> Result<bool> {
     if !db_path.exists() {
         return Ok(false);
     }
-    
+
     // Check if there are any files in the directory
     match std::fs::read_dir(db_path) {
         Ok(entries) => {
@@ -284,7 +290,7 @@ async fn start_http_server(
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("HTTP server listening on {}", addr);
-    
+
     axum::serve(listener, app).await?;
     Ok(())
 }

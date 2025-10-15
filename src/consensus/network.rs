@@ -339,10 +339,15 @@ mod tests {
     #[tokio::test]
     async fn test_network_factory() {
         let factory = NetworkFactory::new(TEST_NODE_ID);
-        factory.register_node(TEST_NODE_ID_2, TEST_ADDR_PORT_2.to_string()).await;
+        factory
+            .register_node(TEST_NODE_ID_2, TEST_ADDR_PORT_2.to_string())
+            .await;
 
         let addresses = factory.node_addresses.read().await;
-        assert_eq!(addresses.get(&TEST_NODE_ID_2), Some(&TEST_ADDR_PORT_2.to_string()));
+        assert_eq!(
+            addresses.get(&TEST_NODE_ID_2),
+            Some(&TEST_ADDR_PORT_2.to_string())
+        );
     }
 
     #[tokio::test]

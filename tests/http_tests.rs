@@ -858,7 +858,9 @@ async fn test_cluster_leave_endpoint() -> Result<()> {
     let (base_url, _handle) = create_test_server().await;
 
     let client = reqwest::Client::new();
-    let request = ClusterLeaveRequest { node_id: TEST_NODE_ID };
+    let request = ClusterLeaveRequest {
+        node_id: TEST_NODE_ID,
+    };
 
     let response = client
         .post(format!("{}/cluster/nodes/remove", base_url))

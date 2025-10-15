@@ -31,6 +31,7 @@ fn create_test_config(node_id: u64, base_port: u16, num_nodes: u64) -> Discovery
         seed_addrs,                 // Seed addresses for discovery
         heartbeat_interval_ms: 200, // Fast heartbeat for testing
         failure_timeout_ms: 600,    // 3x heartbeat
+        cluster_secret: None,       // No secret for tests
     }
 }
 
@@ -460,6 +461,7 @@ async fn test_discovery_config_values() {
         seed_addrs: vec![TEST_IP.to_string()],
         heartbeat_interval_ms: custom_heartbeat,
         failure_timeout_ms: custom_timeout,
+        cluster_secret: None,
     };
 
     assert_eq!(config.heartbeat_interval_ms, custom_heartbeat);

@@ -29,13 +29,18 @@ fn create_discovery_config(node_id: u64, base_port: u16, num_nodes: u64) -> Disc
 
     DiscoveryConfig {
         node_id,
-        raft_addr: format!("{}:{}", TEST_IP, TEST_RAFT_BASE_PORT + node_id as u16).parse().unwrap(),
-        client_addr: format!("{}:{}", TEST_IP, TEST_CLIENT_BASE_PORT + node_id as u16).parse().unwrap(),
+        raft_addr: format!("{}:{}", TEST_IP, TEST_RAFT_BASE_PORT + node_id as u16)
+            .parse()
+            .unwrap(),
+        client_addr: format!("{}:{}", TEST_IP, TEST_CLIENT_BASE_PORT + node_id as u16)
+            .parse()
+            .unwrap(),
         discovery_port: my_port,
         broadcast_addr: TEST_IP.to_string(),
         seed_addrs,
         heartbeat_interval_ms: 200,
         failure_timeout_ms: 600,
+        cluster_secret: None,
     }
 }
 
