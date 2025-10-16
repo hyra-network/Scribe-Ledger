@@ -67,7 +67,7 @@ region = "us-west-2"
 ### Initializing S3 Storage
 
 ```rust
-use simple_scribe_ledger::storage::s3::{S3Storage, S3StorageConfig};
+use hyra_scribe_ledger::storage::s3::{S3Storage, S3StorageConfig};
 
 // Create configuration
 let config = S3StorageConfig {
@@ -88,7 +88,7 @@ let storage = S3Storage::new(config).await?;
 ### Storing Segments
 
 ```rust
-use simple_scribe_ledger::storage::segment::Segment;
+use hyra_scribe_ledger::storage::segment::Segment;
 use std::collections::HashMap;
 
 // Create a segment

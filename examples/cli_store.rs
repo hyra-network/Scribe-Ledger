@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::io::{self, Write};
 
 fn main() -> Result<()> {
@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     println!("  quit              - Exit the application");
     println!();
 
-    let ledger = SimpleScribeLedger::new("./my_store")?;
+    let ledger = HyraScribeLedger::new("./my_store")?;
 
     loop {
         print!("store> ");

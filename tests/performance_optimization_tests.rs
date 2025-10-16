@@ -10,7 +10,7 @@
 use hyra_scribe_ledger::api::DistributedApi;
 use hyra_scribe_ledger::cache::HotDataCache;
 use hyra_scribe_ledger::consensus::ConsensusNode;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -105,7 +105,7 @@ async fn test_distributed_api_full_config() {
 
 #[test]
 fn test_bincode_serialization() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Test bincode put and get
     #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
@@ -135,14 +135,14 @@ fn test_bincode_serialization() {
 
 #[test]
 fn test_batch_operations() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Create multiple batches
-    let mut batch1 = SimpleScribeLedger::new_batch();
+    let mut batch1 = HyraScribeLedger::new_batch();
     batch1.insert(b"key1", b"value1");
     batch1.insert(b"key2", b"value2");
 
-    let mut batch2 = SimpleScribeLedger::new_batch();
+    let mut batch2 = HyraScribeLedger::new_batch();
     batch2.insert(b"key3", b"value3");
     batch2.insert(b"key4", b"value4");
 
@@ -158,9 +158,9 @@ fn test_batch_operations() {
 
 #[test]
 fn test_batch_operations_with_flush() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
     for i in 0..100 {
         let key = format!("key{}", i);
         let value = format!("value{}", i);
@@ -180,7 +180,7 @@ fn test_batch_operations_with_flush() {
 fn test_bincode_performance_vs_json() {
     use std::time::Instant;
 
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     #[derive(serde::Serialize, serde::Deserialize, Clone)]
     struct LargeData {
@@ -300,7 +300,7 @@ async fn test_consensus_node_with_optimized_config() {
 
 #[test]
 fn test_empty_batch_operations() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Empty batch should work without errors
     let result = ledger.apply_batches(Vec::<sled::Batch>::new());
@@ -312,9 +312,9 @@ fn test_empty_batch_operations() {
 
 #[test]
 fn test_large_batch_performance() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
     let num_items = 10000;
 
     for i in 0..num_items {

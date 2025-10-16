@@ -7,8 +7,8 @@ Wants=network-online.target
 Type=simple
 User=scribe
 Group=scribe
-WorkingDirectory=/opt/simple-scribe-ledger
-ExecStart=/opt/simple-scribe-ledger/scribe-node --config /etc/simple-scribe-ledger/node2.toml --log-level info
+WorkingDirectory=/opt/Scribe-Ledger
+ExecStart=/opt/Scribe-Ledger/scribe-node --config /etc/Scribe-Ledger/node2.toml --log-level info
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
@@ -20,7 +20,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/simple-scribe-ledger/node-2
+ReadWritePaths=/var/lib/Scribe-Ledger/node-2
 
 # Resource limits
 LimitNOFILE=65536

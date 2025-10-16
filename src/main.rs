@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::sync::Arc;
 
 fn main() -> Result<()> {
@@ -7,11 +7,11 @@ fn main() -> Result<()> {
     println!("==================================");
 
     // Keep database handle alive and reuse it - don't reopen for each operation
-    let ledger = Arc::new(SimpleScribeLedger::new("./optimized_demo_db")?);
+    let ledger = Arc::new(HyraScribeLedger::new("./optimized_demo_db")?);
 
     // Simulate multiple operations that would normally reopen the database
     // This is the problematic pattern mentioned in the problem statement:
-    //   let ledger = SimpleScribeLedger::new(path)?; // <- Don't do this every time!
+    //   let ledger = HyraScribeLedger::new(path)?; // <- Don't do this every time!
     //   ledger.operation()?;
     // Instead, we keep one instance and reuse it:
 
@@ -46,11 +46,11 @@ fn main() -> Result<()> {
 
 // Simulate operations that would typically reopen the database each time
 // BAD: fn perform_user_operations(path: &str) -> Result<()> {
-//          let ledger = SimpleScribeLedger::new(path)?; // <- Expensive!
+//          let ledger = HyraScribeLedger::new(path)?; // <- Expensive!
 // GOOD: Pass the existing database handle
-fn perform_user_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
+fn perform_user_operations(ledger: Arc<HyraScribeLedger>) -> Result<()> {
     // Use batch operations for better performance
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
 
     batch.insert(b"user:1:name", b"Alice Johnson");
     batch.insert(b"user:1:email", b"alice@example.com");
@@ -66,9 +66,9 @@ fn perform_user_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
     Ok(())
 }
 
-fn perform_system_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
+fn perform_system_operations(ledger: Arc<HyraScribeLedger>) -> Result<()> {
     // Another batch operation
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
 
     batch.insert(b"system:version", b"1.0.0");
     batch.insert(b"system:startup_time", b"2024-01-15T10:30:00Z");
@@ -80,12 +80,12 @@ fn perform_system_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
     Ok(())
 }
 
-fn perform_app_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
+fn perform_app_operations(ledger: Arc<HyraScribeLedger>) -> Result<()> {
     // Mix of individual and batch operations
     ledger.put("app:name", "Hyra Scribe Ledger")?;
     ledger.put("app:language", "Rust")?;
 
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
     batch.insert(b"app:features:persistence", b"true");
     batch.insert(b"app:features:performance", b"optimized");
     batch.insert(b"app:features:safety", b"memory_safe");
@@ -96,7 +96,7 @@ fn perform_app_operations(ledger: Arc<SimpleScribeLedger>) -> Result<()> {
     Ok(())
 }
 
-fn query_all_data(ledger: &SimpleScribeLedger) -> Result<()> {
+fn query_all_data(ledger: &HyraScribeLedger) -> Result<()> {
     // Sample some of the stored data
     let keys_to_check = ["user:1:name", "user:2:role", "system:version", "app:name"];
 

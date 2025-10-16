@@ -77,14 +77,14 @@ fn benchmark_library_vs_json_comparison(c: &mut Criterion) {
     // Direct library access (actual database operations)
     group.bench_function("direct_library_100_ops", |b| {
         use hyra_scribe_ledger::storage_ops::batched_put_operations;
-        use hyra_scribe_ledger::SimpleScribeLedger;
+        use hyra_scribe_ledger::HyraScribeLedger;
 
         // Pre-allocate test data for better performance
         let keys: Vec<String> = (0..100).map(|i| format!("key{}", i)).collect();
         let values: Vec<String> = (0..100).map(|i| format!("value{}", i)).collect();
 
         b.iter(|| {
-            let ledger = SimpleScribeLedger::temp().unwrap();
+            let ledger = HyraScribeLedger::temp().unwrap();
             batched_put_operations(&ledger, &keys, &values, true).unwrap();
 
             // Read them back

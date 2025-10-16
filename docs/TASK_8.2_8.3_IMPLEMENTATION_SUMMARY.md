@@ -236,7 +236,7 @@ Total:                     343/343  ✅
 ## File Structure
 
 ```
-simple-scribe-ledger/
+Scribe-Ledger/
 ├── scripts/
 │   ├── start-cluster.sh          (137 lines, executable)
 │   ├── stop-cluster.sh           (79 lines, executable)

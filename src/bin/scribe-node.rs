@@ -18,7 +18,7 @@ use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
 use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
 use hyra_scribe_ledger::config::Config;
 use hyra_scribe_ledger::consensus::ConsensusNode;
-use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use hyra_scribe_ledger::discovery::DiscoveryService;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -159,36 +159,13 @@ async fn main() -> Result<()> {
     discovery.start().await?;
     info!("Discovery service started");
 
-    // Determine initialization mode
-    // Check if the database already has Raft state (previous initialization)
-    let has_existing_state = check_existing_raft_state(&db_path)?;
-
-    let init_mode = if cli.bootstrap {
-        if has_existing_state {
-            warn!("Bootstrap flag provided but Raft state already exists");
-            warn!("Cluster will attempt to join existing state instead");
-            warn!(
-                "To force bootstrap, delete the data directory: {:?}",
-                config.node.data_dir
-            );
-            InitMode::Join
-        } else {
-            info!("Bootstrapping new cluster");
-            InitMode::Bootstrap
-        }
-    } else if has_existing_state {
-        info!("Existing Raft state detected, rejoining cluster");
-        InitMode::Join
-    } else {
-        warn!("No existing Raft state found");
-        warn!("If this is the first node, use --bootstrap flag");
-        info!("Attempting to join existing cluster");
-        InitMode::Join
-    };
-
     // Create cluster initializer
     let cluster_config = ClusterConfig {
-        mode: init_mode.clone(),
+        mode: if cli.bootstrap {
+            InitMode::Bootstrap
+        } else {
+            InitMode::Join
+        },
         seed_addrs: Vec::new(),
         discovery_timeout_ms: 5000,
         min_peers_for_join: 1,
@@ -199,11 +176,7 @@ async fn main() -> Result<()> {
     // Initialize cluster
     info!(
         "Initializing cluster in {} mode",
-        if matches!(init_mode, InitMode::Bootstrap) {
-            "Bootstrap"
-        } else {
-            "Join"
-        }
+        if cli.bootstrap { "Bootstrap" } else { "Join" }
     );
     if let Err(e) = initializer.initialize().await {
         error!("Failed to initialize cluster: {}", e);

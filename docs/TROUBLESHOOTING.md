@@ -643,7 +643,7 @@ tar -czf ../scribe-diagnostics-$(date +%Y%m%d-%H%M%S).tar.gz .
 
 If you cannot resolve an issue:
 
-1. **Check GitHub Issues:** https://github.com/hyra-network/simple-scribe-ledger/issues
+1. **Check GitHub Issues:** https://github.com/hyra-network/Scribe-Ledger/issues
 2. **Create New Issue:** Include diagnostic bundle and reproduction steps
 3. **Community Support:** Join the discussion forum
 4. **Commercial Support:** Contact support@hyra-network.com

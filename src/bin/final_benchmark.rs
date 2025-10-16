@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -133,7 +133,7 @@ fn run_baseline_test(size: usize) -> Result<BenchmarkResults> {
         println!("    Run {}/3...", run + 1);
 
         // PUT test - individual operations with frequent flush
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
         let start = Instant::now();
 
         for i in 0..size {
@@ -159,7 +159,7 @@ fn run_baseline_test(size: usize) -> Result<BenchmarkResults> {
         get_times.push(start.elapsed().as_secs_f64());
 
         // MIXED test
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
         let start = Instant::now();
 
         for i in 0..(size / 2) {
@@ -199,7 +199,7 @@ fn run_optimized_test(size: usize) -> Result<BenchmarkResults> {
         println!("    Run {}/3...", run + 1);
 
         // PUT test - batch operations, pre-allocated data, minimal flushing
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Pre-allocate all data (efficient)
         let keys: Vec<Vec<u8>> = (0..size)
@@ -215,7 +215,7 @@ fn run_optimized_test(size: usize) -> Result<BenchmarkResults> {
         let batch_size = 100;
         let mut i = 0;
         while i < size {
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
             let end = std::cmp::min(i + batch_size, size);
 
             for j in i..end {
@@ -238,11 +238,11 @@ fn run_optimized_test(size: usize) -> Result<BenchmarkResults> {
         get_times.push(start.elapsed().as_secs_f64());
 
         // MIXED test - optimized
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
         let start = Instant::now();
 
         let half_size = size / 2;
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
         for i in 0..half_size {
             batch.insert(keys[i].as_slice(), values[i].as_slice());
         }
