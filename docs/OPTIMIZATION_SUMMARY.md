@@ -20,7 +20,7 @@ This implementation addresses all the performance issues identified in the probl
 - **RESULT**: 19.3% improvement in PUT operations (52K → 63K ops/sec)
 
 ### 3. main.rs CLI Optimization ✅
-- **FIXED**: Database reopening issue - use persistent `Arc<SimpleScribeLedger>` 
+- **FIXED**: Database reopening issue - use persistent `Arc<HyraScribeLedger>` 
 - **FIXED**: Frequent flushing in CLI examples - reduced from per-operation to end-of-session
 - **DEMONSTRATED**: Proper database handle reuse patterns
 

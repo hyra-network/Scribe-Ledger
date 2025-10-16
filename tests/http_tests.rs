@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -81,14 +81,14 @@ struct ClusterLeaderResponse {
 
 // Application state with metrics
 struct AppState {
-    ledger: Arc<SimpleScribeLedger>,
+    ledger: Arc<HyraScribeLedger>,
     gets: Arc<AtomicU64>,
     puts: Arc<AtomicU64>,
     deletes: Arc<AtomicU64>,
 }
 
 impl AppState {
-    fn new(ledger: SimpleScribeLedger) -> Self {
+    fn new(ledger: HyraScribeLedger) -> Self {
         Self {
             ledger: Arc::new(ledger),
             gets: Arc::new(AtomicU64::new(0)),
@@ -211,7 +211,7 @@ async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 
     match state.ledger.get(&key) {
         Ok(Some(_)) => {
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
             batch.remove(key.as_bytes());
             match state.ledger.apply_batch(batch) {
                 Ok(()) => (
@@ -338,7 +338,7 @@ async fn cluster_leader_handler() -> Response {
 
 // Helper function to create test server
 async fn create_test_server() -> (String, tokio::task::JoinHandle<()>) {
-    let ledger = SimpleScribeLedger::temp().expect("Failed to create temp ledger");
+    let ledger = HyraScribeLedger::temp().expect("Failed to create temp ledger");
     let app_state = Arc::new(AppState::new(ledger));
 
     let app = Router::new()

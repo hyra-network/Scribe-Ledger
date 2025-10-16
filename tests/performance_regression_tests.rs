@@ -3,7 +3,7 @@
 //! These tests ensure that performance doesn't degrade below acceptable thresholds.
 //! If any of these tests fail, it indicates a performance regression in the code.
 
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Instant;
 
 /// Performance thresholds - if operations take longer than these, tests fail
@@ -22,7 +22,7 @@ const MIXED_1000_OPS_MAX_MS: u128 = 3000; // 1000 mixed operations should take <
 
 #[test]
 fn test_put_performance_1_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     ledger.put("test_key", "test_value").unwrap();
@@ -38,7 +38,7 @@ fn test_put_performance_1_ops() {
 
 #[test]
 fn test_put_performance_10_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     for i in 0..10 {
@@ -58,7 +58,7 @@ fn test_put_performance_10_ops() {
 
 #[test]
 fn test_put_performance_100_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     for i in 0..100 {
@@ -78,7 +78,7 @@ fn test_put_performance_100_ops() {
 
 #[test]
 fn test_put_performance_1000_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     for i in 0..1000 {
@@ -98,7 +98,7 @@ fn test_put_performance_1000_ops() {
 
 #[test]
 fn test_get_performance_1_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("test_key", "test_value").unwrap();
 
     let start = Instant::now();
@@ -115,7 +115,7 @@ fn test_get_performance_1_ops() {
 
 #[test]
 fn test_get_performance_10_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Pre-populate data
     for i in 0..10 {
@@ -140,7 +140,7 @@ fn test_get_performance_10_ops() {
 
 #[test]
 fn test_get_performance_100_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Pre-populate data
     for i in 0..100 {
@@ -165,7 +165,7 @@ fn test_get_performance_100_ops() {
 
 #[test]
 fn test_get_performance_1000_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Pre-populate data
     for i in 0..1000 {
@@ -190,7 +190,7 @@ fn test_get_performance_1000_ops() {
 
 #[test]
 fn test_mixed_performance_100_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     for i in 0..50 {
@@ -213,7 +213,7 @@ fn test_mixed_performance_100_ops() {
 
 #[test]
 fn test_mixed_performance_1000_ops() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let start = Instant::now();
     for i in 0..500 {
@@ -313,7 +313,7 @@ fn test_storage_backend_performance() {
 
 #[test]
 fn test_flush_performance() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Add some data
     for i in 0..100 {
@@ -336,7 +336,7 @@ fn test_flush_performance() {
 
 #[test]
 fn test_clear_performance() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Add some data
     for i in 0..1000 {

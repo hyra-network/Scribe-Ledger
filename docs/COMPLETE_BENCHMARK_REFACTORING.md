@@ -56,7 +56,7 @@ Successfully refactored **all** benchmark files in the repository to move optimi
 let batch_size = std::cmp::min(100, ops / 4);
 let mut i = 0;
 while i < ops {
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
     let end = std::cmp::min(i + batch_size, ops);
     for j in i..end {
         batch.insert(keys[j].as_bytes(), values[j].as_bytes());

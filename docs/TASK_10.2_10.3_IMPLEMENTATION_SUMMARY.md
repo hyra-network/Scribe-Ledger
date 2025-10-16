@@ -47,7 +47,7 @@ Updated `archive_segment()` to compute and store Merkle roots:
 
 #### 3. Verification API (`src/lib.rs`)
 
-Added three new methods to `SimpleScribeLedger`:
+Added three new methods to `HyraScribeLedger`:
 
 ```rust
 pub fn get_all(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>>
@@ -313,7 +313,7 @@ DEVELOPMENT.md                       | Tasks marked complete
 ### Computing Merkle Root
 
 ```rust
-let ledger = SimpleScribeLedger::temp()?;
+let ledger = HyraScribeLedger::temp()?;
 ledger.put("alice", "data1")?;
 ledger.put("bob", "data2")?;
 

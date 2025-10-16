@@ -3,7 +3,7 @@ use hyra_scribe_ledger::storage_ops::{
     batched_get_operations, batched_mixed_operations, batched_put_operations, populate_ledger,
     throughput_get_10k, throughput_put_10k,
 };
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Duration;
 
 fn benchmark_put_operations(c: &mut Criterion) {
@@ -18,7 +18,7 @@ fn benchmark_put_operations(c: &mut Criterion) {
             let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
 
             b.iter(|| {
-                let ledger = SimpleScribeLedger::temp().unwrap();
+                let ledger = HyraScribeLedger::temp().unwrap();
                 batched_put_operations(&ledger, &keys, &values, true).unwrap();
                 ledger.flush().unwrap();
                 black_box(&ledger);
@@ -41,7 +41,7 @@ fn benchmark_get_operations(c: &mut Criterion) {
             let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
 
             // Pre-populate the database using optimized batching
-            let ledger = SimpleScribeLedger::temp().unwrap();
+            let ledger = HyraScribeLedger::temp().unwrap();
             populate_ledger(&ledger, &keys, &values, true).unwrap();
 
             b.iter(|| {
@@ -65,7 +65,7 @@ fn benchmark_mixed_operations(c: &mut Criterion) {
             let values: Vec<String> = (0..ops).map(|i| format!("value{}", i)).collect();
 
             b.iter(|| {
-                let ledger = SimpleScribeLedger::temp().unwrap();
+                let ledger = HyraScribeLedger::temp().unwrap();
                 batched_mixed_operations(&ledger, &keys, &values, true).unwrap();
                 ledger.flush().unwrap();
                 black_box(&ledger);
@@ -86,7 +86,7 @@ fn benchmark_throughput_put(c: &mut Criterion) {
         let values: Vec<String> = (0..10000).map(|i| format!("value{}", i)).collect();
 
         b.iter(|| {
-            let ledger = SimpleScribeLedger::temp().unwrap();
+            let ledger = HyraScribeLedger::temp().unwrap();
             throughput_put_10k(&ledger, &keys, &values).unwrap();
             black_box(&ledger);
         });
@@ -105,7 +105,7 @@ fn benchmark_throughput_get(c: &mut Criterion) {
         let values: Vec<String> = (0..10000).map(|i| format!("value{}", i)).collect();
 
         // Pre-populate the database using optimized batching
-        let ledger = SimpleScribeLedger::temp().unwrap();
+        let ledger = HyraScribeLedger::temp().unwrap();
         populate_ledger(&ledger, &keys, &values, true).unwrap();
 
         b.iter(|| {

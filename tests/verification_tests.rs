@@ -3,18 +3,18 @@
 //! This test file validates the verification endpoint implementation.
 
 use hyra_scribe_ledger::crypto::MerkleTree;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 
 #[test]
 fn test_compute_merkle_root_empty_ledger() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     let root = ledger.compute_merkle_root().unwrap();
     assert_eq!(root, None);
 }
 
 #[test]
 fn test_compute_merkle_root_single_key() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
 
     let root = ledger.compute_merkle_root().unwrap();
@@ -24,7 +24,7 @@ fn test_compute_merkle_root_single_key() {
 
 #[test]
 fn test_compute_merkle_root_multiple_keys() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
     ledger.put("key2", "value2").unwrap();
     ledger.put("key3", "value3").unwrap();
@@ -37,11 +37,11 @@ fn test_compute_merkle_root_multiple_keys() {
 #[test]
 fn test_compute_merkle_root_deterministic() {
     // Create two ledgers with same data
-    let ledger1 = SimpleScribeLedger::temp().unwrap();
+    let ledger1 = HyraScribeLedger::temp().unwrap();
     ledger1.put("alice", "data1").unwrap();
     ledger1.put("bob", "data2").unwrap();
 
-    let ledger2 = SimpleScribeLedger::temp().unwrap();
+    let ledger2 = HyraScribeLedger::temp().unwrap();
     ledger2.put("alice", "data1").unwrap();
     ledger2.put("bob", "data2").unwrap();
 
@@ -53,7 +53,7 @@ fn test_compute_merkle_root_deterministic() {
 
 #[test]
 fn test_generate_merkle_proof_success() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
     ledger.put("key2", "value2").unwrap();
 
@@ -67,7 +67,7 @@ fn test_generate_merkle_proof_success() {
 
 #[test]
 fn test_generate_merkle_proof_nonexistent_key() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
 
     let proof = ledger.generate_merkle_proof("nonexistent").unwrap();
@@ -76,7 +76,7 @@ fn test_generate_merkle_proof_nonexistent_key() {
 
 #[test]
 fn test_generate_merkle_proof_empty_ledger() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     let proof = ledger.generate_merkle_proof("key1").unwrap();
     assert_eq!(proof, None);
@@ -84,7 +84,7 @@ fn test_generate_merkle_proof_empty_ledger() {
 
 #[test]
 fn test_merkle_proof_verification() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("alice", "data1").unwrap();
     ledger.put("bob", "data2").unwrap();
     ledger.put("charlie", "data3").unwrap();
@@ -100,7 +100,7 @@ fn test_merkle_proof_verification() {
 
 #[test]
 fn test_merkle_proof_verification_fails_wrong_root() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
     ledger.put("key2", "value2").unwrap();
 
@@ -114,7 +114,7 @@ fn test_merkle_proof_verification_fails_wrong_root() {
 
 #[test]
 fn test_merkle_proof_all_keys_verified() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Insert multiple keys
     let keys = vec!["key1", "key2", "key3", "key4", "key5"];
@@ -134,7 +134,7 @@ fn test_merkle_proof_all_keys_verified() {
 
 #[test]
 fn test_get_all_keys() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
     ledger.put("key2", "value2").unwrap();
     ledger.put("key3", "value3").unwrap();
@@ -151,7 +151,7 @@ fn test_get_all_keys() {
 
 #[test]
 fn test_verification_with_large_dataset() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
 
     // Insert 100 keys
     for i in 0..100 {
@@ -173,7 +173,7 @@ fn test_verification_with_large_dataset() {
 
 #[test]
 fn test_merkle_root_changes_on_update() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     ledger.put("key1", "value1").unwrap();
 
     let root1 = ledger.compute_merkle_root().unwrap().unwrap();
@@ -189,7 +189,7 @@ fn test_merkle_root_changes_on_update() {
 
 #[test]
 fn test_proof_structure() {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+    let ledger = HyraScribeLedger::temp().unwrap();
     for i in 0..4 {
         ledger
             .put(format!("key{}", i), format!("value{}", i))

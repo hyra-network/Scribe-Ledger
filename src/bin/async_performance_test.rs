@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Instant;
 use tokio;
 
@@ -20,14 +20,14 @@ async fn main() -> Result<()> {
 
     // Test 1: Traditional sync flush
     println!("\nTest 1: Traditional sync flush()");
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
     let start = Instant::now();
 
     // Batch operations
     let batch_size = 100;
     let mut i = 0;
     while i < test_size {
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
         let end = std::cmp::min(i + batch_size, test_size);
 
         for j in i..end {
@@ -55,13 +55,13 @@ async fn main() -> Result<()> {
 
     // Test 2: Async flush
     println!("\nTest 2: Async flush_async()");
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
     let start = Instant::now();
 
     // Same batching but with async flushes
     let mut i = 0;
     while i < test_size {
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
         let end = std::cmp::min(i + batch_size, test_size);
 
         for j in i..end {
@@ -89,13 +89,13 @@ async fn main() -> Result<()> {
 
     // Test 3: No frequent flushing (let sled handle it)
     println!("\nTest 3: Minimal flushing (optimal)");
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
     let start = Instant::now();
 
     // Same batching but flush only at the end
     let mut i = 0;
     while i < test_size {
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
         let end = std::cmp::min(i + batch_size, test_size);
 
         for j in i..end {

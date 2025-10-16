@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -41,7 +41,7 @@ fn test_database_lifecycle() -> Result<()> {
 
     // Phase 1: Create database and populate it
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
 
         // Simulate user data storage
         let users = vec![
@@ -83,7 +83,7 @@ fn test_database_lifecycle() -> Result<()> {
 
     // Phase 2: Reopen database and verify persistence
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 7);
 
         // Verify user data
@@ -116,7 +116,7 @@ fn test_database_lifecycle() -> Result<()> {
 
     // Phase 3: Final verification and cleanup
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 8);
 
         // Verify the updates persisted
@@ -149,7 +149,7 @@ fn test_database_lifecycle() -> Result<()> {
 /// Test sled's behavior under high load
 #[test]
 fn test_high_load_sled_operations() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     let batch_size = 1000;
     let num_batches = 10;
@@ -240,7 +240,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 1: Write initial data
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
 
         for (key, value) in &initial_data {
             ledger.put(key, value)?;
@@ -258,7 +258,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 2: Verify all data is consistent after reopening
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), initial_data.len());
 
         // Verify all original data
@@ -295,7 +295,7 @@ fn test_database_consistency() -> Result<()> {
 
     // Phase 3: Verify consistency after updates
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), initial_data.len());
 
         // Verify updated values
@@ -370,7 +370,7 @@ fn test_memory_and_cleanup() -> Result<()> {
     }
 
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
 
         // Create a large dataset
         let large_value = "x".repeat(1000); // 1KB per value
@@ -421,7 +421,7 @@ fn test_memory_and_cleanup() -> Result<()> {
 
     // Verify database is actually empty after reopening
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), 0);
         assert!(ledger.is_empty());
 
@@ -453,7 +453,7 @@ fn test_memory_and_cleanup() -> Result<()> {
 /// Test edge cases and error conditions with sled
 #[test]
 fn test_sled_edge_cases() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     // Test maximum key/value sizes that sled can handle
     let very_long_key = "k".repeat(65536); // 64KB key

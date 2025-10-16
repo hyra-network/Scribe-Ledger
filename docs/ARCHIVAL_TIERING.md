@@ -50,7 +50,7 @@ The archival system provides automatic segment archival to S3 with compression, 
 ### Tiering Policy
 
 ```rust
-use simple_scribe_ledger::storage::archival::TieringPolicy;
+use hyra_scribe_ledger::storage::archival::TieringPolicy;
 
 let policy = TieringPolicy {
     age_threshold_secs: 3600,           // Archive after 1 hour
@@ -64,9 +64,9 @@ let policy = TieringPolicy {
 ### Creating an Archival Manager
 
 ```rust
-use simple_scribe_ledger::storage::archival::{ArchivalManager, TieringPolicy};
-use simple_scribe_ledger::storage::s3::S3StorageConfig;
-use simple_scribe_ledger::storage::segment::SegmentManager;
+use hyra_scribe_ledger::storage::archival::{ArchivalManager, TieringPolicy};
+use hyra_scribe_ledger::storage::s3::S3StorageConfig;
+use hyra_scribe_ledger::storage::segment::SegmentManager;
 use std::sync::Arc;
 
 // Configure S3
@@ -96,7 +96,7 @@ let manager = ArchivalManager::new(s3_config, segment_mgr, policy).await?;
 ### Manual Archival
 
 ```rust
-use simple_scribe_ledger::storage::segment::Segment;
+use hyra_scribe_ledger::storage::segment::Segment;
 use std::collections::HashMap;
 
 // Create a segment
@@ -416,8 +416,8 @@ for id in archived {
 ### With Segment Manager
 
 ```rust
-use simple_scribe_ledger::storage::segment::SegmentManager;
-use simple_scribe_ledger::storage::archival::ArchivalManager;
+use hyra_scribe_ledger::storage::segment::SegmentManager;
+use hyra_scribe_ledger::storage::archival::ArchivalManager;
 
 let segment_mgr = Arc::new(SegmentManager::new());
 

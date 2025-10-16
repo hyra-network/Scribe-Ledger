@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
             .collect();
 
         // Test PUT operations - matching benchmark pattern exactly
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Warm-up phase OUTSIDE of timing (like benchmark does)
         ledger.put("warmup", "value")?;
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
         };
         let mut i = 0;
         while i < size {
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
             let end = std::cmp::min(i + batch_size, size);
 
             for j in i..end {
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         );
 
         // Test GET operations - matching benchmark pattern exactly
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Pre-populate the database OUTSIDE of timing (like benchmark does)
         ledger.put("warmup", "value")?;
@@ -73,7 +73,7 @@ fn main() -> Result<()> {
         };
         let mut i = 0;
         while i < size {
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
             let end = std::cmp::min(i + batch_size, size);
 
             for j in i..end {
@@ -101,7 +101,7 @@ fn main() -> Result<()> {
         );
 
         // Test MIXED operations - matching benchmark pattern exactly
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Warm-up phase OUTSIDE of timing (like benchmark does)
         ledger.put("warmup", "value")?;
@@ -119,7 +119,7 @@ fn main() -> Result<()> {
             };
             let mut i = 0;
             while i < put_ops {
-                let mut batch = SimpleScribeLedger::new_batch();
+                let mut batch = HyraScribeLedger::new_batch();
                 let end = std::cmp::min(i + batch_size, put_ops);
 
                 for j in i..end {
@@ -153,7 +153,7 @@ fn main() -> Result<()> {
 
     // Sustained performance test with optimizations
     println!("\n--- Optimized Sustained Performance Test (10,000 operations) ---");
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
     let test_size = 10000;
 
     // Pre-generate all keys and values
@@ -165,7 +165,7 @@ fn main() -> Result<()> {
         .collect();
 
     // Warm up with batch operations
-    let mut batch = SimpleScribeLedger::new_batch();
+    let mut batch = HyraScribeLedger::new_batch();
     for (key, value) in warmup_keys.iter().zip(warmup_values.iter()) {
         batch.insert(key.as_slice(), value.as_slice());
     }
@@ -187,7 +187,7 @@ fn main() -> Result<()> {
 
     let mut i = 0;
     while i < test_size {
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
         let end = std::cmp::min(i + batch_size, test_size);
 
         for j in i..end {

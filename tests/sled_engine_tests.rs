@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 /// Test sled's concurrent read/write capabilities
 #[test]
 fn test_sled_concurrent_read_write() -> Result<()> {
-    let ledger = Arc::new(SimpleScribeLedger::temp()?);
+    let ledger = Arc::new(HyraScribeLedger::temp()?);
     let barrier = Arc::new(Barrier::new(5)); // 4 threads + main thread
     let mut handles = vec![];
 
@@ -123,7 +123,7 @@ fn test_sled_concurrent_read_write() -> Result<()> {
 /// Test sled's performance under different workloads
 #[test]
 fn test_sled_performance_characteristics() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     // Sequential write performance
     let start = Instant::now();
@@ -165,7 +165,7 @@ fn test_sled_performance_characteristics() -> Result<()> {
 /// Test sled's behavior with transactions and consistency
 #[test]
 fn test_sled_data_consistency() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     // Create a scenario where we update related data
     ledger.put("account:alice:balance", "1000")?;
@@ -264,7 +264,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 1: Write data and explicitly flush
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
 
         for (key, value) in &test_data {
             ledger.put(key, value)?;
@@ -282,7 +282,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 2: Verify data survived process restart
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), test_data.len());
 
         for (key, expected_value) in &test_data {
@@ -299,7 +299,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 3: Test durability without explicit flush
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
 
         // Add more data but rely on Drop trait for flushing
         ledger.put("auto_flush:key1", "Data written without explicit flush")?;
@@ -315,7 +315,7 @@ fn test_sled_durability() -> Result<()> {
 
     // Phase 4: Verify auto-flush worked
     {
-        let ledger = SimpleScribeLedger::new(&test_db)?;
+        let ledger = HyraScribeLedger::new(&test_db)?;
         assert_eq!(ledger.len(), test_data.len() + 2);
 
         let auto_data = ledger.get("auto_flush:key1")?;
@@ -347,7 +347,7 @@ fn test_sled_durability() -> Result<()> {
 /// Test sled's handling of different data patterns
 #[test]
 fn test_sled_data_patterns() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     // Pattern 1: Hierarchical keys (simulating directory structure)
     let hierarchical_data = vec![
@@ -356,7 +356,7 @@ fn test_sled_data_patterns() -> Result<()> {
         ("users/inactive/charlie", "Charlie Brown"),
         ("config/database/host", "localhost"),
         ("config/database/port", "5432"),
-        ("config/app/name", "SimpleScribeLedger"),
+        ("config/app/name", "HyraScribeLedger"),
         ("stats/daily/2024-01-01", "1000"),
         ("stats/daily/2024-01-02", "1200"),
     ];
@@ -418,7 +418,7 @@ fn test_sled_data_patterns() -> Result<()> {
 /// Test sled's memory efficiency with large datasets
 #[test]
 fn test_sled_memory_efficiency() -> Result<()> {
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
 
     // Create dataset with varying value sizes
     let small_values = 5000;

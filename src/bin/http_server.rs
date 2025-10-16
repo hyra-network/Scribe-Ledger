@@ -6,7 +6,7 @@ use axum::{
     routing::{delete, get, put},
     Json, Router,
 };
-use hyra_scribe_ledger::{logging, metrics, SimpleScribeLedger};
+use hyra_scribe_ledger::{logging, metrics, HyraScribeLedger};
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::Instant;
@@ -92,14 +92,14 @@ struct VerifyProof {
 
 // Application state with metrics
 struct AppState {
-    ledger: Arc<SimpleScribeLedger>,
+    ledger: Arc<HyraScribeLedger>,
     gets: Arc<AtomicU64>,
     puts: Arc<AtomicU64>,
     deletes: Arc<AtomicU64>,
 }
 
 impl AppState {
-    fn new(ledger: SimpleScribeLedger) -> Self {
+    fn new(ledger: HyraScribeLedger) -> Self {
         Self {
             ledger: Arc::new(ledger),
             gets: Arc::new(AtomicU64::new(0)),
@@ -295,7 +295,7 @@ async fn delete_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
         Ok(Some(_)) => {
             // Key exists, perform deletion by setting to empty (sled doesn't have direct delete)
             // We'll use remove via batch operation
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
             batch.remove(key.as_bytes());
             match state.ledger.apply_batch(batch) {
                 Ok(()) => {
@@ -594,7 +594,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Metrics system initialized");
 
     // Initialize the ledger with optimized configuration
-    let ledger = SimpleScribeLedger::temp()?;
+    let ledger = HyraScribeLedger::temp()?;
     let app_state = Arc::new(AppState::new(ledger));
 
     info!("Ledger initialized");

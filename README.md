@@ -89,8 +89,8 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 
 ```bash
 # Clone the repository
-git clone https://github.com/amogusdrip285/simple-scribe-ledger.git
-cd simple-scribe-ledger
+git clone https://github.com/amogusdrip285/Scribe-Ledger.git
+cd Scribe-Ledger
 
 # Build the project
 cargo build --release
@@ -289,11 +289,11 @@ curl http://localhost:8080/cluster/leader/info
 The embedded Sled database provides high-performance local storage:
 
 ```rust
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 
 fn main() -> anyhow::Result<()> {
     // Create a new storage instance
-    let ledger = SimpleScribeLedger::new("./my_data")?;
+    let ledger = HyraScribeLedger::new("./my_data")?;
     
     // Store data
     ledger.put("user:alice", "Alice Smith")?;
@@ -503,9 +503,9 @@ The verification endpoint:
 **Ledger Verification Methods:**
 
 ```rust
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 
-let ledger = SimpleScribeLedger::temp()?;
+let ledger = HyraScribeLedger::temp()?;
 ledger.put("alice", "data1")?;
 ledger.put("bob", "data2")?;
 
@@ -1033,9 +1033,9 @@ println!("Cache size: {}/{}", api.cache_size(), api.cache_capacity());
 - **Pre-allocated Buffers:** Reduced allocation overhead
 
 ```rust
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 
-let ledger = SimpleScribeLedger::temp()?;
+let ledger = HyraScribeLedger::temp()?;
 
 // Use bincode for complex data structures
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -1077,7 +1077,7 @@ Efficient batch processing for high throughput:
 
 ```rust
 // Batch writes
-let mut batch = SimpleScribeLedger::new_batch();
+let mut batch = HyraScribeLedger::new_batch();
 for i in 0..1000 {
     batch.insert(format!("key{}", i).as_bytes(), b"value");
 }

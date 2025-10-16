@@ -1,11 +1,11 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 
 fn main() -> Result<()> {
     println!("=== Basic Usage Example ===");
 
     // Create a new storage instance (data will be stored in "./example_data" directory)
-    let ledger = SimpleScribeLedger::new("./example_data")?;
+    let ledger = HyraScribeLedger::new("./example_data")?;
 
     // Store some data
     ledger.put("user:alice", "Alice Smith")?;

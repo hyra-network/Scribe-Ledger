@@ -3,7 +3,7 @@ use hyra_scribe_ledger::http_client::{
     batched_get_operations, batched_mixed_operations, batched_put_operations, GetResponse,
     PutRequest,
 };
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -16,7 +16,7 @@ use axum::{
     Router,
 };
 
-type AppState = Arc<SimpleScribeLedger>;
+type AppState = Arc<HyraScribeLedger>;
 
 // PUT endpoint handler (same as http_server.rs)
 async fn put_handler(
@@ -48,8 +48,8 @@ async fn get_handler(
 }
 
 // Helper function to create and start an HTTP server
-async fn start_test_server(port: u16) -> Arc<SimpleScribeLedger> {
-    let ledger = SimpleScribeLedger::temp().unwrap();
+async fn start_test_server(port: u16) -> Arc<HyraScribeLedger> {
+    let ledger = HyraScribeLedger::temp().unwrap();
     let app_state = Arc::new(ledger);
 
     let app = Router::new()

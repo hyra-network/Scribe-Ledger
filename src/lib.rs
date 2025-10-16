@@ -23,12 +23,12 @@ pub mod storage;
 pub mod storage_ops;
 pub mod types;
 
-/// Simple Scribe Ledger - A minimal key-value storage engine using sled
-pub struct SimpleScribeLedger {
+/// Hyra Scribe Ledger - A minimal key-value storage engine using sled
+pub struct HyraScribeLedger {
     db: Db,
 }
 
-impl SimpleScribeLedger {
+impl HyraScribeLedger {
     /// Create a new instance of the storage engine with optimized configuration
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = sled::Config::new()
@@ -211,7 +211,7 @@ impl SimpleScribeLedger {
     }
 }
 
-impl Drop for SimpleScribeLedger {
+impl Drop for HyraScribeLedger {
     fn drop(&mut self) {
         let _ = self.db.flush();
     }
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_put_and_get() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Test putting and getting a value
         ledger.put("key1", "value1")?;
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_multiple_puts_and_gets() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Put multiple values
         for i in 0..100 {
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_overwrite_value() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Put initial value
         ledger.put("key1", "value1")?;
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_clear() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Put some values
         ledger.put("key1", "value1")?;
@@ -337,7 +337,7 @@ mod tests {
 
         // Create ledger and store some data
         {
-            let ledger = SimpleScribeLedger::new(&test_dir)?;
+            let ledger = HyraScribeLedger::new(&test_dir)?;
             ledger.put("persistent_key", "persistent_value")?;
             ledger.put("another_key", "another_value")?;
             ledger.flush()?;
@@ -352,7 +352,7 @@ mod tests {
 
         // Open the same database again and verify data persists
         {
-            let ledger = SimpleScribeLedger::new(&test_dir)?;
+            let ledger = HyraScribeLedger::new(&test_dir)?;
             assert_eq!(ledger.len(), 2);
 
             let value1 = ledger.get("persistent_key")?;
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_sled_large_keys_and_values() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Test with large key
         let large_key = "x".repeat(1000);
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_sled_binary_data() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Test with binary data containing null bytes and special characters
         let binary_key = vec![0u8, 1, 255, 128, 64];
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn test_sled_unicode_support() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Test with Unicode characters
         let unicode_key = "🔑key测试";
@@ -440,7 +440,7 @@ mod tests {
         use std::sync::Arc;
         use std::thread;
 
-        let ledger = Arc::new(SimpleScribeLedger::temp()?);
+        let ledger = Arc::new(HyraScribeLedger::temp()?);
         let mut handles = vec![];
 
         // Spawn multiple threads to perform concurrent operations
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn test_sled_stress_operations() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Stress test with many operations
         let num_operations = 5000;
@@ -514,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_sled_empty_keys_and_values() -> Result<()> {
-        let ledger = SimpleScribeLedger::temp()?;
+        let ledger = HyraScribeLedger::temp()?;
 
         // Test empty value
         ledger.put("empty_value_key", "")?;
@@ -572,7 +572,7 @@ mod tests {
         }
 
         {
-            let ledger = SimpleScribeLedger::new(&test_dir)?;
+            let ledger = HyraScribeLedger::new(&test_dir)?;
 
             // Add data but don't flush
             ledger.put("test_key", "test_value")?;
@@ -650,7 +650,7 @@ mod tests {
 
         // Test 1: Create and use database normally
         {
-            let ledger = SimpleScribeLedger::new(&test_dir)?;
+            let ledger = HyraScribeLedger::new(&test_dir)?;
             ledger.put("test", "data")?;
 
             let result = ledger.get("test")?;
@@ -666,7 +666,7 @@ mod tests {
 
         // Test 2: Reopen the same database (should work after first is dropped)
         {
-            let ledger = SimpleScribeLedger::new(&test_dir)?;
+            let ledger = HyraScribeLedger::new(&test_dir)?;
             let result = ledger.get("test")?;
             assert_eq!(result, Some(b"data".to_vec()));
 
@@ -683,7 +683,7 @@ mod tests {
 
         // Test 3: Test with invalid operations (should handle gracefully)
         {
-            let ledger = SimpleScribeLedger::temp()?;
+            let ledger = HyraScribeLedger::temp()?;
 
             // Test getting non-existent key (should return None, not error)
             let result = ledger.get("non_existent_key")?;

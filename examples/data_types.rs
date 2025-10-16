@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hyra_scribe_ledger::SimpleScribeLedger;
+use hyra_scribe_ledger::HyraScribeLedger;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,7 +12,7 @@ struct User {
 fn main() -> Result<()> {
     println!("=== Working with Different Data Types ===");
 
-    let ledger = SimpleScribeLedger::new("./tutorial_data")?;
+    let ledger = HyraScribeLedger::new("./tutorial_data")?;
 
     // Store strings
     ledger.put("greeting", "Hello, World!")?;

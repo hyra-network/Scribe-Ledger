@@ -1,4 +1,4 @@
-use crate::SimpleScribeLedger;
+use crate::HyraScribeLedger;
 use anyhow::Result;
 
 /// Optimized batch size for storage operations
@@ -15,7 +15,7 @@ const OPTIMAL_BATCH_SIZE: usize = 100;
 /// # Returns
 /// Result indicating success or failure
 pub fn batched_put_operations(
-    ledger: &SimpleScribeLedger,
+    ledger: &HyraScribeLedger,
     keys: &[String],
     values: &[String],
     use_warmup: bool,
@@ -37,7 +37,7 @@ pub fn batched_put_operations(
 
         for chunk_start in (0..ops).step_by(batch_size) {
             let chunk_end = std::cmp::min(chunk_start + batch_size, ops);
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
 
             for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
@@ -58,7 +58,7 @@ pub fn batched_put_operations(
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn batched_get_operations(ledger: &SimpleScribeLedger, keys: &[String]) -> Result<()> {
+pub fn batched_get_operations(ledger: &HyraScribeLedger, keys: &[String]) -> Result<()> {
     for key in keys {
         let _ = ledger.get(key)?;
     }
@@ -76,7 +76,7 @@ pub fn batched_get_operations(ledger: &SimpleScribeLedger, keys: &[String]) -> R
 /// # Returns
 /// Result indicating success or failure
 pub fn batched_mixed_operations(
-    ledger: &SimpleScribeLedger,
+    ledger: &HyraScribeLedger,
     keys: &[String],
     values: &[String],
     use_warmup: bool,
@@ -97,7 +97,7 @@ pub fn batched_mixed_operations(
 
         for chunk_start in (0..put_ops).step_by(batch_size) {
             let chunk_end = std::cmp::min(chunk_start + batch_size, put_ops);
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
 
             for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
@@ -125,7 +125,7 @@ pub fn batched_mixed_operations(
 /// # Returns
 /// Result indicating success or failure
 pub fn throughput_put_10k(
-    ledger: &SimpleScribeLedger,
+    ledger: &HyraScribeLedger,
     keys: &[String],
     values: &[String],
 ) -> Result<()> {
@@ -135,7 +135,7 @@ pub fn throughput_put_10k(
     // Use optimal batching with step_by for cleaner code
     for chunk_start in (0..10000).step_by(OPTIMAL_BATCH_SIZE) {
         let chunk_end = std::cmp::min(chunk_start + OPTIMAL_BATCH_SIZE, 10000);
-        let mut batch = SimpleScribeLedger::new_batch();
+        let mut batch = HyraScribeLedger::new_batch();
 
         for j in chunk_start..chunk_end {
             batch.insert(keys[j].as_bytes(), values[j].as_bytes());
@@ -156,7 +156,7 @@ pub fn throughput_put_10k(
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn throughput_get_10k(ledger: &SimpleScribeLedger, keys: &[String]) -> Result<()> {
+pub fn throughput_get_10k(ledger: &HyraScribeLedger, keys: &[String]) -> Result<()> {
     for key in keys {
         let _ = ledger.get(key)?;
     }
@@ -174,7 +174,7 @@ pub fn throughput_get_10k(ledger: &SimpleScribeLedger, keys: &[String]) -> Resul
 /// # Returns
 /// Result indicating success or failure
 pub fn populate_ledger(
-    ledger: &SimpleScribeLedger,
+    ledger: &HyraScribeLedger,
     keys: &[String],
     values: &[String],
     use_warmup: bool,
@@ -194,7 +194,7 @@ pub fn populate_ledger(
 
         for chunk_start in (0..ops).step_by(batch_size) {
             let chunk_end = std::cmp::min(chunk_start + batch_size, ops);
-            let mut batch = SimpleScribeLedger::new_batch();
+            let mut batch = HyraScribeLedger::new_batch();
 
             for j in chunk_start..chunk_end {
                 batch.insert(keys[j].as_bytes(), values[j].as_bytes());
