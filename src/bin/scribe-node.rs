@@ -64,20 +64,11 @@ async fn main() -> Result<()> {
 
     // Override node ID if provided via CLI
     if let Some(node_id) = cli.node_id {
-        info!("Overriding node ID from CLI: {}", node_id);
         config.node.id = node_id;
     }
 
-    // Validate configuration (skip validation check for now)
-    // config.validate()?;
-
-    info!(
-        "Starting node {} at {}",
-        config.node.id, config.node.address
-    );
-    info!("Data directory: {:?}", config.node.data_dir);
-    info!("Client port: {}", config.network.client_port);
-    info!("Raft port: {}", config.network.raft_port);
+    // Print configuration overview with fancy TUI
+    print_config_overview(&config);
 
     // Create data directory if it doesn't exist
     std::fs::create_dir_all(&config.node.data_dir)?;
@@ -251,36 +242,143 @@ fn setup_logging(log_level: &str) -> Result<()> {
 /// Print startup banner
 fn print_banner() {
     // ANSI color codes
+    const RESET: &str = "\x1b[0m";
+    const BOLD: &str = "\x1b[1m";
+    const CYAN: &str = "\x1b[36m";
+    const BRIGHT_GREEN: &str = "\x1b[92m";
+    
+    println!("\n{}{}", BOLD, CYAN);
+    // ASCII art for HYRA SCRIBE LEDGER
+    println!("██╗  ██╗██╗   ██╗██████╗  █████╗     ███████╗ ██████╗██████╗ ██╗██████╗ ███████╗    ██╗     ███████╗██████╗  ██████╗ ███████╗██████╗ ");
+    println!("██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗    ██╔════╝██╔════╝██╔══██╗██║██╔══██╗██╔════╝    ██║     ██╔════╝██╔══██╗██╔════╝ ██╔════╝██╔══██╗");
+    println!("███████║ ╚████╔╝ ██████╔╝███████║    ███████╗██║     ██████╔╝██║██████╔╝█████╗      ██║     █████╗  ██║  ██║██║  ███╗█████╗  ██████╔╝");
+    println!("██╔══██║  ╚██╔╝  ██╔══██╗██╔══██║    ╚════██║██║     ██╔══██╗██║██╔══██╗██╔══╝      ██║     ██╔══╝  ██║  ██║██║   ██║██╔══╝  ██╔══██╗");
+    println!("██║  ██║   ██║   ██║  ██║██║  ██║    ███████║╚██████╗██║  ██║██║██████╔╝███████╗    ███████╗███████╗██████╔╝╚██████╔╝███████╗██║  ██║");
+    println!("╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝    ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝    ╚══════╝╚══════╝╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝");
+    println!("{}", RESET);
+    
+    println!("{}🔗 Verifiable, Durable Off-Chain Storage for AI Ecosystem{}", BRIGHT_GREEN, RESET);
+    println!("{}🔄 Distributed Consensus & Real-time Monitoring{}\n", BRIGHT_GREEN, RESET);
+}
+
+/// Print configuration overview with fancy TUI
+fn print_config_overview(config: &Config) {
+    // ANSI color codes
+    const RESET: &str = "\x1b[0m";
+    const BOLD: &str = "\x1b[1m";
     const CYAN: &str = "\x1b[36m";
     const BRIGHT_CYAN: &str = "\x1b[96m";
     const YELLOW: &str = "\x1b[33m";
-    const RESET: &str = "\x1b[0m";
-    const BOLD: &str = "\x1b[1m";
+    const GREEN: &str = "\x1b[32m";
+    const BRIGHT_GREEN: &str = "\x1b[92m";
+    const BLUE: &str = "\x1b[34m";
+    const BRIGHT_BLUE: &str = "\x1b[94m";
+    const MAGENTA: &str = "\x1b[35m";
+    const WHITE: &str = "\x1b[37m";
+    
+    let separator = format!("{}{}{}",BOLD, CYAN, "═".repeat(70));
+    
+    // Configuration Overview
+    println!("{}{}📋 CONFIGURATION OVERVIEW{}", BOLD, YELLOW, RESET);
+    println!("{}{}", separator, RESET);
+    println!("{}🔑 Node ID:{} {}", BRIGHT_CYAN, RESET, config.node.id);
+    println!("{}📁 Data Directory:{} {}", BRIGHT_CYAN, RESET, config.node.data_dir.display());
+    println!("{}⚙️  Config File:{} config.toml", BRIGHT_CYAN, RESET);
+    
+    // Network Configuration
+    println!("\n{}{}🌐 NETWORK CONFIGURATION{}", BOLD, BLUE, RESET);
+    println!("{}{}", separator, RESET);
+    let http_url = format!("http://{}:{}", config.node.address, config.network.client_port);
+    println!("{}🖥️  Listen Address:{} {}:{}{}",
+        BRIGHT_BLUE, WHITE, config.node.address, 
+        format!("{}", config.network.client_port), RESET);
+    println!("{}🌍 HTTP API URL:{} {}{}{}",
+        BRIGHT_BLUE, BRIGHT_GREEN, http_url, RESET, RESET);
+    println!("{}🔗 Raft TCP Port:{} {}", BRIGHT_BLUE, RESET, config.network.raft_port);
+    
+    // API Endpoints
+    println!("\n{}{}📡 API ENDPOINTS{}", BOLD, GREEN, RESET);
+    println!("{}{}", separator, RESET);
+    let base_url = format!("http://localhost:{}", config.network.client_port);
+    println!("{}📤 PUT/GET{} {}/{{key}}  - Data operations", BRIGHT_GREEN, RESET, base_url);
+    println!("{}📊 GET{} {}/raft/status  - Raft status", BRIGHT_GREEN, RESET, base_url);
+    println!("{}📈 GET{} {}/raft/metrics  - Performance metrics", BRIGHT_GREEN, RESET, base_url);
+    println!("{}📋 GET{} {}/raft/events  - Recent events", BRIGHT_GREEN, RESET, base_url);
+    println!("{}📺 WS{} {}  ws://{}/raft/live  - Live monitoring", BRIGHT_GREEN, WHITE, RESET, format!("localhost:{}", config.network.client_port));
+    
+    // Storage Configuration  
+    println!("\n{}{}💾 STORAGE CONFIGURATION{}", BOLD, MAGENTA, RESET);
+    println!("{}{}", separator, RESET);
+    println!("{}📊 Buffer Size:{} 64 MB", CYAN, RESET);
+    println!("{}📦 Segment Limit:{} 1 GB", CYAN, RESET);
+    println!("{}🗄️  Sled Database:{} {}/db", CYAN, RESET, config.node.data_dir.display());
+    
+    // Get database size if it exists
+    let db_path = config.node.data_dir.join("db");
+    if db_path.exists() {
+        if let Ok(size) = get_dir_size(&db_path) {
+            let size_mb = size as f64 / (1024.0 * 1024.0);
+            println!("{}💿 Database Size:{} {:.2} MB", CYAN, RESET, size_mb);
+        }
+    } else {
+        println!("{}💿 Database Size:{} 0.00 MB (new)", CYAN, RESET);
+    }
+    
+    // S3 Storage Configuration
+    println!("\n{}{}☁️  S3 STORAGE CONFIGURATION{}", BOLD, BRIGHT_CYAN, RESET);
+    println!("{}{}", separator, RESET);
+    
+    if let Some(ref s3_config) = config.storage.s3 {
+        let endpoint = s3_config.endpoint.as_deref().unwrap_or("http://localhost:9000");
+        println!("{}🌐 Endpoint:{} {}", BRIGHT_BLUE, RESET, endpoint);
+        println!("{}🪣 Bucket:{} {}", BRIGHT_BLUE, RESET, s3_config.bucket);
+        println!("{}🌍 Region:{} {}", BRIGHT_BLUE, RESET, s3_config.region);
+        println!("{}🔑 Access Key:{} {}***", BRIGHT_BLUE, RESET, 
+            s3_config.access_key_id.as_ref().map(|k| &k[..4]).unwrap_or("scri"));
+        println!("{}🔧 Path Style:{} Enabled (MinIO compatible)", BRIGHT_BLUE, RESET);
+    } else {
+        println!("{}⚠️  S3 storage not configured (local mode only){}", YELLOW, RESET);
+    }
+    
+    // Consensus Configuration
+    println!("\n{}{}🔄 CONSENSUS CONFIGURATION{}", BOLD, YELLOW, RESET);
+    println!("{}{}", separator, RESET);
+    println!("{}⏱️  Election Timeout:{} 5000 ms", YELLOW, RESET);
+    println!("{}💓 Heartbeat Interval:{} 1000 ms", YELLOW, RESET);
+    println!("{}👥 Cluster Peers:{} Single node (development mode)", YELLOW, RESET);
+    
+    // System Information
+    println!("\n{}{}💻 SYSTEM INFORMATION{}", BOLD, GREEN, RESET);
+    println!("{}{}", separator, RESET);
+    
+    if let Ok(hostname) = hostname::get() {
+        println!("{}🖥️  Hostname:{} {}", BRIGHT_GREEN, RESET, hostname.to_string_lossy());
+    }
+    
+    if let Ok(username) = std::env::var("USER").or_else(|_| std::env::var("USERNAME")) {
+        println!("{}👤 User:{} {}", BRIGHT_GREEN, RESET, username);
+    }
+    
+    println!("{}📝 Log Level:{} INFO", BRIGHT_GREEN, RESET);
+    println!("\n{}{}{}", separator, separator, RESET);
+    println!();
+}
 
-    let version = env!("CARGO_PKG_VERSION");
-
-    println!(
-        "\n{}{}╔═══════════════════════════════════════════════════════════╗",
-        BOLD, CYAN
-    );
-    println!("║                                                           ║");
-    println!(
-        "║     {}{}🚀  Hyra Scribe Ledger Node  🚀{}{}                ║",
-        BOLD, BRIGHT_CYAN, RESET, CYAN
-    );
-    println!(
-        "║        {}Distributed Key-Value Store with Raft{}          ║",
-        BRIGHT_CYAN, CYAN
-    );
-    println!("║                                                           ║");
-    println!(
-        "║           {}Version: {:<10}{}                        ║",
-        YELLOW, version, CYAN
-    );
-    println!(
-        "╚═══════════════════════════════════════════════════════════╝{}\n",
-        RESET
-    );
+/// Get directory size recursively
+fn get_dir_size(path: &std::path::Path) -> std::io::Result<u64> {
+    let mut size = 0;
+    if path.is_dir() {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let metadata = entry.metadata()?;
+            if metadata.is_file() {
+                size += metadata.len();
+            } else if metadata.is_dir() {
+                size += get_dir_size(&entry.path())?;
+            }
+        }
+    }
+    Ok(size)
 }
 
 /// Load configuration from file or use defaults
