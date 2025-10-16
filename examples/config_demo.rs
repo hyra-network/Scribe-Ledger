@@ -15,10 +15,10 @@ fn main() -> Result<(), ScribeError> {
     println!("     - Client Port: {}", config.network.client_port);
     println!("     - Raft Port: {}", config.network.raft_port);
     println!("     - Data Directory: {}", config.node.data_dir.display());
-    println!("     - Election Timeout: {:?}", config.election_timeout());
+    println!("     - Election Timeout Min: {}", config.consensus.election_timeout_min);
     println!(
-        "     - Heartbeat Interval: {:?}",
-        config.heartbeat_interval()
+        "     - Heartbeat Interval: {}",
+        config.consensus.heartbeat_interval_ms
     );
 
     // Task 1.3: Error Handling

@@ -296,7 +296,7 @@ fn test_merkle_proof_structure() {
 
     // For a tree with 4 elements, we should have 2 siblings (height = 2)
     assert_eq!(proof.siblings.len(), proof.directions.len());
-    assert!(proof.siblings.len() > 0);
+    assert!(!proof.siblings.is_empty());
 
     // Verify the proof works
     let root_hash = tree.root_hash().unwrap();

@@ -302,16 +302,20 @@ async fn cluster_leave_handler(Json(payload): Json<ClusterLeaveRequest>) -> Resp
 
 // Cluster status endpoint
 async fn cluster_status_handler() -> Response {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_TERM: u64 = 1;
+
     (
         AxumStatusCode::OK,
         Json(ClusterStatusResponse {
-            node_id: 1,
+            node_id: TEST_NODE_ID,
             is_leader: true,
-            current_leader: Some(1),
+            current_leader: Some(TEST_NODE_ID),
             state: "Leader".to_string(),
             last_log_index: Some(0),
             last_applied: Some("0:0".to_string()),
-            current_term: 1,
+            current_term: TEST_TERM,
         }),
     )
         .into_response()
@@ -319,9 +323,13 @@ async fn cluster_status_handler() -> Response {
 
 // Cluster members endpoint
 async fn cluster_members_handler() -> Response {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ADDR: &str = "127.0.0.1:3000";
+
     let members = vec![ClusterMemberInfo {
-        node_id: 1,
-        address: "127.0.0.1:3000".to_string(),
+        node_id: TEST_NODE_ID,
+        address: TEST_NODE_ADDR.to_string(),
     }];
 
     (AxumStatusCode::OK, Json(ClusterMembersResponse { members })).into_response()
@@ -815,12 +823,16 @@ async fn test_cluster_leader_endpoint() -> Result<()> {
 
 #[tokio::test]
 async fn test_cluster_join_endpoint() -> Result<()> {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 2;
+    const TEST_NODE_ADDR: &str = "127.0.0.1:3001";
+
     let (base_url, _handle) = create_test_server().await;
 
     let client = reqwest::Client::new();
     let request = ClusterJoinRequest {
-        node_id: 2,
-        address: "127.0.0.1:3001".to_string(),
+        node_id: TEST_NODE_ID,
+        address: TEST_NODE_ADDR.to_string(),
     };
 
     let response = client
@@ -840,10 +852,15 @@ async fn test_cluster_join_endpoint() -> Result<()> {
 
 #[tokio::test]
 async fn test_cluster_leave_endpoint() -> Result<()> {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 2;
+
     let (base_url, _handle) = create_test_server().await;
 
     let client = reqwest::Client::new();
-    let request = ClusterLeaveRequest { node_id: 2 };
+    let request = ClusterLeaveRequest {
+        node_id: TEST_NODE_ID,
+    };
 
     let response = client
         .post(format!("{}/cluster/nodes/remove", base_url))

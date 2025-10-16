@@ -1,7 +1,6 @@
 use anyhow::Result;
 use hyra_scribe_ledger::HyraScribeLedger;
 use std::time::Instant;
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<()> {

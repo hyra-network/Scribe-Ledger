@@ -154,8 +154,8 @@ fn main() -> Result<()> {
             }
 
             // Then get it back using pre-allocated keys
-            for i in 0..put_ops {
-                let _value = ledger.get(&keys[i])?;
+            for key in keys.iter().take(put_ops) {
+                let _value = ledger.get(key)?;
             }
 
             ledger.flush()?;
@@ -210,7 +210,7 @@ fn main() -> Result<()> {
         if i % 200 == 0 && i > 0 {
             for k in 0..5 {
                 // Fewer gets per batch
-                if i >= k + 1 {
+                if i > k {
                     let _value = ledger.get(&test_keys[i - k - 1])?;
                     total_ops += 1;
                 }

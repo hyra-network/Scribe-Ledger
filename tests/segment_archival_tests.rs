@@ -68,8 +68,10 @@ async fn test_archive_and_retrieve_segment() {
 async fn test_compression_reduces_size() {
     let config = get_test_config();
     let segment_mgr = Arc::new(SegmentManager::new());
-    let mut policy = TieringPolicy::default();
-    policy.enable_compression = true;
+    let policy = TieringPolicy {
+        enable_compression: true,
+        ..Default::default()
+    };
 
     let manager = ArchivalManager::new(config, segment_mgr, policy)
         .await
@@ -103,8 +105,10 @@ async fn test_compression_reduces_size() {
 async fn test_no_compression_option() {
     let config = get_test_config();
     let segment_mgr = Arc::new(SegmentManager::new());
-    let mut policy = TieringPolicy::default();
-    policy.enable_compression = false;
+    let policy = TieringPolicy {
+        enable_compression: false,
+        ..Default::default()
+    };
 
     let manager = ArchivalManager::new(config, segment_mgr, policy)
         .await

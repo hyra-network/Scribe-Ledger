@@ -47,8 +47,10 @@ async fn test_minio_compatibility() {
 async fn test_tiering_policy_age_threshold() {
     let config = get_test_config();
     let segment_mgr = Arc::new(SegmentManager::new());
-    let mut policy = TieringPolicy::default();
-    policy.age_threshold_secs = 1; // 1 second threshold for testing
+    let policy = TieringPolicy {
+        age_threshold_secs: 1, // 1 second threshold for testing
+        ..Default::default()
+    };
 
     let manager = ArchivalManager::new(config, segment_mgr.clone(), policy)
         .await
@@ -78,8 +80,10 @@ async fn test_compression_levels() {
 
     // Test different compression levels
     for level in [0, 6, 9] {
-        let mut policy = TieringPolicy::default();
-        policy.compression_level = level;
+        let policy = TieringPolicy {
+            compression_level: level,
+            ..Default::default()
+        };
 
         let manager = ArchivalManager::new(config.clone(), segment_mgr.clone(), policy)
             .await
@@ -324,14 +328,16 @@ async fn test_path_style_addressing() {
 
 #[test]
 fn test_tiering_policy_validation() {
-    let mut policy = TieringPolicy::default();
+    let mut policy = TieringPolicy {
+        compression_level: 9,
+        age_threshold_secs: 3600,
+        ..Default::default()
+    };
 
     // Test valid compression level
-    policy.compression_level = 9;
     assert_eq!(policy.compression_level, 9);
 
     // Test age threshold
-    policy.age_threshold_secs = 3600;
     assert_eq!(policy.age_threshold_secs, 3600);
 
     // Test auto-archival flag

@@ -130,16 +130,20 @@ mod tests {
 
     #[test]
     fn test_tls_config_validate_missing_cert() {
-        let mut config = TlsConfig::default();
-        config.enabled = true;
+        let config = TlsConfig {
+            enabled: true,
+            ..Default::default()
+        };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_tls_config_validate_missing_key() {
-        let mut config = TlsConfig::default();
-        config.enabled = true;
-        config.cert_path = Some(PathBuf::from("/cert.pem"));
+        let config = TlsConfig {
+            enabled: true,
+            cert_path: Some(PathBuf::from("/cert.pem")),
+            ..Default::default()
+        };
         assert!(config.validate().is_err());
     }
 
@@ -160,8 +164,10 @@ mod tests {
 
     #[test]
     fn test_tls_server_config_invalid() {
-        let mut tls_config = TlsConfig::default();
-        tls_config.enabled = true;
+        let tls_config = TlsConfig {
+            enabled: true,
+            ..Default::default()
+        };
         let server_config = TlsServerConfig::new(tls_config);
         assert!(server_config.is_err());
     }

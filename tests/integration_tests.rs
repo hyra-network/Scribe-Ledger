@@ -465,7 +465,7 @@ fn test_sled_edge_cases() -> Result<()> {
     assert_eq!(result, Some(very_long_value.as_bytes().to_vec()));
 
     // Test with keys that might cause issues
-    let special_keys = vec![
+    let special_keys = [
         "\0",           // null byte
         "\x01\x02\x03", // control characters
         "🔥💡🚀",       // emoji
