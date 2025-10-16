@@ -47,7 +47,7 @@ scrape_configs:
 ```bash
 # Download dashboard JSON
 curl -o scribe-dashboard.json \
-  https://raw.githubusercontent.com/hyra-network/simple-scribe-ledger/main/dashboards/scribe-ledger.json
+  https://raw.githubusercontent.com/hyra-network/Scribe-Ledger/main/dashboards/scribe-ledger.json
 
 # Import to Grafana
 curl -X POST http://grafana:3000/api/dashboards/db \
