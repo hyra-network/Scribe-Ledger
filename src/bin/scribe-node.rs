@@ -6,20 +6,23 @@
 
 use anyhow::Result;
 use axum::{
-    extract::State,
-    response::{IntoResponse, Json},
-    routing::get,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, put},
     Router,
 };
+use bytes::Bytes;
 use clap::Parser;
-use hyra_scribe_ledger::api::DistributedApi;
+use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
 use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
 use hyra_scribe_ledger::config::Config;
 use hyra_scribe_ledger::consensus::ConsensusNode;
-use hyra_scribe_ledger::discovery::DiscoveryService;
-use serde_json::json;
+use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::cors::CorsLayer;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -207,31 +210,35 @@ async fn main() -> Result<()> {
         return Err(e.into());
     }
 
-    // Create distributed API with config
-    let api = Arc::new(DistributedApi::from_config(consensus.clone(), &config.api));
+    // Create distributed API
+    let api = Arc::new(DistributedApi::new(consensus.clone()));
+
+    // Create app state
+    let app_state = AppState {
+        api,
+        node_id: config.node.id,
+    };
 
     // Start HTTP server
-    info!("Starting HTTP server on {}", config.network.listen_addr);
-    let http_server = start_http_server(config.network.listen_addr, consensus.clone(), api.clone());
+    let http_addr = format!("0.0.0.0:{}", config.network.client_port);
+    info!("Starting HTTP API server on {}", http_addr);
+    
+    let http_addr_clone = http_addr.clone();
+    let http_server = tokio::spawn(async move {
+        if let Err(e) = start_http_server(&http_addr_clone, app_state).await {
+            error!("HTTP server error: {}", e);
+        }
+    });
 
     info!("Node {} is ready", config.node.id);
-    info!(
-        "HTTP API available at http://{}",
-        config.network.listen_addr
-    );
+    info!("HTTP API available at http://{}", http_addr);
     info!("Press Ctrl+C to shutdown gracefully");
 
-    // Run HTTP server and wait for shutdown signal concurrently
-    tokio::select! {
-        result = http_server => {
-            if let Err(e) = result {
-                error!("HTTP server error: {}", e);
-            }
-        }
-        _ = wait_for_shutdown_signal() => {
-            info!("Shutdown signal received");
-        }
-    }
+    // Wait for shutdown signal
+    wait_for_shutdown_signal().await;
+    
+    // Abort HTTP server
+    http_server.abort();
 
     // Graceful shutdown
     info!("Shutdown signal received, stopping node...");
@@ -316,73 +323,93 @@ fn load_config(cli: &Cli) -> Result<Config> {
     }
 }
 
-/// Check if there is existing Raft state in the database
-fn check_existing_raft_state(db_path: &PathBuf) -> Result<bool> {
-    // Check if the db directory exists and has files
-    if !db_path.exists() {
-        return Ok(false);
-    }
+// HTTP API types
+#[derive(Clone)]
+struct AppState {
+    api: Arc<DistributedApi>,
+    node_id: u64,
+}
 
-    // Check if there are any files in the directory
-    match std::fs::read_dir(db_path) {
-        Ok(entries) => {
-            let has_files = entries.count() > 0;
-            Ok(has_files)
-        }
-        Err(_) => Ok(false),
+#[derive(Serialize, Deserialize)]
+struct HealthResponse {
+    status: String,
+    node_id: u64,
+}
+
+// HTTP API handlers
+async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
+    axum::Json(HealthResponse {
+        status: "ok".to_string(),
+        node_id: state.node_id,
+    })
+}
+
+async fn put_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+    body: Bytes,
+) -> impl IntoResponse {
+    let value = body.to_vec();
+    match state.api.put(key.into_bytes(), value).await {
+        Ok(_) => (StatusCode::OK, "OK".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
     }
 }
 
-/// Start HTTP server for API endpoints
-async fn start_http_server(
-    addr: std::net::SocketAddr,
-    consensus: Arc<ConsensusNode>,
-    _api: Arc<DistributedApi>,
-) -> Result<()> {
+async fn get_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    match state.api.get(key.into_bytes(), ReadConsistency::Stale).await {
+        Ok(Some(value)) => (
+            StatusCode::OK,
+            String::from_utf8_lossy(&value).to_string(),
+        ),
+        Ok(None) => (StatusCode::NOT_FOUND, "Not found".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
+    }
+}
+
+async fn delete_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    match state.api.delete(key.into_bytes()).await {
+        Ok(_) => (StatusCode::OK, "OK".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
+    }
+}
+
+async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.api.metrics().await;
+    axum::Json(metrics)
+}
+
+/// Start HTTP API server
+async fn start_http_server(addr: &str, state: AppState) -> Result<()> {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/cluster/status", get(cluster_status_handler))
-        .with_state(consensus);
+        .route("/:key", put(put_handler))
+        .route("/:key", get(get_handler))
+        .route("/:key", delete(delete_handler))
+        .with_state(state)
+        .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("HTTP server listening on {}", addr);
-
+    
     axum::serve(listener, app).await?;
     Ok(())
-}
-
-/// Health check endpoint
-async fn health_handler() -> impl IntoResponse {
-    Json(json!({
-        "status": "healthy",
-        "service": "scribe-ledger"
-    }))
-}
-
-/// Metrics endpoint
-async fn metrics_handler(State(consensus): State<Arc<ConsensusNode>>) -> impl IntoResponse {
-    let metrics = consensus.metrics().await;
-    Json(json!({
-        "state": metrics.state,
-        "current_term": metrics.current_term,
-        "current_leader": metrics.current_leader,
-        "last_log_index": metrics.last_log_index,
-        "last_applied": metrics.last_applied,
-    }))
-}
-
-/// Cluster status endpoint
-async fn cluster_status_handler(State(consensus): State<Arc<ConsensusNode>>) -> impl IntoResponse {
-    let metrics = consensus.metrics().await;
-    Json(json!({
-        "node_id": consensus.node_id(),
-        "state": format!("{:?}", metrics.state),
-        "current_term": metrics.current_term,
-        "current_leader": metrics.current_leader,
-        "last_log_index": metrics.last_log_index,
-        "last_applied": metrics.last_applied,
-    }))
 }
 
 /// Wait for SIGTERM or SIGINT signal
