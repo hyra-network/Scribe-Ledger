@@ -87,16 +87,56 @@ async fn main() -> Result<()> {
     let db = sled::open(&db_path)?;
     info!("Storage initialized at {:?}", db_path);
 
+    // Initialize S3 storage if configured
+    if let Some(s3_config) = &config.storage.s3 {
+        info!("S3 storage configuration detected");
+        info!("  Bucket: {}", s3_config.bucket);
+        info!("  Region: {}", s3_config.region);
+        if let Some(endpoint) = &s3_config.endpoint {
+            info!("  Endpoint: {}", endpoint);
+        }
+        info!("  Path style: {}", s3_config.path_style);
+        info!("  Pool size: {}", s3_config.pool_size);
+        info!("  Timeout: {}s", s3_config.timeout_secs);
+        info!("  Max retries: {}", s3_config.max_retries);
+
+        // Create S3 storage config from the TOML config
+        let s3_storage_config = hyra_scribe_ledger::storage::s3::S3StorageConfig {
+            bucket: s3_config.bucket.clone(),
+            region: s3_config.region.clone(),
+            endpoint: s3_config.endpoint.clone(),
+            access_key_id: s3_config.access_key_id.clone(),
+            secret_access_key: s3_config.secret_access_key.clone(),
+            path_style: s3_config.path_style,
+            timeout_secs: s3_config.timeout_secs,
+            max_retries: s3_config.max_retries,
+        };
+
+        // Try to initialize S3 storage (this will validate configuration)
+        match hyra_scribe_ledger::storage::s3::S3Storage::new(s3_storage_config).await {
+            Ok(_s3_storage) => {
+                info!("✓ S3 storage initialized successfully");
+                // S3 storage is ready for use by archival tier when needed
+            }
+            Err(e) => {
+                warn!("Failed to initialize S3 storage: {}", e);
+                warn!("Node will continue without S3 archival support");
+            }
+        }
+    } else {
+        info!("S3 storage not configured (running with local storage only)");
+    }
+
     // Create consensus node
     let consensus = Arc::new(
-        ConsensusNode::new(config.node.id, db)
+        ConsensusNode::new_with_scribe_config(config.node.id, db, &config.consensus)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create consensus node: {}", e))?,
     );
     info!("Consensus node created with ID {}", config.node.id);
 
     // Create discovery service
-    let discovery_config = DiscoveryConfig {
+    let discovery_config = hyra_scribe_ledger::discovery::DiscoveryConfig {
         node_id: config.node.id,
         raft_addr: format!("{}:{}", config.node.address, config.network.raft_port)
             .parse()
@@ -104,11 +144,12 @@ async fn main() -> Result<()> {
         client_addr: format!("{}:{}", config.node.address, config.network.client_port)
             .parse()
             .unwrap(),
-        discovery_port: config.network.raft_port,
-        broadcast_addr: config.node.address.clone(),
+        discovery_port: config.discovery.discovery_port,
+        broadcast_addr: config.discovery.broadcast_addr.clone(),
         seed_addrs: config.network.seed_peers.clone(),
-        heartbeat_interval_ms: 500,
-        failure_timeout_ms: 1500,
+        heartbeat_interval_ms: config.discovery.heartbeat_interval_ms,
+        failure_timeout_ms: config.discovery.failure_timeout_ms,
+        cluster_secret: config.discovery.cluster_secret.clone(),
     };
 
     let discovery = Arc::new(DiscoveryService::new(discovery_config)?);
@@ -118,13 +159,36 @@ async fn main() -> Result<()> {
     discovery.start().await?;
     info!("Discovery service started");
 
+    // Determine initialization mode
+    // Check if the database already has Raft state (previous initialization)
+    let has_existing_state = check_existing_raft_state(&db_path)?;
+
+    let init_mode = if cli.bootstrap {
+        if has_existing_state {
+            warn!("Bootstrap flag provided but Raft state already exists");
+            warn!("Cluster will attempt to join existing state instead");
+            warn!(
+                "To force bootstrap, delete the data directory: {:?}",
+                config.node.data_dir
+            );
+            InitMode::Join
+        } else {
+            info!("Bootstrapping new cluster");
+            InitMode::Bootstrap
+        }
+    } else if has_existing_state {
+        info!("Existing Raft state detected, rejoining cluster");
+        InitMode::Join
+    } else {
+        warn!("No existing Raft state found");
+        warn!("If this is the first node, use --bootstrap flag");
+        info!("Attempting to join existing cluster");
+        InitMode::Join
+    };
+
     // Create cluster initializer
     let cluster_config = ClusterConfig {
-        mode: if cli.bootstrap {
-            InitMode::Bootstrap
-        } else {
-            InitMode::Join
-        },
+        mode: init_mode.clone(),
         seed_addrs: Vec::new(),
         discovery_timeout_ms: 5000,
         min_peers_for_join: 1,
@@ -135,7 +199,11 @@ async fn main() -> Result<()> {
     // Initialize cluster
     info!(
         "Initializing cluster in {} mode",
-        if cli.bootstrap { "Bootstrap" } else { "Join" }
+        if matches!(init_mode, InitMode::Bootstrap) {
+            "Bootstrap"
+        } else {
+            "Join"
+        }
     );
     if let Err(e) = initializer.initialize().await {
         error!("Failed to initialize cluster: {}", e);
@@ -209,17 +277,36 @@ fn setup_logging(log_level: &str) -> Result<()> {
 
 /// Print startup banner
 fn print_banner() {
+    // ANSI color codes
+    const CYAN: &str = "\x1b[36m";
+    const BRIGHT_CYAN: &str = "\x1b[96m";
+    const YELLOW: &str = "\x1b[33m";
+    const RESET: &str = "\x1b[0m";
+    const BOLD: &str = "\x1b[1m";
+
+    let version = env!("CARGO_PKG_VERSION");
+
     println!(
-        r#"
-╔═══════════════════════════════════════════════════════╗
-║                                                       ║
-║           Hyra Scribe Ledger Node                    ║
-║           Distributed Key-Value Store                ║
-║                                                       ║
-║           Version: {}                         ║
-╚═══════════════════════════════════════════════════════╝
-"#,
-        env!("CARGO_PKG_VERSION")
+        "\n{}{}╔═══════════════════════════════════════════════════════════╗",
+        BOLD, CYAN
+    );
+    println!("║                                                           ║");
+    println!(
+        "║     {}{}🚀  Hyra Scribe Ledger Node  🚀{}{}                ║",
+        BOLD, BRIGHT_CYAN, RESET, CYAN
+    );
+    println!(
+        "║        {}Distributed Key-Value Store with Raft{}          ║",
+        BRIGHT_CYAN, CYAN
+    );
+    println!("║                                                           ║");
+    println!(
+        "║           {}Version: {:<10}{}                        ║",
+        YELLOW, version, CYAN
+    );
+    println!(
+        "╚═══════════════════════════════════════════════════════════╝{}\n",
+        RESET
     );
 }
 
@@ -347,7 +434,7 @@ async fn wait_for_shutdown_signal() {
 
     #[cfg(not(unix))]
     {
-        signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
         info!("Received Ctrl+C signal");
     }
 }

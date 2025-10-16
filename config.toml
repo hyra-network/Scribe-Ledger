@@ -1,30 +1,112 @@
 # Simple Scribe Ledger Configuration
 # This is the default configuration file
+#
+# Environment Variables:
+# All settings can be overridden using environment variables with SCRIBE_ prefix
+# Examples:
+#   SCRIBE_NODE_ID=2
+#   SCRIBE_CLIENT_PORT=8002
+#   SCRIBE_RAFT_PORT=9002
+#   SCRIBE_DISCOVERY_PORT=17946
+#   SCRIBE_CLUSTER_SECRET="your-secret"
+#   See full list in documentation
 
 [node]
 # Unique identifier for this node (must be > 0)
+# Env: SCRIBE_NODE_ID
 id = 1
 # Address for this node
+# Env: SCRIBE_NODE_ADDRESS
 address = "127.0.0.1"
 # Data directory for storage
+# Env: SCRIBE_DATA_DIR
 data_dir = "./node-1"
 
 [network]
 # Address to listen on for client connections
+# Env: SCRIBE_LISTEN_ADDR
 listen_addr = "127.0.0.1:8001"
-# Port for client HTTP API
+# Port for client HTTP API (default: 8000 + node_id)
+# Env: SCRIBE_CLIENT_PORT
 client_port = 8001
-# Port for Raft consensus communication
+# Port for Raft consensus communication (default: 9000 + node_id)
+# Env: SCRIBE_RAFT_PORT
 raft_port = 9001
+# Seed peer addresses for initial cluster discovery (optional)
+# Format: ["node_address:port", "another_address:port"]
+# Use this to connect to nodes in other networks
+# Example: seed_peers = ["10.0.1.5:17946", "192.168.1.100:17946"]
+seed_peers = []
 
 [storage]
 # Maximum size of a data segment in bytes (64MB)
+# Env: SCRIBE_SEGMENT_SIZE
 segment_size = 67108864
 # Maximum cache size in bytes (256MB)
+# Env: SCRIBE_MAX_CACHE_SIZE
 max_cache_size = 268435456
 
+# S3 storage configuration (optional)
+# Uncomment and configure to enable S3 archival
+[storage.s3]
+bucket = "scribe-ledger"
+region = "us-east-1"
+# For MinIO or custom S3-compatible endpoint
+endpoint = "http://localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+# Enable path-style for MinIO (default: false)
+path_style = true
+# Connection pool size (default: 10)
+pool_size = 10
+# Request timeout in seconds (default: 30)
+timeout_secs = 30
+# Maximum retry attempts (default: 3)
+max_retries = 3
+
 [consensus]
-# Election timeout in milliseconds
-election_timeout_ms = 1000
-# Heartbeat interval in milliseconds (must be less than election timeout)
+# Election timeout minimum in milliseconds (default: 1500)
+# Env: SCRIBE_ELECTION_TIMEOUT_MIN_MS
+election_timeout_min = 1500
+# Election timeout maximum in milliseconds (default: 3000)
+# Env: SCRIBE_ELECTION_TIMEOUT_MAX_MS
+election_timeout_max = 3000
+# Heartbeat interval in milliseconds (must be less than election timeout, default: 300)
+# Env: SCRIBE_HEARTBEAT_INTERVAL_MS
 heartbeat_interval_ms = 300
+# Maximum batch size for Raft proposals (default: 300)
+max_payload_entries = 300
+# Snapshot policy: number of logs before snapshot (default: 5000)
+snapshot_logs_since_last = 5000
+# Max logs to keep in snapshot (default: 1000)
+max_in_snapshot_log_to_keep = 1000
+
+[api]
+# Write timeout in seconds (default: 30)
+write_timeout_secs = 30
+# Read timeout in seconds (default: 10)
+read_timeout_secs = 10
+# Maximum batch size for write operations (default: 100)
+max_batch_size = 100
+# Cache capacity for hot data (default: 1000)
+cache_capacity = 1000
+
+[discovery]
+# Heartbeat interval in milliseconds (default: 500)
+heartbeat_interval_ms = 500
+# Failure detection timeout in milliseconds (default: 1500)
+failure_timeout_ms = 1500
+# UDP port for discovery broadcasts (default: 17946)
+# Env: SCRIBE_DISCOVERY_PORT
+discovery_port = 17946
+# Broadcast address for discovery (default: 255.255.255.255 for LAN-wide discovery)
+# Use specific subnet broadcast for limited scope (e.g., 192.168.1.255)
+# For cross-network: set to specific IP or use seed_peers in [network] section
+# Env: SCRIBE_BROADCAST_ADDR
+broadcast_addr = "255.255.255.255"
+# Cluster secret for cross-network authentication (optional)
+# Nodes must have matching secrets to join the same cluster
+# IMPORTANT: Use this when connecting nodes across different networks
+# All nodes in the cluster must have the same secret
+# Env: SCRIBE_CLUSTER_SECRET
+# cluster_secret = "your-secret-token-here"

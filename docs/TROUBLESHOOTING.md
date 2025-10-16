@@ -28,13 +28,13 @@ Common issues and solutions for Hyra Scribe Ledger.
 sudo systemctl status scribe-node
 
 # Check if port is listening
-sudo netstat -tlnp | grep 8080
+sudo netstat -tlnp | grep 8001
 
 # Test local connectivity
-curl http://localhost:8080/health
+curl http://localhost:8001/health
 
 # Test network connectivity
-telnet node1 8080
+telnet node1 8001
 ```
 
 **Solutions:**
@@ -51,8 +51,8 @@ telnet node1 8080
    sudo iptables -L -n
    
    # Allow traffic on required ports
-   sudo firewall-cmd --permanent --add-port=8080/tcp
-   sudo firewall-cmd --permanent --add-port=8081/tcp
+   sudo firewall-cmd --permanent --add-port=8001/tcp
+   sudo firewall-cmd --permanent --add-port=9001/tcp
    sudo firewall-cmd --reload
    ```
 
@@ -88,7 +88,7 @@ sudo ethtool eth0
 ping -c 100 node1
 
 # Monitor connections
-sudo tcpdump -i eth0 port 8080
+sudo tcpdump -i eth0 port 8001
 ```
 
 **Solutions:**
@@ -121,10 +121,10 @@ sudo tcpdump -i eth0 port 8080
 1. **Missing API key:**
    ```bash
    # Add API key header
-   curl -H "X-API-Key: your-key-here" http://localhost:8080/data
+   curl -H "X-API-Key: your-key-here" http://localhost:8001/data
    
    # Or use Bearer token
-   curl -H "Authorization: Bearer your-key-here" http://localhost:8080/data
+   curl -H "Authorization: Bearer your-key-here" http://localhost:8001/data
    ```
 
 2. **Authentication disabled but required:**
@@ -172,7 +172,7 @@ sudo tcpdump -i eth0 port 8080
    ```bash
    # Use write or admin key
    curl -H "X-API-Key: write-or-admin-key" \
-     -X PUT http://localhost:8080/data \
+     -X PUT http://localhost:8001/data \
      -d '{"value": "test"}'
    ```
 
@@ -261,7 +261,7 @@ sudo perf report
    ```bash
    # Exponential backoff example
    for i in 1 2 4 8 16; do
-     if curl -H "X-API-Key: key" http://localhost:8080/data; then
+     if curl -H "X-API-Key: key" http://localhost:8001/data; then
        break
      fi
      sleep $i
@@ -320,10 +320,10 @@ valgrind --leak-check=full ./scribe-node
 
 ```bash
 # Check cluster members
-curl http://node1:8080/cluster/nodes
+curl http://node1:8001/cluster/nodes
 
 # Check cluster status
-curl http://node1:8080/cluster/info
+curl http://node1:8001/cluster/info
 
 # Check network connectivity
 for node in node{1..3}; do
@@ -367,7 +367,7 @@ done
 # Check leader on each node
 for node in node{1..3}; do
   echo "$node:"
-  curl -s http://$node:8080/cluster/leader/info
+  curl -s http://$node:8001/cluster/leader/info
 done
 ```
 
@@ -406,10 +406,10 @@ done
 sudo journalctl -u scribe-node -f
 
 # Verify node is reachable
-curl http://rejoining-node:8080/health
+curl http://rejoining-node:8001/health
 
 # Check cluster membership
-curl http://leader:8080/cluster/nodes
+curl http://leader:8001/cluster/nodes
 ```
 
 **Solutions:**
@@ -424,7 +424,7 @@ curl http://leader:8080/cluster/nodes
 
 2. **Re-add to cluster:**
    ```bash
-   curl -X POST http://leader:8080/cluster/nodes/add \
+   curl -X POST http://leader:8001/cluster/nodes/add \
      -H 'X-API-Key: admin-key' \
      -d '{"node_id": 2, "address": "10.0.1.11:8002"}'
    ```
@@ -455,7 +455,7 @@ Error: No space left on device
 2. **Archive old data to S3:**
    ```bash
    # Trigger archival (if configured)
-   curl -X POST http://localhost:8080/admin/archive \
+   curl -X POST http://localhost:8001/admin/archive \
      -H 'X-API-Key: admin-key'
    ```
 
@@ -475,7 +475,7 @@ Error: No space left on device
 
 ```bash
 # Check Merkle root
-curl http://localhost:8080/verify/key
+curl http://localhost:8001/verify/key
 
 # Check storage integrity
 sudo -u scribe-ledger /usr/local/bin/scribe-node --check-db
@@ -512,12 +512,12 @@ SSL certificate problem: self signed certificate
 
 1. **Accept self-signed cert (development only):**
    ```bash
-   curl -k https://localhost:8080/health  # -k to ignore cert errors
+   curl -k https://localhost:8001/health  # -k to ignore cert errors
    ```
 
 2. **Use proper CA certificate:**
    ```bash
-   curl --cacert /path/to/ca.crt https://localhost:8080/health
+   curl --cacert /path/to/ca.crt https://localhost:8001/health
    ```
 
 3. **Add cert to trust store:**
@@ -562,7 +562,7 @@ client certificate required
 1. **Provide client certificate:**
    ```bash
    curl --cert client.crt --key client.key \
-     https://localhost:8080/health
+     https://localhost:8001/health
    ```
 
 2. **Disable mutual TLS (if not needed):**
@@ -630,10 +630,10 @@ sudo journalctl -u scribe-node -n 1000 > service-logs.txt
 sudo cp /etc/scribe-ledger/config.toml config.toml
 
 # Metrics
-curl http://localhost:8080/metrics > metrics.txt
+curl http://localhost:8001/metrics > metrics.txt
 
 # Cluster info
-curl http://localhost:8080/cluster/info > cluster-info.txt
+curl http://localhost:8001/cluster/info > cluster-info.txt
 
 # Create tarball
 tar -czf ../scribe-diagnostics-$(date +%Y%m%d-%H%M%S).tar.gz .
@@ -643,7 +643,7 @@ tar -czf ../scribe-diagnostics-$(date +%Y%m%d-%H%M%S).tar.gz .
 
 If you cannot resolve an issue:
 
-1. **Check GitHub Issues:** https://github.com/amogusdrip285/simple-scribe-ledger/issues
+1. **Check GitHub Issues:** https://github.com/hyra-network/simple-scribe-ledger/issues
 2. **Create New Issue:** Include diagnostic bundle and reproduction steps
 3. **Community Support:** Join the discussion forum
 4. **Commercial Support:** Contact support@hyra-network.com

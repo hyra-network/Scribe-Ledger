@@ -282,8 +282,10 @@ async fn test_combined_security_features() {
 #[test]
 fn test_security_configuration_validation() {
     // Test TLS validation
-    let mut tls_config = TlsConfig::default();
-    tls_config.enabled = true;
+    let tls_config = TlsConfig {
+        enabled: true,
+        ..Default::default()
+    };
     assert!(tls_config.validate().is_err()); // Missing cert and key
 
     // Test auth validation

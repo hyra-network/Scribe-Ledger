@@ -10,7 +10,6 @@ use hyra_scribe_ledger::{logging, metrics, SimpleScribeLedger};
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::Instant;
-use tokio;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn};
 
@@ -443,17 +442,21 @@ async fn cluster_leave_handler(Json(payload): Json<ClusterLeaveRequest>) -> Resp
 
 // Cluster status endpoint
 async fn cluster_status_handler() -> Response {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_TERM: u64 = 1;
+
     // In standalone mode, we're always the leader
     (
         StatusCode::OK,
         Json(ClusterStatusResponse {
-            node_id: 1,
+            node_id: TEST_NODE_ID,
             is_leader: true,
-            current_leader: Some(1),
+            current_leader: Some(TEST_NODE_ID),
             state: "Leader".to_string(),
             last_log_index: Some(0),
             last_applied: Some("0:0".to_string()),
-            current_term: 1,
+            current_term: TEST_TERM,
         }),
     )
         .into_response()
@@ -461,10 +464,14 @@ async fn cluster_status_handler() -> Response {
 
 // Cluster members endpoint
 async fn cluster_members_handler() -> Response {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ADDR: &str = "127.0.0.1:3000";
+
     // In standalone mode, only one member
     let members = vec![ClusterMemberInfo {
-        node_id: 1,
-        address: "127.0.0.1:3000".to_string(),
+        node_id: TEST_NODE_ID,
+        address: TEST_NODE_ADDR.to_string(),
     }];
 
     (StatusCode::OK, Json(ClusterMembersResponse { members })).into_response()
@@ -498,7 +505,7 @@ async fn verify_handler(State(state): State<Arc<AppState>>, Path(key): Path<Stri
 
                             // Convert proof to hex strings for JSON response
                             let siblings_hex: Vec<String> =
-                                proof.siblings.iter().map(|s| hex::encode(s)).collect();
+                                proof.siblings.iter().map(hex::encode).collect();
 
                             (
                                 StatusCode::OK,

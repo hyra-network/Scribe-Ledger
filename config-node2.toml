@@ -1,19 +1,75 @@
 # Node 2 Configuration
 
 [node]
+# Unique node identifier
+# Env: SCRIBE_NODE_ID
 id = 2
+# Node address
+# Env: SCRIBE_NODE_ADDRESS
 address = "127.0.0.1"
+# Data directory
+# Env: SCRIBE_DATA_DIR
 data_dir = "./node-2"
 
 [network]
+# Client API listen address
+# Env: SCRIBE_LISTEN_ADDR
 listen_addr = "127.0.0.1:8002"
+# Client HTTP API port (default: 8000 + node_id = 8002)
+# Env: SCRIBE_CLIENT_PORT
 client_port = 8002
+# Raft consensus port (default: 9000 + node_id = 9002)
+# Env: SCRIBE_RAFT_PORT
 raft_port = 9002
+# Seed peers for cross-network discovery (optional)
+# Example: seed_peers = ["10.0.1.5:17946", "192.168.1.100:17946"]
+seed_peers = []
 
 [storage]
+# Segment size (64MB)
+# Env: SCRIBE_SEGMENT_SIZE
 segment_size = 67108864
+# Max cache size (256MB)
+# Env: SCRIBE_MAX_CACHE_SIZE
 max_cache_size = 268435456
 
+# S3 storage configuration (optional)
+# Uncomment and configure to enable S3 archival
+[storage.s3]
+bucket = "scribe-ledger-node2"
+region = "us-east-1"
+# For MinIO or custom S3-compatible endpoint
+endpoint = "http://localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+# Enable path-style for MinIO (required)
+path_style = true
+# Connection pool size (default: 10)
+pool_size = 10
+# Request timeout in seconds (default: 30)
+timeout_secs = 30
+# Maximum retry attempts (default: 3)
+max_retries = 3
+
 [consensus]
-election_timeout_ms = 1000
+# Election timeout min (ms, default: 1500)
+# Env: SCRIBE_ELECTION_TIMEOUT_MIN_MS
+election_timeout_min = 1500
+# Election timeout max (ms, default: 3000)
+# Env: SCRIBE_ELECTION_TIMEOUT_MAX_MS
+election_timeout_max = 3000
+# Heartbeat interval (ms, default: 300)
+# Env: SCRIBE_HEARTBEAT_INTERVAL_MS
 heartbeat_interval_ms = 300
+
+[discovery]
+# UDP discovery port (default: 17946)
+# Each node must have a unique discovery port to avoid collisions
+# Env: SCRIBE_DISCOVERY_PORT
+discovery_port = 17947
+# Broadcast address (default: 255.255.255.255)
+# Env: SCRIBE_BROADCAST_ADDR
+broadcast_addr = "255.255.255.255"
+# Cluster secret for cross-network auth (optional)
+# Env: SCRIBE_CLUSTER_SECRET
+# cluster_secret = "your-secret"

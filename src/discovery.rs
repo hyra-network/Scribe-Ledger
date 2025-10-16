@@ -32,11 +32,21 @@ pub enum DiscoveryMessage {
         node_id: u64,
         raft_addr: SocketAddr,
         client_addr: SocketAddr,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
     },
     /// Heartbeat to indicate node is alive
-    Heartbeat { node_id: u64 },
+    Heartbeat {
+        node_id: u64,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
+    },
     /// Request peer list from other nodes
-    PeerListRequest { node_id: u64 },
+    PeerListRequest {
+        node_id: u64,
+        /// Cluster secret for authentication (optional)
+        cluster_secret: Option<String>,
+    },
     /// Response with known peers
     PeerListResponse { peers: Vec<PeerInfo> },
 }
@@ -75,6 +85,8 @@ pub struct DiscoveryConfig {
     pub heartbeat_interval_ms: u64,
     /// Failure detection timeout in milliseconds
     pub failure_timeout_ms: u64,
+    /// Cluster secret for cross-network authentication (optional)
+    pub cluster_secret: Option<String>,
 }
 
 impl Default for DiscoveryConfig {
@@ -88,6 +100,7 @@ impl Default for DiscoveryConfig {
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: DEFAULT_HEARTBEAT_INTERVAL_MS,
             failure_timeout_ms: DEFAULT_FAILURE_TIMEOUT_MS,
+            cluster_secret: None,
         }
     }
 }
@@ -244,6 +257,7 @@ impl DiscoveryService {
             node_id: self.config.node_id,
             raft_addr: self.config.raft_addr,
             client_addr: self.config.client_addr,
+            cluster_secret: self.config.cluster_secret.clone(),
         };
 
         self.broadcast_message(&msg)?;
@@ -255,6 +269,7 @@ impl DiscoveryService {
     fn send_heartbeat(&self) -> Result<()> {
         let msg = DiscoveryMessage::Heartbeat {
             node_id: self.config.node_id,
+            cluster_secret: self.config.cluster_secret.clone(),
         };
 
         self.broadcast_message(&msg)?;
@@ -355,9 +370,19 @@ impl DiscoveryService {
                 node_id,
                 raft_addr,
                 client_addr,
+                cluster_secret,
             } => {
                 // Ignore our own announces
                 if *node_id == config.node_id {
+                    return;
+                }
+
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected announce from node {} - invalid cluster secret",
+                        node_id
+                    );
                     return;
                 }
 
@@ -387,6 +412,7 @@ impl DiscoveryService {
                         node_id: config.node_id,
                         raft_addr: config.raft_addr,
                         client_addr: config.client_addr,
+                        cluster_secret: config.cluster_secret.clone(),
                     };
 
                     if let Ok(data) = bincode::serialize(&response) {
@@ -399,9 +425,21 @@ impl DiscoveryService {
                     }
                 }
             }
-            DiscoveryMessage::Heartbeat { node_id } => {
+            DiscoveryMessage::Heartbeat {
+                node_id,
+                cluster_secret,
+            } => {
                 // Ignore our own heartbeats
                 if *node_id == config.node_id {
+                    return;
+                }
+
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected heartbeat from node {} - invalid cluster secret",
+                        node_id
+                    );
                     return;
                 }
 
@@ -413,7 +451,19 @@ impl DiscoveryService {
                     debug!("Received heartbeat from unknown node {}, ignoring", node_id);
                 }
             }
-            DiscoveryMessage::PeerListRequest { node_id } => {
+            DiscoveryMessage::PeerListRequest {
+                node_id,
+                cluster_secret,
+            } => {
+                // Validate cluster secret if configured
+                if !Self::validate_cluster_secret(config, cluster_secret) {
+                    warn!(
+                        "Rejected peer list request from node {} - invalid cluster secret",
+                        node_id
+                    );
+                    return;
+                }
+
                 debug!("Received peer list request from node {}", node_id);
                 // Implementation for peer list exchange would go here
                 // For now, receiving an announce is sufficient for discovery
@@ -484,6 +534,20 @@ impl DiscoveryService {
         info!("Failure detection loop stopped");
     }
 
+    /// Validate cluster secret from incoming message
+    fn validate_cluster_secret(config: &DiscoveryConfig, msg_secret: &Option<String>) -> bool {
+        match (&config.cluster_secret, msg_secret) {
+            // Both have secrets - they must match
+            (Some(our_secret), Some(their_secret)) => our_secret == their_secret,
+            // We have a secret but they don't - reject
+            (Some(_), None) => false,
+            // We don't have a secret but they do - reject (for security)
+            (None, Some(_)) => false,
+            // Neither has secret - allow (open network)
+            (None, None) => true,
+        }
+    }
+
     /// Clone for background tasks
     fn clone_for_task(&self) -> Self {
         Self {
@@ -499,10 +563,29 @@ impl DiscoveryService {
 mod tests {
     use super::*;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 2;
+    const TEST_HEARTBEAT_NODE_ID: u64 = 42;
+    const TEST_NONEXISTENT_NODE_ID: u64 = 999;
+    const TEST_RAFT_PORT: u16 = 9001;
+    const TEST_RAFT_PORT_2: u16 = 9002;
+    const TEST_CLIENT_PORT: u16 = 8001;
+    const TEST_CLIENT_PORT_2: u16 = 8002;
+    const TEST_IP: &str = "127.0.0.1";
+
+    fn test_raft_addr(port: u16) -> std::net::SocketAddr {
+        format!("{}:{}", TEST_IP, port).parse().unwrap()
+    }
+
+    fn test_client_addr(port: u16) -> std::net::SocketAddr {
+        format!("{}:{}", TEST_IP, port).parse().unwrap()
+    }
+
     #[test]
     fn test_discovery_config_default() {
         let config = DiscoveryConfig::default();
-        assert_eq!(config.node_id, 1);
+        assert_eq!(config.node_id, TEST_NODE_ID);
         assert_eq!(config.discovery_port, DEFAULT_DISCOVERY_PORT);
         assert_eq!(config.heartbeat_interval_ms, DEFAULT_HEARTBEAT_INTERVAL_MS);
         assert_eq!(config.failure_timeout_ms, DEFAULT_FAILURE_TIMEOUT_MS);
@@ -511,9 +594,9 @@ mod tests {
     #[test]
     fn test_peer_info_serialization() {
         let peer = PeerInfo {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
         };
 
         let serialized = bincode::serialize(&peer).unwrap();
@@ -525,9 +608,10 @@ mod tests {
     #[test]
     fn test_discovery_message_serialization() {
         let msg = DiscoveryMessage::Announce {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
+            cluster_secret: None,
         };
 
         let serialized = bincode::serialize(&msg).unwrap();
@@ -538,7 +622,10 @@ mod tests {
 
     #[test]
     fn test_heartbeat_message_serialization() {
-        let msg = DiscoveryMessage::Heartbeat { node_id: 42 };
+        let msg = DiscoveryMessage::Heartbeat {
+            node_id: TEST_HEARTBEAT_NODE_ID,
+            cluster_secret: None,
+        };
 
         let serialized = bincode::serialize(&msg).unwrap();
         let deserialized: DiscoveryMessage = bincode::deserialize(&serialized).unwrap();
@@ -549,13 +636,14 @@ mod tests {
     #[tokio::test]
     async fn test_discovery_service_creation() {
         let config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
             discovery_port: 17946, // Use non-standard port for testing
-            broadcast_addr: "127.0.0.1".to_string(),
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
+            cluster_secret: None,
             failure_timeout_ms: 1500,
         };
 
@@ -566,14 +654,15 @@ mod tests {
     #[tokio::test]
     async fn test_get_peers_empty() {
         let config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
             discovery_port: 17947,
-            broadcast_addr: "127.0.0.1".to_string(),
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
@@ -584,29 +673,30 @@ mod tests {
     #[tokio::test]
     async fn test_peer_tracking() {
         let config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
             discovery_port: 17948,
-            broadcast_addr: "127.0.0.1".to_string(),
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
 
         // Manually add a peer
         let peer_info = PeerInfo {
-            node_id: 2,
-            raft_addr: "127.0.0.1:9002".parse().unwrap(),
-            client_addr: "127.0.0.1:8002".parse().unwrap(),
+            node_id: TEST_NODE_ID_2,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT_2),
+            client_addr: test_client_addr(TEST_CLIENT_PORT_2),
         };
 
         {
             let mut peers = service.peers.write().unwrap();
             peers.insert(
-                2,
+                TEST_NODE_ID_2,
                 PeerState {
                     info: peer_info.clone(),
                     last_seen: Instant::now(),
@@ -616,26 +706,27 @@ mod tests {
 
         let peers = service.get_peers();
         assert_eq!(peers.len(), 1);
-        assert_eq!(peers[0].node_id, 2);
+        assert_eq!(peers[0].node_id, TEST_NODE_ID_2);
 
-        let peer = service.get_peer(2);
+        let peer = service.get_peer(TEST_NODE_ID_2);
         assert!(peer.is_some());
-        assert_eq!(peer.unwrap().node_id, 2);
+        assert_eq!(peer.unwrap().node_id, TEST_NODE_ID_2);
 
-        assert!(service.is_peer_alive(2));
-        assert!(!service.is_peer_alive(999));
+        assert!(service.is_peer_alive(TEST_NODE_ID_2));
+        assert!(!service.is_peer_alive(TEST_NONEXISTENT_NODE_ID));
     }
 
     #[tokio::test]
     async fn test_peer_expiration() {
         let config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
             discovery_port: 17949,
-            broadcast_addr: "127.0.0.1".to_string(),
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 100,
+            cluster_secret: None,
             failure_timeout_ms: 200, // Very short timeout for testing
         };
 
@@ -643,15 +734,15 @@ mod tests {
 
         // Manually add a peer with old timestamp
         let peer_info = PeerInfo {
-            node_id: 2,
-            raft_addr: "127.0.0.1:9002".parse().unwrap(),
-            client_addr: "127.0.0.1:8002".parse().unwrap(),
+            node_id: TEST_NODE_ID_2,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT_2),
+            client_addr: test_client_addr(TEST_CLIENT_PORT_2),
         };
 
         {
             let mut peers = service.peers.write().unwrap();
             peers.insert(
-                2,
+                TEST_NODE_ID_2,
                 PeerState {
                     info: peer_info,
                     last_seen: Instant::now() - Duration::from_millis(300),
@@ -660,20 +751,21 @@ mod tests {
         }
 
         // Peer should be considered dead
-        assert!(!service.is_peer_alive(2));
+        assert!(!service.is_peer_alive(TEST_NODE_ID_2));
     }
 
     #[tokio::test]
     async fn test_start_stop() {
         let config = DiscoveryConfig {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
             discovery_port: 17950,
-            broadcast_addr: "127.0.0.1".to_string(),
+            broadcast_addr: TEST_IP.to_string(),
             seed_addrs: Vec::new(),
             heartbeat_interval_ms: 500,
             failure_timeout_ms: 1500,
+            cluster_secret: None,
         };
 
         let service = DiscoveryService::new(config).unwrap();
@@ -699,9 +791,10 @@ mod tests {
     #[test]
     fn test_message_size_limit() {
         let msg = DiscoveryMessage::Announce {
-            node_id: 1,
-            raft_addr: "127.0.0.1:9001".parse().unwrap(),
-            client_addr: "127.0.0.1:8001".parse().unwrap(),
+            node_id: TEST_NODE_ID,
+            raft_addr: test_raft_addr(TEST_RAFT_PORT),
+            client_addr: test_client_addr(TEST_CLIENT_PORT),
+            cluster_secret: None,
         };
 
         let serialized = bincode::serialize(&msg).unwrap();

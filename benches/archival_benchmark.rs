@@ -56,16 +56,13 @@ fn is_s3_available(rt: &Runtime) -> bool {
     }
 
     rt.block_on(async {
-        match ArchivalManager::new(
+        ArchivalManager::new(
             config,
             Arc::new(SegmentManager::new()),
             TieringPolicy::default(),
         )
         .await
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        .is_ok()
     })
 }
 
@@ -87,9 +84,11 @@ fn bench_compression_levels(c: &mut Criterion) {
             |b, &level| {
                 b.iter(|| {
                     rt.block_on(async {
-                        let mut policy = TieringPolicy::default();
-                        policy.compression_level = level;
-                        policy.enable_compression = true;
+                        let policy = TieringPolicy {
+                            compression_level: level,
+                            enable_compression: true,
+                            ..Default::default()
+                        };
 
                         let manager = ArchivalManager::new(
                             get_test_config(),

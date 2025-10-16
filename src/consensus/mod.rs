@@ -20,6 +20,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::config::ConsensusConfig as ScribeConsensusConfig;
 use crate::types::NodeId;
 
 /// Type alias for the Raft instance
@@ -44,15 +45,35 @@ impl ConsensusNode {
         db: sled::Db,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Use default configuration
-        let config = Config {
-            heartbeat_interval: 500,
+        let scribe_config = ScribeConsensusConfig {
             election_timeout_min: 1500,
             election_timeout_max: 3000,
+            heartbeat_interval_ms: 300,
+            max_payload_entries: 300,
+            snapshot_logs_since_last: 5000,
+            max_in_snapshot_log_to_keep: 1000,
+        };
+
+        Self::new_with_scribe_config(node_id, db, &scribe_config).await
+    }
+
+    /// Create a new consensus node from Scribe configuration
+    pub async fn new_with_scribe_config(
+        node_id: NodeId,
+        db: sled::Db,
+        scribe_config: &ScribeConsensusConfig,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let config = Config {
+            heartbeat_interval: scribe_config.heartbeat_interval_ms,
+            election_timeout_min: scribe_config.election_timeout_min,
+            election_timeout_max: scribe_config.election_timeout_max,
             enable_tick: true,
             enable_heartbeat: true,
-            max_payload_entries: 300,
-            snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(5000),
-            max_in_snapshot_log_to_keep: 1000,
+            max_payload_entries: scribe_config.max_payload_entries,
+            snapshot_policy: openraft::SnapshotPolicy::LogsSinceLast(
+                scribe_config.snapshot_logs_since_last,
+            ),
+            max_in_snapshot_log_to_keep: scribe_config.max_in_snapshot_log_to_keep,
             ..Default::default()
         };
 
@@ -286,19 +307,25 @@ pub struct HealthStatus {
 mod tests {
     use super::*;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 2;
+    const TEST_ADDR_2: &str = "127.0.0.1:5002";
+
     #[tokio::test]
     async fn test_consensus_node_creation() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
-        assert_eq!(node.node_id(), 1);
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
+        assert_eq!(node.node_id(), TEST_NODE_ID);
     }
 
     #[tokio::test]
     async fn test_register_peer() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
 
-        node.register_peer(2, "127.0.0.1:5002".to_string()).await;
+        node.register_peer(TEST_NODE_ID_2, TEST_ADDR_2.to_string())
+            .await;
 
         // Can't directly access node_addresses from outside, so just verify it doesn't error
     }
@@ -306,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn test_initialize_single_node_cluster() {
         let db = sled::Config::new().temporary(true).open().unwrap();
-        let node = ConsensusNode::new(1, db).await.unwrap();
+        let node = ConsensusNode::new(TEST_NODE_ID, db).await.unwrap();
 
         // Initialize as single-node cluster
         node.initialize().await.unwrap();

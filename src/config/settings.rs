@@ -20,6 +20,12 @@ pub struct Config {
     pub storage: StorageConfig,
     /// Consensus/Raft configuration
     pub consensus: ConsensusConfig,
+    /// API configuration
+    #[serde(default)]
+    pub api: ApiConfig,
+    /// Discovery configuration
+    #[serde(default)]
+    pub discovery: DiscoveryConfig,
 }
 
 /// Node configuration
@@ -102,8 +108,12 @@ fn default_max_retries() -> u32 {
 /// Consensus configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsensusConfig {
-    /// Election timeout in milliseconds
-    pub election_timeout_ms: u64,
+    /// Election timeout minimum in milliseconds
+    #[serde(default = "default_election_timeout_min")]
+    pub election_timeout_min: u64,
+    /// Election timeout maximum in milliseconds (for randomization)
+    #[serde(default = "default_election_timeout_max")]
+    pub election_timeout_max: u64,
     /// Heartbeat interval in milliseconds
     pub heartbeat_interval_ms: u64,
     /// Maximum batch size for Raft proposals
@@ -117,6 +127,14 @@ pub struct ConsensusConfig {
     pub max_in_snapshot_log_to_keep: u64,
 }
 
+fn default_election_timeout_min() -> u64 {
+    1500
+}
+
+fn default_election_timeout_max() -> u64 {
+    3000
+}
+
 fn default_max_payload_entries() -> u64 {
     300
 }
@@ -127,6 +145,99 @@ fn default_snapshot_policy() -> u64 {
 
 fn default_max_in_snapshot_log_to_keep() -> u64 {
     1000
+}
+
+/// API configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiConfig {
+    /// Write timeout in seconds
+    #[serde(default = "default_write_timeout_secs")]
+    pub write_timeout_secs: u64,
+    /// Read timeout in seconds
+    #[serde(default = "default_read_timeout_secs")]
+    pub read_timeout_secs: u64,
+    /// Maximum batch size for write operations
+    #[serde(default = "default_api_batch_size")]
+    pub max_batch_size: usize,
+    /// Cache capacity for hot data
+    #[serde(default = "default_cache_capacity")]
+    pub cache_capacity: usize,
+}
+
+fn default_write_timeout_secs() -> u64 {
+    30
+}
+
+fn default_read_timeout_secs() -> u64 {
+    10
+}
+
+fn default_api_batch_size() -> usize {
+    100
+}
+
+fn default_cache_capacity() -> usize {
+    1000
+}
+
+impl Default for ApiConfig {
+    fn default() -> Self {
+        Self {
+            write_timeout_secs: default_write_timeout_secs(),
+            read_timeout_secs: default_read_timeout_secs(),
+            max_batch_size: default_api_batch_size(),
+            cache_capacity: default_cache_capacity(),
+        }
+    }
+}
+
+/// Discovery service configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoveryConfig {
+    /// Heartbeat interval in milliseconds
+    #[serde(default = "default_discovery_heartbeat_ms")]
+    pub heartbeat_interval_ms: u64,
+    /// Failure detection timeout in milliseconds
+    #[serde(default = "default_discovery_failure_timeout_ms")]
+    pub failure_timeout_ms: u64,
+    /// UDP port for discovery broadcasts (default: 17946)
+    #[serde(default = "default_discovery_port")]
+    pub discovery_port: u16,
+    /// Broadcast address for local discovery (default: 255.255.255.255 for LAN)
+    #[serde(default = "default_broadcast_addr")]
+    pub broadcast_addr: String,
+    /// Secret token for cross-network node authentication (optional)
+    /// Nodes must have matching tokens to join the same cluster across networks
+    #[serde(default)]
+    pub cluster_secret: Option<String>,
+}
+
+fn default_discovery_heartbeat_ms() -> u64 {
+    500
+}
+
+fn default_discovery_failure_timeout_ms() -> u64 {
+    1500
+}
+
+fn default_discovery_port() -> u16 {
+    17946
+}
+
+fn default_broadcast_addr() -> String {
+    "255.255.255.255".to_string()
+}
+
+impl Default for DiscoveryConfig {
+    fn default() -> Self {
+        Self {
+            heartbeat_interval_ms: default_discovery_heartbeat_ms(),
+            failure_timeout_ms: default_discovery_failure_timeout_ms(),
+            discovery_port: default_discovery_port(),
+            broadcast_addr: default_broadcast_addr(),
+            cluster_secret: None,
+        }
+    }
 }
 
 impl Config {
@@ -169,12 +280,15 @@ impl Config {
                 s3: None,                          // No S3 by default
             },
             consensus: ConsensusConfig {
-                election_timeout_ms: 1000,
+                election_timeout_min: 1500,
+                election_timeout_max: 3000,
                 heartbeat_interval_ms: 300,
                 max_payload_entries: 300,
                 snapshot_logs_since_last: 5000,
                 max_in_snapshot_log_to_keep: 1000,
             },
+            api: ApiConfig::default(),
+            discovery: DiscoveryConfig::default(),
         }
     }
 
@@ -223,14 +337,42 @@ impl Config {
         }
 
         // Consensus config overrides
-        if let Ok(timeout) = std::env::var("SCRIBE_ELECTION_TIMEOUT_MS") {
+        if let Ok(timeout) = std::env::var("SCRIBE_ELECTION_TIMEOUT_MIN_MS") {
             if let Ok(parsed_timeout) = timeout.parse() {
-                self.consensus.election_timeout_ms = parsed_timeout;
+                self.consensus.election_timeout_min = parsed_timeout;
+            }
+        }
+        if let Ok(timeout) = std::env::var("SCRIBE_ELECTION_TIMEOUT_MAX_MS") {
+            if let Ok(parsed_timeout) = timeout.parse() {
+                self.consensus.election_timeout_max = parsed_timeout;
             }
         }
         if let Ok(interval) = std::env::var("SCRIBE_HEARTBEAT_INTERVAL_MS") {
             if let Ok(parsed_interval) = interval.parse() {
                 self.consensus.heartbeat_interval_ms = parsed_interval;
+            }
+        }
+
+        // Discovery config overrides
+        if let Ok(port) = std::env::var("SCRIBE_DISCOVERY_PORT") {
+            if let Ok(parsed_port) = port.parse() {
+                self.discovery.discovery_port = parsed_port;
+            }
+        }
+        if let Ok(addr) = std::env::var("SCRIBE_BROADCAST_ADDR") {
+            self.discovery.broadcast_addr = addr;
+        }
+        if let Ok(secret) = std::env::var("SCRIBE_CLUSTER_SECRET") {
+            self.discovery.cluster_secret = Some(secret);
+        }
+        if let Ok(interval) = std::env::var("SCRIBE_DISCOVERY_HEARTBEAT_MS") {
+            if let Ok(parsed_interval) = interval.parse() {
+                self.discovery.heartbeat_interval_ms = parsed_interval;
+            }
+        }
+        if let Ok(timeout) = std::env::var("SCRIBE_DISCOVERY_FAILURE_TIMEOUT_MS") {
+            if let Ok(parsed_timeout) = timeout.parse() {
+                self.discovery.failure_timeout_ms = parsed_timeout;
             }
         }
     }
@@ -279,9 +421,19 @@ impl Config {
         }
 
         // Validate consensus config
-        if self.consensus.election_timeout_ms == 0 {
+        if self.consensus.election_timeout_min == 0 {
             return Err(ScribeError::Configuration(
-                "Election timeout must be greater than 0".to_string(),
+                "Election timeout minimum must be greater than 0".to_string(),
+            ));
+        }
+        if self.consensus.election_timeout_max == 0 {
+            return Err(ScribeError::Configuration(
+                "Election timeout maximum must be greater than 0".to_string(),
+            ));
+        }
+        if self.consensus.election_timeout_min >= self.consensus.election_timeout_max {
+            return Err(ScribeError::Configuration(
+                "Election timeout minimum must be less than maximum".to_string(),
             ));
         }
         if self.consensus.heartbeat_interval_ms == 0 {
@@ -289,18 +441,23 @@ impl Config {
                 "Heartbeat interval must be greater than 0".to_string(),
             ));
         }
-        if self.consensus.heartbeat_interval_ms >= self.consensus.election_timeout_ms {
+        if self.consensus.heartbeat_interval_ms >= self.consensus.election_timeout_min {
             return Err(ScribeError::Configuration(
-                "Heartbeat interval must be less than election timeout".to_string(),
+                "Heartbeat interval must be less than election timeout minimum".to_string(),
             ));
         }
 
         Ok(())
     }
 
-    /// Get election timeout as Duration
-    pub fn election_timeout(&self) -> Duration {
-        Duration::from_millis(self.consensus.election_timeout_ms)
+    /// Get election timeout minimum as Duration
+    pub fn election_timeout_min(&self) -> Duration {
+        Duration::from_millis(self.consensus.election_timeout_min)
+    }
+
+    /// Get election timeout maximum as Duration
+    pub fn election_timeout_max(&self) -> Duration {
+        Duration::from_millis(self.consensus.election_timeout_max)
     }
 
     /// Get heartbeat interval as Duration
@@ -314,19 +471,26 @@ mod tests {
     use super::*;
     use std::env;
 
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_NODE_ID_2: u64 = 42;
+    const TEST_CLIENT_PORT: u16 = 8001;
+    const TEST_RAFT_PORT: u16 = 9001;
+    const TEST_CLIENT_PORT_OVERRIDE: u16 = 7777;
+
     #[test]
     fn test_default_config() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
-        assert_eq!(config.node.id, 1);
-        assert_eq!(config.network.client_port, 8001);
-        assert_eq!(config.network.raft_port, 9001);
+        assert_eq!(config.node.id, TEST_NODE_ID);
+        assert_eq!(config.network.client_port, TEST_CLIENT_PORT);
+        assert_eq!(config.network.raft_port, TEST_RAFT_PORT);
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_config_validation_invalid_node_id() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.node.id = 0;
 
         assert!(config.validate().is_err());
@@ -334,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_config_validation_same_ports() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.network.raft_port = config.network.client_port;
 
         assert!(config.validate().is_err());
@@ -342,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_config_validation_zero_segment_size() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.storage.segment_size = 0;
 
         assert!(config.validate().is_err());
@@ -350,18 +514,19 @@ mod tests {
 
     #[test]
     fn test_config_validation_heartbeat_timeout() {
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.consensus.heartbeat_interval_ms = 1000;
-        config.consensus.election_timeout_ms = 500;
+        config.consensus.election_timeout_min = 500;
 
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_duration_helpers() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
-        assert_eq!(config.election_timeout(), Duration::from_millis(1000));
+        assert_eq!(config.election_timeout_min(), Duration::from_millis(1500));
+        assert_eq!(config.election_timeout_max(), Duration::from_millis(3000));
         assert_eq!(config.heartbeat_interval(), Duration::from_millis(300));
     }
 
@@ -369,10 +534,10 @@ mod tests {
     fn test_env_override_node_id() {
         env::set_var("SCRIBE_NODE_ID", "42");
 
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.apply_env_overrides();
 
-        assert_eq!(config.node.id, 42);
+        assert_eq!(config.node.id, TEST_NODE_ID_2);
 
         env::remove_var("SCRIBE_NODE_ID");
     }
@@ -381,17 +546,17 @@ mod tests {
     fn test_env_override_client_port() {
         env::set_var("SCRIBE_CLIENT_PORT", "7777");
 
-        let mut config = Config::default_for_node(1);
+        let mut config = Config::default_for_node(TEST_NODE_ID);
         config.apply_env_overrides();
 
-        assert_eq!(config.network.client_port, 7777);
+        assert_eq!(config.network.client_port, TEST_CLIENT_PORT_OVERRIDE);
 
         env::remove_var("SCRIBE_CLIENT_PORT");
     }
 
     #[test]
     fn test_config_serialization() {
-        let config = Config::default_for_node(1);
+        let config = Config::default_for_node(TEST_NODE_ID);
 
         // Test TOML serialization
         let toml_str = toml::to_string(&config).unwrap();

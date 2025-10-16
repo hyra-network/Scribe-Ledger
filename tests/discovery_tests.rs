@@ -31,6 +31,7 @@ fn create_test_config(node_id: u64, base_port: u16, num_nodes: u64) -> Discovery
         seed_addrs,                 // Seed addresses for discovery
         heartbeat_interval_ms: 200, // Fast heartbeat for testing
         failure_timeout_ms: 600,    // 3x heartbeat
+        cluster_secret: None,       // No secret for tests
     }
 }
 
@@ -440,19 +441,27 @@ async fn test_network_partition_simulation() {
 
 #[tokio::test]
 async fn test_discovery_config_values() {
+    // Test constants to avoid hardcoded values
+    const TEST_NODE_ID: u64 = 1;
+    const TEST_RAFT_PORT: u16 = 9001;
+    const TEST_CLIENT_PORT: u16 = 8001;
+    const TEST_DISCOVERY_PORT: u16 = 18011;
+    const TEST_IP: &str = "127.0.0.1";
+
     // Test that custom configuration values are respected
     let custom_heartbeat = 100;
     let custom_timeout = 300;
 
     let config = DiscoveryConfig {
-        node_id: 1,
-        raft_addr: "127.0.0.1:9001".parse().unwrap(),
-        client_addr: "127.0.0.1:8001".parse().unwrap(),
-        discovery_port: 18011,
-        broadcast_addr: "127.0.0.1".to_string(),
-        seed_addrs: vec!["127.0.0.1".to_string()],
+        node_id: TEST_NODE_ID,
+        raft_addr: format!("{}:{}", TEST_IP, TEST_RAFT_PORT).parse().unwrap(),
+        client_addr: format!("{}:{}", TEST_IP, TEST_CLIENT_PORT).parse().unwrap(),
+        discovery_port: TEST_DISCOVERY_PORT,
+        broadcast_addr: TEST_IP.to_string(),
+        seed_addrs: vec![TEST_IP.to_string()],
         heartbeat_interval_ms: custom_heartbeat,
         failure_timeout_ms: custom_timeout,
+        cluster_secret: None,
     };
 
     assert_eq!(config.heartbeat_interval_ms, custom_heartbeat);
