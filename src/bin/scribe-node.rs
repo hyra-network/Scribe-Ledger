@@ -5,14 +5,24 @@
 //! graceful shutdown handling.
 
 use anyhow::Result;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get, put},
+    Router,
+};
+use bytes::Bytes;
 use clap::Parser;
-use hyra_scribe_ledger::api::DistributedApi;
+use hyra_scribe_ledger::api::{DistributedApi, ReadConsistency};
 use hyra_scribe_ledger::cluster::{ClusterConfig, ClusterInitializer, InitMode};
 use hyra_scribe_ledger::config::Config;
 use hyra_scribe_ledger::consensus::ConsensusNode;
 use hyra_scribe_ledger::discovery::{DiscoveryConfig, DiscoveryService};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::cors::CorsLayer;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -133,13 +143,34 @@ async fn main() -> Result<()> {
     }
 
     // Create distributed API
-    let _api = DistributedApi::new(consensus.clone());
+    let api = Arc::new(DistributedApi::new(consensus.clone()));
+
+    // Create app state
+    let app_state = AppState {
+        api,
+        node_id: config.node.id,
+    };
+
+    // Start HTTP server
+    let http_addr = format!("0.0.0.0:{}", config.network.client_port);
+    info!("Starting HTTP API server on {}", http_addr);
+    
+    let http_addr_clone = http_addr.clone();
+    let http_server = tokio::spawn(async move {
+        if let Err(e) = start_http_server(&http_addr_clone, app_state).await {
+            error!("HTTP server error: {}", e);
+        }
+    });
 
     info!("Node {} is ready", config.node.id);
+    info!("HTTP API available at http://{}", http_addr);
     info!("Press Ctrl+C to shutdown gracefully");
 
     // Wait for shutdown signal
     wait_for_shutdown_signal().await;
+    
+    // Abort HTTP server
+    http_server.abort();
 
     // Graceful shutdown
     info!("Shutdown signal received, stopping node...");
@@ -203,6 +234,95 @@ fn load_config(cli: &Cli) -> Result<Config> {
         let node_id = cli.node_id.unwrap_or(1);
         Ok(Config::default_for_node(node_id))
     }
+}
+
+// HTTP API types
+#[derive(Clone)]
+struct AppState {
+    api: Arc<DistributedApi>,
+    node_id: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct HealthResponse {
+    status: String,
+    node_id: u64,
+}
+
+// HTTP API handlers
+async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
+    axum::Json(HealthResponse {
+        status: "ok".to_string(),
+        node_id: state.node_id,
+    })
+}
+
+async fn put_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+    body: Bytes,
+) -> impl IntoResponse {
+    let value = body.to_vec();
+    match state.api.put(key.into_bytes(), value).await {
+        Ok(_) => (StatusCode::OK, "OK".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
+    }
+}
+
+async fn get_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    match state.api.get(key.into_bytes(), ReadConsistency::Stale).await {
+        Ok(Some(value)) => (
+            StatusCode::OK,
+            String::from_utf8_lossy(&value).to_string(),
+        ),
+        Ok(None) => (StatusCode::NOT_FOUND, "Not found".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
+    }
+}
+
+async fn delete_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    match state.api.delete(key.into_bytes()).await {
+        Ok(_) => (StatusCode::OK, "OK".to_string()),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ),
+    }
+}
+
+async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.api.metrics().await;
+    axum::Json(metrics)
+}
+
+/// Start HTTP API server
+async fn start_http_server(addr: &str, state: AppState) -> Result<()> {
+    let app = Router::new()
+        .route("/health", get(health_handler))
+        .route("/metrics", get(metrics_handler))
+        .route("/:key", put(put_handler))
+        .route("/:key", get(get_handler))
+        .route("/:key", delete(delete_handler))
+        .with_state(state)
+        .layer(CorsLayer::permissive());
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    info!("HTTP server listening on {}", addr);
+    
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 /// Wait for SIGTERM or SIGINT signal
