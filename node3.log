@@ -1,0 +1,96 @@
+
+[1m[36m
+██╗  ██╗██╗   ██╗██████╗  █████╗     ███████╗ ██████╗██████╗ ██╗██████╗ ███████╗    ██╗     ███████╗██████╗  ██████╗ ███████╗██████╗ 
+██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗    ██╔════╝██╔════╝██╔══██╗██║██╔══██╗██╔════╝    ██║     ██╔════╝██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+███████║ ╚████╔╝ ██████╔╝███████║    ███████╗██║     ██████╔╝██║██████╔╝█████╗      ██║     █████╗  ██║  ██║██║  ███╗█████╗  ██████╔╝
+██╔══██║  ╚██╔╝  ██╔══██╗██╔══██║    ╚════██║██║     ██╔══██╗██║██╔══██╗██╔══╝      ██║     ██╔══╝  ██║  ██║██║   ██║██╔══╝  ██╔══██╗
+██║  ██║   ██║   ██║  ██║██║  ██║    ███████║╚██████╗██║  ██║██║██████╔╝███████╗    ███████╗███████╗██████╔╝╚██████╔╝███████╗██║  ██║
+╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝    ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝    ╚══════╝╚══════╝╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝
+[0m
+[92m🔗 Verifiable, Durable Off-Chain Storage for AI Ecosystem[0m
+[92m🔄 Distributed Consensus & Real-time Monitoring[0m
+
+2025-10-20T04:37:22.025456Z  INFO ThreadId(01) scribe_node: Loading configuration from "config-node3.toml"
+[1m[33m📋 CONFIGURATION OVERVIEW[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[96m🔑 Node ID:[0m 3
+[96m📁 Data Directory:[0m ./node-3
+[96m⚙️  Config File:[0m config.toml
+
+[1m[34m🌐 NETWORK CONFIGURATION[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[94m🖥️  Listen Address:[37m 127.0.0.1:8003[0m
+[94m🌍 HTTP API URL:[92m http://127.0.0.1:8003[0m[0m
+[94m🔗 Raft TCP Port:[0m 9003
+
+[1m[32m📡 API ENDPOINTS[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[92m📤 PUT/GET[0m http://localhost:8003/{key}  - Data operations
+[92m📊 GET[0m http://localhost:8003/raft/status  - Raft status
+[92m📈 GET[0m http://localhost:8003/raft/metrics  - Performance metrics
+[92m📋 GET[0m http://localhost:8003/raft/events  - Recent events
+[92m📺 WS[37m [0m  ws://localhost:8003/raft/live  - Live monitoring
+
+[1m[35m💾 STORAGE CONFIGURATION[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[36m📊 Buffer Size:[0m 64 MB
+[36m📦 Segment Limit:[0m 1 GB
+[36m🗄️  Sled Database:[0m ./node-3/db
+[36m💿 Database Size:[0m 0.00 MB (new)
+
+[1m[96m☁️  S3 STORAGE CONFIGURATION[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[94m🌐 Endpoint:[0m http://localhost:9000
+[94m🪣 Bucket:[0m scribe-ledger-node3
+[94m🌍 Region:[0m us-east-1
+[94m🔑 Access Key:[0m mini***
+[94m🔧 Path Style:[0m Enabled (MinIO compatible)
+
+[1m[33m🔄 CONSENSUS CONFIGURATION[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[33m⏱️  Election Timeout:[0m 5000 ms
+[33m💓 Heartbeat Interval:[0m 1000 ms
+[33m👥 Cluster Peers:[0m Single node (development mode)
+
+[1m[32m💻 SYSTEM INFORMATION[0m
+[1m[36m══════════════════════════════════════════════════════════════════════[0m
+[92m🖥️  Hostname:[0m Mac-mini-cua-Luu.local
+[92m👤 User:[0m luuhuy
+[92m📝 Log Level:[0m INFO
+
+[1m[36m══════════════════════════════════════════════════════════════════════[1m[36m══════════════════════════════════════════════════════════════════════[0m
+
+2025-10-20T04:37:22.028751Z  INFO ThreadId(01) scribe_node: Storage initialized at "./node-3/db"
+2025-10-20T04:37:22.028768Z  INFO ThreadId(01) scribe_node: S3 storage configuration detected
+2025-10-20T04:37:22.028772Z  INFO ThreadId(01) scribe_node:   Bucket: scribe-ledger-node3
+2025-10-20T04:37:22.028776Z  INFO ThreadId(01) scribe_node:   Region: us-east-1
+2025-10-20T04:37:22.028779Z  INFO ThreadId(01) scribe_node:   Endpoint: http://localhost:9000
+2025-10-20T04:37:22.028782Z  INFO ThreadId(01) scribe_node:   Path style: true
+2025-10-20T04:37:22.028785Z  INFO ThreadId(01) scribe_node:   Pool size: 10
+2025-10-20T04:37:22.028789Z  INFO ThreadId(01) scribe_node:   Timeout: 30s
+2025-10-20T04:37:22.028792Z  INFO ThreadId(01) scribe_node:   Max retries: 3
+2025-10-20T04:37:22.142489Z  INFO ThreadId(01) scribe_node: ✓ S3 storage initialized successfully
+2025-10-20T04:37:22.142637Z  INFO ThreadId(01) scribe_node: Consensus node created with ID 3
+2025-10-20T04:37:22.142705Z  INFO ThreadId(01) hyra_scribe_ledger::discovery: Discovery service initialized on port 17948 for node 3
+2025-10-20T04:37:22.142709Z  INFO ThreadId(01) scribe_node: Discovery service created
+2025-10-20T04:37:22.142711Z  INFO ThreadId(01) hyra_scribe_ledger::discovery: Starting discovery service for node 3
+2025-10-20T04:37:22.142777Z  INFO ThreadId(01) scribe_node: Discovery service started
+2025-10-20T04:37:22.142780Z  INFO ThreadId(01) scribe_node: Initializing cluster in Join mode
+2025-10-20T04:37:22.142782Z  INFO ThreadId(01) hyra_scribe_ledger::cluster: Attempting to join existing cluster for node 3
+2025-10-20T04:37:22.142784Z  INFO ThreadId(01) hyra_scribe_ledger::cluster: Waiting for at least 1 peer(s) to be discovered (timeout: 5000ms)...
+2025-10-20T04:37:27.155753Z  WARN ThreadId(01) hyra_scribe_ledger::cluster: No peers discovered
+2025-10-20T04:37:27.155831Z  WARN ThreadId(01) hyra_scribe_ledger::cluster: Node 3 will initialize as standalone cluster
+2025-10-20T04:37:27.155847Z  INFO ThreadId(01) hyra_scribe_ledger::cluster: Bootstrapping new cluster with node 3
+2025-10-20T04:37:27.163402Z  INFO ThreadId(01) hyra_scribe_ledger::cluster: Successfully bootstrapped cluster with node 3
+2025-10-20T04:37:27.163727Z  INFO ThreadId(01) scribe_node: Starting HTTP API server on 0.0.0.0:8003
+2025-10-20T04:37:27.163762Z  INFO ThreadId(01) scribe_node: Node 3 is ready
+2025-10-20T04:37:27.163796Z  INFO ThreadId(01) scribe_node: HTTP API available at http://0.0.0.0:8003
+2025-10-20T04:37:27.163802Z  INFO ThreadId(01) scribe_node: Press Ctrl+C to shutdown gracefully
+2025-10-20T04:37:27.164849Z  INFO ThreadId(11) scribe_node: HTTP server listening on 0.0.0.0:8003
+2025-10-20T04:39:14.084893Z  INFO ThreadId(01) scribe_node: Received SIGTERM signal
+2025-10-20T04:39:14.084937Z  INFO ThreadId(01) scribe_node: Shutdown signal received, stopping node...
+2025-10-20T04:39:14.084943Z  INFO ThreadId(01) hyra_scribe_ledger::discovery: Discovery service stopped for node 3
+2025-10-20T04:39:14.084948Z  INFO ThreadId(01) scribe_node: Discovery service stopped
+2025-10-20T04:39:14.088431Z  INFO ThreadId(11) hyra_scribe_ledger::discovery: Discovery receiver loop stopped
+2025-10-20T04:39:14.089662Z  INFO ThreadId(01) scribe_node: Consensus node stopped
+2025-10-20T04:39:14.089674Z  INFO ThreadId(01) scribe_node: Node 3 shutdown complete
